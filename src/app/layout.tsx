@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
 
 const inter = Inter({
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

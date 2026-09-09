@@ -1,305 +1,204 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { redirect, notFound } from 'next/navigation';
+import { Tag, MapPin, Users, Mail, Settings, ArrowRight } from 'lucide-react';
+import { SessionCookieManager } from '@/modules/auth/cookies';
+import { ContextResolver } from '@/modules/auth/context-resolver';
+import { prisma } from '@/shared/database/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
-export default function WorkspaceOverviewPage() {
-  const params = useParams();
-  const tenantSlug = typeof params['tenantSlug'] === 'string' ? params['tenantSlug'] : '';
+export const metadata: Metadata = {
+  title: 'Overview — localBi',
+  description: 'Multi-tenant organization administrative overview and metrics',
+};
 
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    brandsCount: 0,
-    locationsCount: 0,
-    membersCount: 0,
-    invitationsCount: 0,
-  });
+export default async function WorkspaceOverviewPage({
+  params,
+}: {
+  params: Promise<{ tenantSlug: string }>;
+}) {
+  const { tenantSlug } = await params;
+  const cookieStore = await cookies();
+  const token = SessionCookieManager.getSessionToken(cookieStore);
 
-  useEffect(() => {
-    async function loadStats() {
-      try {
-        setLoading(true);
-        const [brandsRes, locsRes, membersRes, invitesRes] = await Promise.all([
-          fetch(`/api/tenants/${tenantSlug}/brands`),
-          fetch(`/api/tenants/${tenantSlug}/locations`),
-          fetch(`/api/tenants/${tenantSlug}/members`),
-          fetch(`/api/tenants/${tenantSlug}/invitations`),
-        ]);
+  if (!token) {
+    redirect('/login');
+  }
 
-        const [brandsData, locsData, membersData, invitesData] = await Promise.all([
-          brandsRes.ok ? brandsRes.json() : { total: 0 },
-          locsRes.ok ? locsRes.json() : { total: 0 },
-          membersRes.ok ? membersRes.json() : { members: [] },
-          invitesRes.ok ? invitesRes.json() : { invitations: [] },
-        ]);
+  let resolved = null;
+  try {
+    resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
+  } catch {
+    redirect('/login');
+  }
 
-        setStats({
-          brandsCount: brandsData.total || 0,
-          locationsCount: locsData.total || 0,
-          membersCount: membersData.members?.length || 0,
-          invitationsCount: invitesData.invitations?.length || 0,
-        });
-      } catch {
-        // Handled gracefully
-      } finally {
-        setLoading(false);
-      }
-    }
+  if (!resolved.tenant) {
+    notFound();
+  }
 
-    if (tenantSlug) {
-      loadStats();
-    }
-  }, [tenantSlug]);
+  const tenant = resolved.tenant;
+
+  // Execute aggregated counts securely on the server in parallel
+  const [brandsCount, locationsCount, membersCount, invitationsCount] = await Promise.all([
+    prisma.brand.count({ where: { tenantId: tenant.id } }),
+    prisma.location.count({ where: { tenantId: tenant.id } }),
+    prisma.tenantMembership.count({ where: { tenantId: tenant.id, status: 'ACTIVE' } }),
+    prisma.invitation.count({
+      where: {
+        tenantId: tenant.id,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    }),
+  ]);
+
+  const kpis = [
+    {
+      title: 'Brands',
+      value: brandsCount,
+      description: 'Registered client brands',
+      icon: Tag,
+      color: 'text-indigo-600 bg-indigo-50 border-indigo-200/60',
+    },
+    {
+      title: 'Locations',
+      value: locationsCount,
+      description: 'Active branch stores',
+      icon: MapPin,
+      color: 'text-blue-600 bg-blue-50 border-blue-200/60',
+    },
+    {
+      title: 'Team Members',
+      value: membersCount,
+      description: 'Active scoped users',
+      icon: Users,
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-200/60',
+    },
+    {
+      title: 'Pending Invites',
+      value: invitationsCount,
+      description: 'Awaiting member acceptance',
+      icon: Mail,
+      color: 'text-amber-600 bg-amber-50 border-amber-200/60',
+    },
+  ];
+
+  const modules = [
+    {
+      title: 'Brand Administration',
+      description: 'Configure client brand identities, tenant-unique slugs, and scope access.',
+      href: `/t/${tenant.slug}/brands`,
+      icon: Tag,
+      accent: 'text-indigo-600 bg-indigo-50',
+    },
+    {
+      title: 'Location Directory',
+      description: 'Register physical locations with store codes, ISO country codes, and IANA time zones.',
+      href: `/t/${tenant.slug}/locations`,
+      icon: MapPin,
+      accent: 'text-blue-600 bg-blue-50',
+    },
+    {
+      title: 'Team & Permissions',
+      description: 'Assign granular roles and restrict access to specific brands or locations.',
+      href: `/t/${tenant.slug}/team`,
+      icon: Users,
+      accent: 'text-emerald-600 bg-emerald-50',
+    },
+    {
+      title: 'Settings & Active Sessions',
+      description: 'Organization preferences, concurrency locking, and active device revocation.',
+      href: `/t/${tenant.slug}/settings`,
+      icon: Settings,
+      accent: 'text-amber-600 bg-amber-50',
+    },
+  ];
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1>Organization Overview</h1>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-          Real-time summary of multi-tenant administrative assets and access controls.
-        </p>
-      </div>
-
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Brands
-            </span>
-            <div style={{ color: 'var(--accent-primary)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-              </svg>
-            </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              {tenant.name}
+            </h1>
+            <Badge variant="secondary" className="capitalize text-xs">
+              {tenant.plan}
+            </Badge>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {loading ? '-' : stats.brandsCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Registered client brands
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Locations
-            </span>
-            <div style={{ color: 'var(--accent-info)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {loading ? '-' : stats.locationsCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Physical stores & branches
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Team Members
-            </span>
-            <div style={{ color: 'var(--accent-success)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-              </svg>
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {loading ? '-' : stats.membersCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Active scoped users
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Pending Invites
-            </span>
-            <div style={{ color: 'var(--accent-warning)' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {loading ? '-' : stats.invitationsCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Awaiting acceptance
-          </div>
+          <p className="text-sm text-slate-500">
+            Real-time summary of multi-tenant administrative assets and access controls. Timezone: {tenant.timezone}.
+          </p>
         </div>
       </div>
 
-      {/* Quick Access Grid */}
-      <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Administrative Modules</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-        <Link
-          href={`/t/${tenantSlug}/brands`}
-          className="card"
-          style={{ textDecoration: 'none', transition: 'all var(--transition-fast)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              background: 'rgba(99, 102, 241, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-primary)',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-              </svg>
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Brand Administration</h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                Configure client brand identities, tenant-unique slugs, and scope access.
-              </p>
-            </div>
-          </div>
-        </Link>
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <Card key={kpi.title} className="border-slate-200/80 shadow-xs">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  {kpi.title}
+                </CardTitle>
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${kpi.color}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold tracking-tight text-slate-900">
+                  {kpi.value}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {kpi.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-        <Link
-          href={`/t/${tenantSlug}/locations`}
-          className="card"
-          style={{ textDecoration: 'none', transition: 'all var(--transition-fast)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              background: 'rgba(14, 165, 233, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-info)',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
-              </svg>
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Location Directory</h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                Register physical locations with store codes, ISO country codes, and IANA time zones.
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href={`/t/${tenantSlug}/team`}
-          className="card"
-          style={{ textDecoration: 'none', transition: 'all var(--transition-fast)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              background: 'rgba(16, 185, 129, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-success)',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-              </svg>
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Team & Access Control</h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                Assign 8 granular roles and restrict access to specific brands or locations.
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href={`/t/${tenantSlug}/settings`}
-          className="card"
-          style={{ textDecoration: 'none', transition: 'all var(--transition-fast)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent-primary)';
-            e.currentTarget.style.transform = 'translateY(-2px)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-            e.currentTarget.style.transform = 'translateY(0)';
-          }}
-        >
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '8px',
-              background: 'rgba(245, 158, 11, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent-warning)',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>Settings & Active Sessions</h3>
-              <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                Organization preferences, concurrency locking, and active device revocation.
-              </p>
-            </div>
-          </div>
-        </Link>
+      {/* Quick Access Modules Grid */}
+      <div>
+        <h2 className="text-base font-semibold text-slate-900 mb-4 tracking-tight">
+          Administrative Modules
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {modules.map((mod) => {
+            const Icon = mod.icon;
+            return (
+              <Link
+                key={mod.href}
+                href={mod.href}
+                className="group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl"
+              >
+                <Card className="h-full border-slate-200/80 hover:border-indigo-400 hover:shadow-md transition-all duration-200 p-5">
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0 transition-colors group-hover:bg-indigo-600 group-hover:text-white ${mod.accent}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {mod.title}
+                        </h3>
+                        <ArrowRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-600" />
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        {mod.description}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
