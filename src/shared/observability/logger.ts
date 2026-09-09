@@ -19,6 +19,12 @@ const SENSITIVE_KEYS = [
   'secret',
   'cookie',
   'set-cookie',
+  'session_token',
+  'sessionToken',
+  'session_token_hash',
+  'sessionTokenHash',
+  'token_hash',
+  'tokenHash',
 ];
 
 const redactionPaths = SENSITIVE_KEYS.flatMap((key) => [

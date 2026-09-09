@@ -6,5 +6,6 @@ export default defineConfig({
     include: ['spikes/**/*.test.ts', 'tests/**/*.test.ts'],
     setupFiles: ['./tests/setup.ts'],
     globals: true,
+    fileParallelism: false,
   },
 });

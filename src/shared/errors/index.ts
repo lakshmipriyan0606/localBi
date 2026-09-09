@@ -10,6 +10,12 @@ export const ErrorCode = {
   SYNC_PARTIALLY_COMPLETED: 'SYNC_PARTIALLY_COMPLETED',
   RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
   POLICY_GATE_LOCKED: 'POLICY_GATE_LOCKED',
+  RATE_LIMITED: 'RATE_LIMITED',
+  CONFLICT: 'CONFLICT',
+  ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+  LAST_OWNER_PROTECTION: 'LAST_OWNER_PROTECTION',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
 } as const;
 
@@ -137,3 +143,60 @@ export function createPolicyGateLockedError(message: string, requestId?: string)
     requestId,
   });
 }
+
+export function createRateLimitedError(message = 'Too many requests, please try again later.', retryAfterSeconds?: number, requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.RATE_LIMITED,
+    message,
+    statusCode: 429,
+    requestId,
+    details: retryAfterSeconds ? { retryAfterSeconds } : undefined,
+  });
+}
+
+export function createConflictError(message: string, details?: Record<string, unknown>, requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.CONFLICT,
+    message,
+    statusCode: 409,
+    requestId,
+    details,
+  });
+}
+
+export function createAccountSuspendedError(requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.ACCOUNT_SUSPENDED,
+    message: 'This account or membership has been suspended.',
+    statusCode: 403,
+    requestId,
+  });
+}
+
+export function createInvalidCredentialsError(requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.INVALID_CREDENTIALS,
+    message: 'Invalid email or password.',
+    statusCode: 401,
+    requestId,
+  });
+}
+
+export function createInvalidTokenError(message = 'Invalid, expired, or previously used token.', requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.INVALID_TOKEN,
+    message,
+    statusCode: 400,
+    requestId,
+  });
+}
+
+export function createLastOwnerProtectionError(message = 'Cannot remove, demote, or suspend the last active owner of this organization.', requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.LAST_OWNER_PROTECTION,
+    message,
+    statusCode: 409,
+    requestId,
+  });
+}
+
