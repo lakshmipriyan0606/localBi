@@ -1,0 +1,637 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------------
+// CONTROL PLANE (Global / Identity / Memberships)
+// -----------------------------------------------------------------------------
+
+model Tenant {
+  id                   String              @id @default(cuid())
+  name                 String
+  slug                 String              @unique
+  timezone             String              @default("UTC")
+  plan                 String              @default("STANDARD")
+  status               String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_DELETION
+  deletionScheduledAt  DateTime?           @map("deletion_scheduled_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  memberships          TenantMembership[]
+  invitations          Invitation[]
+  brands               Brand[]
+  locations            Location[]
+  products             Product[]
+  productLocations     ProductLocation[]
+  connections          IntegrationConnection[]
+  externalAccounts     ExternalAccount[]
+  externalResources    ExternalResource[]
+  resourceMappings     InternalResourceMapping[]
+  gscProperties        GscProperty[]
+  gscPages             GscPage[]
+  gscQueries           GscQuery[]
+  gscDailyTotals       GscDailyPropertyTotal[]
+  gscDailyDevices      GscDailyDeviceMetric[]
+  gscDailyCountries    GscDailyCountryMetric[]
+  gscDailyPages        GscDailyPageMetric[]
+  gscDailyQueries      GscDailyQueryMetric[]
+  gbpDailyMetrics      GbpDailyMetric[]
+  syncRuns             SyncRun[]
+  syncCursors          SyncCursor[]
+  auditLogs            AuditLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id               String              @id @default(cuid())
+  email            String              @unique
+  fullName         String              @map("full_name")
+  status           String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_VERIFICATION
+  emailVerifiedAt  DateTime?           @map("email_verified_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  credential       UserCredential?
+  identities       UserIdentity[]
+  sessions         UserSession[]
+  tokens           AuthToken[]
+  memberships      TenantMembership[]
+  staffAccess      PlatformStaffAccess[]
+
+  @@map("users")
+}
+
+model UserCredential {
+  userId               String    @id @map("user_id")
+  passwordHash         String    @map("password_hash")
+  passwordChangedAt    DateTime  @default(now()) @map("password_changed_at")
+  failedLoginAttempts  Int       @default(0) @map("failed_login_attempts")
+  lockedUntil          DateTime? @map("locked_until")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+model UserIdentity {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  provider      String   // e.g. GOOGLE_SSO, OKTA, AZURE_AD
+  providerSub   String   @map("provider_sub")
+  providerEmail String   @map("provider_email")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerSub], name: "uq_user_identity_provider_sub")
+  @@map("user_identities")
+}
+
+model UserSession {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  sessionTokenHash String    @unique @map("session_token_hash")
+  ipAddress        String    @map("ip_address")
+  userAgent        String    @map("user_agent")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model AuthToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  tokenHash  String    @unique @map("token_hash")
+  tokenType  String    @map("token_type") // VERIFY_EMAIL, RESET_PASSWORD
+  expiresAt  DateTime  @map("expires_at")
+  usedAt     DateTime? @map("used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_tokens")
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  email       String
+  role        String
+  scopeMode   String    @default("ALL") @map("scope_mode") // ALL, RESTRICTED
+  tokenHash   String    @unique @map("token_hash")
+  invitedBy   String    @map("invited_by")
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+model PlatformStaffAccess {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  role           String    // SUPER_ADMIN, SUPPORT_ADMIN
+  targetTenantId String    @map("target_tenant_id")
+  reason         String
+  approvedBy     String    @map("approved_by")
+  startsAt       DateTime  @default(now()) @map("starts_at")
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("platform_staff_access")
+}
+
+model TenantMembership {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  role        String   // CLIENT_OWNER, CLIENT_ADMIN, BRAND_MANAGER, LOCATION_MANAGER, ANALYST, VIEWER
+  scopeMode   String   @default("ALL") @map("scope_mode") // ALL, RESTRICTED
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  brandScopes    BrandAccessScope[]
+  locationScopes LocationAccessScope[]
+
+  @@unique([tenantId, userId], name: "uq_membership_tenant_user")
+  @@unique([tenantId, id], name: "uq_membership_tenant_id")
+  @@map("tenant_memberships")
+}
+
+// -----------------------------------------------------------------------------
+// TENANT DATA PLANE (Scoped by tenant_id)
+// -----------------------------------------------------------------------------
+
+model Brand {
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  name        String
+  slug        String
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  locations   Location[]
+  products    Product[]
+  scopes      BrandAccessScope[]
+
+  @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
+  @@unique([tenantId, id], name: "uq_brand_tenant_id")
+  @@map("brands")
+}
+
+model BrandAccessScope {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  membershipId String   @map("membership_id")
+  brandId      String   @map("brand_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  membership   TenantMembership @relation(fields: [tenantId, membershipId], references: [tenantId, id], onDelete: Cascade)
+  brand        Brand            @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, membershipId, brandId], name: "uq_brand_scope")
+  @@map("brand_access_scopes")
+}
+
+model Location {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  brandId      String    @map("brand_id")
+  name         String
+  storeCode    String?   @map("store_code")
+  addressLine1 String    @map("address_line1")
+  city         String
+  state        String
+  postalCode   String    @map("postal_code")
+  country      String    // ISO 3166-1 alpha-2 / alpha-3 (No hardcoded default)
+  timezone     String    @default("UTC")
+  isClosed     Boolean   @default(false) @map("is_closed")
+  closedAt     DateTime? @map("closed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  scopes           LocationAccessScope[]
+  productLocations ProductLocation[]
+  gbpMetrics       GbpDailyMetric[]
+
+  @@unique([tenantId, id], name: "uq_location_tenant_id")
+  @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
+  @@unique([tenantId, brandId, storeCode], name: "uq_location_brand_code")
+  @@map("locations")
+}
+
+model LocationAccessScope {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  membershipId String   @map("membership_id")
+  locationId   String   @map("location_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  membership   TenantMembership @relation(fields: [tenantId, membershipId], references: [tenantId, id], onDelete: Cascade)
+  location     Location         @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, membershipId, locationId], name: "uq_location_scope")
+  @@map("location_access_scopes")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  brandId     String   @map("brand_id")
+  name        String
+  sku         String
+  category    String?
+  status      String   @default("ACTIVE") // ACTIVE, RETIRED
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand       Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  productLocations ProductLocation[]
+
+  @@unique([tenantId, id], name: "uq_product_tenant_id")
+  @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
+  @@unique([tenantId, brandId, sku], name: "uq_product_sku")
+  @@map("products")
+}
+
+model ProductLocation {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  brandId     String   @map("brand_id")
+  productId   String   @map("product_id")
+  locationId  String   @map("location_id")
+  isAvailable Boolean  @default(true) @map("is_available")
+  price       Decimal? @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+  location    Location @relation(fields: [tenantId, brandId, locationId], references: [tenantId, brandId, id], onDelete: Cascade)
+
+  @@unique([tenantId, brandId, productId, locationId], name: "uq_product_location")
+  @@map("product_locations")
+}
+
+// -----------------------------------------------------------------------------
+// NORMALIZED GOOGLE INTEGRATION & RESOURCE DISCOVERY LAYER
+// -----------------------------------------------------------------------------
+
+model IntegrationConnection {
+  id                    String    @id @default(cuid())
+  tenantId              String    @map("tenant_id")
+  provider              String    // GOOGLE
+  externalSubjectId     String    @map("external_subject_id") // Google immutable sub
+  externalEmail         String    @map("external_email")
+  encryptedRefreshToken String    @map("encrypted_refresh_token")
+  tokenKeyVersion       Int       @default(1) @map("token_key_version")
+  grantedScopes         String[]  @map("granted_scopes")
+  status                String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED
+  lastUsedAt            DateTime? @map("last_used_at")
+  revokedAt             DateTime? @map("revoked_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  accounts              ExternalAccount[]
+  resourceAccess        ConnectionResourceAccess[]
+
+  @@unique([tenantId, id], name: "uq_connection_tenant_id")
+  @@unique([tenantId, provider, externalSubjectId], name: "uq_connection_provider_sub")
+  @@map("integration_connections")
+}
+
+model ExternalAccount {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  connectionId      String   @map("connection_id")
+  provider          String   // GOOGLE_BUSINESS_PROFILE
+  externalAccountId String   @map("external_account_id")
+  accountName       String   @map("account_name")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  tenant            Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  connection        IntegrationConnection @relation(fields: [tenantId, connectionId], references: [tenantId, id], onDelete: Cascade)
+
+  resources         ExternalResource[]
+
+  @@unique([tenantId, id], name: "uq_external_account_tenant_id")
+  @@unique([tenantId, provider, externalAccountId], name: "uq_external_account_provider_id")
+  @@map("external_accounts")
+}
+
+model ExternalResource {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  accountId          String   @map("account_id")
+  provider           String   // GOOGLE_BUSINESS_PROFILE, GOOGLE_SEARCH_CONSOLE
+  externalResourceId String   @map("external_resource_id")
+  resourceType       String   @map("resource_type") // LOCATION, PROPERTY
+  resourceName       String   @map("resource_name")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  account            ExternalAccount @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Cascade)
+
+  connectionAccess   ConnectionResourceAccess[]
+  internalMappings   InternalResourceMapping[]
+  gscProperties      GscProperty[]
+
+  @@unique([tenantId, id], name: "uq_external_resource_tenant_id")
+  @@unique([tenantId, provider, externalResourceId], name: "uq_external_resource_provider_id")
+  @@map("external_resources")
+}
+
+model ConnectionResourceAccess {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  connectionId   String   @map("connection_id")
+  resourceId     String   @map("resource_id")
+  canAccess      Boolean  @default(true) @map("can_access")
+  lastVerifiedAt DateTime @default(now()) @map("last_verified_at")
+
+  connection     IntegrationConnection @relation(fields: [tenantId, connectionId], references: [tenantId, id], onDelete: Cascade)
+  resource       ExternalResource      @relation(fields: [tenantId, resourceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, connectionId, resourceId], name: "uq_connection_resource_access")
+  @@map("connection_resource_access")
+}
+
+model InternalResourceMapping {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  resourceId   String   @map("resource_id")
+  internalType String   @map("internal_type") // LOCATION, BRAND
+  internalId   String   @map("internal_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resource     ExternalResource @relation(fields: [tenantId, resourceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, internalType, internalId, resourceId], name: "uq_internal_resource_mapping")
+  @@map("internal_resource_mappings")
+}
+
+// -----------------------------------------------------------------------------
+// MULTI-GRAIN GSC ANALYTICS & DIMENSIONS
+// -----------------------------------------------------------------------------
+
+model GscProperty {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  resourceId   String   @map("resource_id")
+  propertyUrl  String   @map("property_url") // e.g. sc-domain:example.com or https://example.com/
+  propertyType String   @map("property_type") // DOMAIN, URL_PREFIX
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resource     ExternalResource @relation(fields: [tenantId, resourceId], references: [tenantId, id], onDelete: Cascade)
+
+  pages        GscPage[]
+  queries      GscQuery[]
+  dailyTotals  GscDailyPropertyTotal[]
+  dailyDevices GscDailyDeviceMetric[]
+  dailyCountries GscDailyCountryMetric[]
+  dailyPages   GscDailyPageMetric[]
+  dailyQueries GscDailyQueryMetric[]
+
+  @@unique([tenantId, id], name: "uq_gsc_property_tenant_id")
+  @@unique([tenantId, propertyUrl], name: "uq_gsc_property_url")
+  @@map("gsc_properties")
+}
+
+model GscPage {
+  id         BigInt   @id @default(autoincrement())
+  tenantId   String   @map("tenant_id")
+  propertyId String   @map("property_id")
+  pageHash   String   @db.Char(64) @map("page_hash") // SHA-256 of URL to avoid large B-Tree index bloat
+  fullUrl    String   @map("full_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property   GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+
+  dailyMetrics GscDailyPageMetric[]
+
+  @@unique([tenantId, id], name: "uq_gsc_page_tenant_id")
+  @@unique([tenantId, propertyId, pageHash], name: "uq_gsc_page_hash")
+  @@map("gsc_pages")
+}
+
+model GscQuery {
+  id         BigInt   @id @default(autoincrement())
+  tenantId   String   @map("tenant_id")
+  propertyId String   @map("property_id")
+  queryHash  String   @db.Char(64) @map("query_hash") // SHA-256 of query text
+  queryText  String   @map("query_text")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property   GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+
+  dailyMetrics GscDailyQueryMetric[]
+
+  @@unique([tenantId, id], name: "uq_gsc_query_tenant_id")
+  @@unique([tenantId, propertyId, queryHash], name: "uq_gsc_query_hash")
+  @@map("gsc_queries")
+}
+
+model GscDailyPropertyTotal {
+  id                     BigInt   @id @default(autoincrement())
+  tenantId               String   @map("tenant_id")
+  propertyId             String   @map("property_id")
+  date                   DateTime @db.Date
+  searchType             String   @default("WEB") @map("search_type")
+  dataState              String   @default("FINAL") @map("data_state") // FINAL, FRESH
+  clicks                 Int      @default(0)
+  impressions            Int      @default(0)
+  sumPositionImpressions Float    @default(0.0) @map("sum_position_impressions") // position * impressions
+  syncRevision           Int      @default(1) @map("sync_revision")
+  freshnessTimestamp     DateTime @map("freshness_timestamp")
+
+  tenant                 Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property               GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId, date, searchType], name: "uq_gsc_property_total")
+  @@map("gsc_daily_property_totals")
+}
+
+model GscDailyDeviceMetric {
+  id                     BigInt   @id @default(autoincrement())
+  tenantId               String   @map("tenant_id")
+  propertyId             String   @map("property_id")
+  date                   DateTime @db.Date
+  searchType             String   @default("WEB") @map("search_type")
+  device                 String   // DESKTOP, MOBILE, TABLET
+  clicks                 Int      @default(0)
+  impressions            Int      @default(0)
+  sumPositionImpressions Float    @default(0.0) @map("sum_position_impressions")
+
+  tenant                 Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property               GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId, date, searchType, device], name: "uq_gsc_device_metric")
+  @@map("gsc_daily_device_metrics")
+}
+
+model GscDailyCountryMetric {
+  id                     BigInt   @id @default(autoincrement())
+  tenantId               String   @map("tenant_id")
+  propertyId             String   @map("property_id")
+  date                   DateTime @db.Date
+  searchType             String   @default("WEB") @map("search_type")
+  country                String   @db.Char(3) // ISO 3166-1 alpha-3
+  clicks                 Int      @default(0)
+  impressions            Int      @default(0)
+  sumPositionImpressions Float    @default(0.0) @map("sum_position_impressions")
+
+  tenant                 Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property               GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId, date, searchType, country], name: "uq_gsc_country_metric")
+  @@map("gsc_daily_country_metrics")
+}
+
+model GscDailyPageMetric {
+  id                     BigInt   @id @default(autoincrement())
+  tenantId               String   @map("tenant_id")
+  propertyId             String   @map("property_id")
+  date                   DateTime @db.Date
+  searchType             String   @default("WEB") @map("search_type")
+  pageId                 BigInt   @map("page_id")
+  clicks                 Int      @default(0)
+  impressions            Int      @default(0)
+  sumPositionImpressions Float    @default(0.0) @map("sum_position_impressions")
+
+  tenant                 Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property               GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+  page                   GscPage     @relation(fields: [tenantId, pageId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId, date, searchType, pageId], name: "uq_gsc_page_metric")
+  @@map("gsc_daily_page_metrics")
+}
+
+model GscDailyQueryMetric {
+  id                     BigInt   @id @default(autoincrement())
+  tenantId               String   @map("tenant_id")
+  propertyId             String   @map("property_id")
+  date                   DateTime @db.Date
+  searchType             String   @default("WEB") @map("search_type")
+  queryId                BigInt   @map("query_id")
+  clicks                 Int      @default(0)
+  impressions            Int      @default(0)
+  sumPositionImpressions Float    @default(0.0) @map("sum_position_impressions")
+
+  tenant                 Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  property               GscProperty @relation(fields: [tenantId, propertyId], references: [tenantId, id], onDelete: Cascade)
+  query                  GscQuery    @relation(fields: [tenantId, queryId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, propertyId, date, searchType, queryId], name: "uq_gsc_query_metric")
+  @@map("gsc_daily_query_metrics")
+}
+
+// -----------------------------------------------------------------------------
+// GOOGLE BUSINESS PROFILE (Provisionally Gated & 30-Day Retention)
+// -----------------------------------------------------------------------------
+
+model GbpDailyMetric {
+  id          BigInt   @id @default(autoincrement())
+  tenantId    String   @map("tenant_id")
+  locationId  String   @map("location_id")
+  date        DateTime @db.Date
+  metricType  String   @map("metric_type")
+  value       BigInt   @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location    Location @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, locationId, date, metricType], name: "uq_gbp_metric")
+  @@map("gbp_daily_metrics")
+}
+
+// -----------------------------------------------------------------------------
+// OPERATIONAL SYNC LOGGING & CURSORS
+// -----------------------------------------------------------------------------
+
+model SyncRun {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  provider     String    // GSC, GBP
+  resourceId   String    @map("resource_id")
+  businessKey  String    @map("business_key")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  status       String    // RUNNING, SUCCESS, PARTIAL, FAILED, ABORTED_ORPHAN
+  rowsIngested Int       @default(0) @map("rows_ingested")
+  errorCode    String?   @map("error_code")
+  errorDetails Json?     @map("error_details")
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, businessKey], name: "uq_sync_run_business_key")
+  @@map("sync_runs")
+}
+
+model SyncCursor {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  provider    String
+  resourceId  String   @map("resource_id")
+  cursorKey   String   @map("cursor_key")
+  cursorValue String   @map("cursor_value")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider, resourceId, cursorKey], name: "uq_sync_cursor")
+  @@map("sync_cursors")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  tenantId     String?  @map("tenant_id")
+  actorId      String   @map("actor_id")
+  actorRole    String   @map("actor_role")
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id")
+  oldValues    Json?    @map("old_values")
+  newValues    Json?    @map("new_values")
+  ipAddress    String   @map("ip_address")
+  userAgent    String   @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

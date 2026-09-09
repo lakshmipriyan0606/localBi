@@ -1,0 +1,45 @@
+{
+  "name": "localbi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:unit": "vitest run spikes tests/phase1-foundation.test.ts",
+    "test:integration": "vitest run tests/live-rls.test.ts tests/live-redis.test.ts tests/bootstrap-password-safety.test.ts",
+    "test:spikes": "vitest run spikes",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "verify": "node scripts/verify-pipeline.cjs"
+  },
+  "dependencies": {
+    "@prisma/client": "6.12.0",
+    "argon2": "0.41.1",
+    "bullmq": "6.3.4",
+    "ioredis": "6.0.0",
+    "next": "16.3.4",
+    "pino": "10.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "eslint": "9.39.5",
+    "pino-pretty": "13.1.2",
+    "prisma": "6.12.0",
+    "typescript": "5.8.2",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}
