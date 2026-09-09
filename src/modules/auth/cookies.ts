@@ -24,11 +24,7 @@ export const SESSION_COOKIE_OPTIONS: Partial<ResponseCookie> = {
   maxAge: 7 * 24 * 60 * 60, // 7 days (matching absolute session lifetime)
 };
 
-export interface CookieWriter {
-  set(name: string, value: string, options?: Partial<ResponseCookie>): void;
-  delete(name: string): void;
-  get(name: string): { name: string; value: string } | undefined;
-}
+export type CookieWriter = Awaited<ReturnType<typeof import('next/headers').cookies>>;
 
 export class SessionCookieManager {
   /**
