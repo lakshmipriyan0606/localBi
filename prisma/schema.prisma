@@ -20,6 +20,7 @@ model Tenant {
   plan                 String              @default("STANDARD")
   status               String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_DELETION
   deletionScheduledAt  DateTime?           @map("deletion_scheduled_at")
+  version              Int                 @default(1)
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")
 
@@ -103,10 +104,13 @@ model UserSession {
   userAgent        String    @map("user_agent")
   expiresAt        DateTime  @map("expires_at")
   revokedAt        DateTime? @map("revoked_at")
+  lastActiveAt     DateTime  @default(now()) @map("last_active_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId], name: "idx_user_sessions_user_id")
+  @@index([expiresAt], name: "idx_user_sessions_expires_at")
   @@map("user_sessions")
 }
 
@@ -121,24 +125,30 @@ model AuthToken {
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, tokenType], name: "idx_auth_tokens_user_type")
+  @@index([expiresAt], name: "idx_auth_tokens_expires_at")
   @@map("auth_tokens")
 }
 
 model Invitation {
-  id          String    @id @default(cuid())
-  tenantId    String    @map("tenant_id")
-  email       String
-  role        String
-  scopeMode   String    @default("ALL") @map("scope_mode") // ALL, RESTRICTED
-  tokenHash   String    @unique @map("token_hash")
-  invitedBy   String    @map("invited_by")
-  expiresAt   DateTime  @map("expires_at")
-  acceptedAt  DateTime? @map("accepted_at")
-  revokedAt   DateTime? @map("revoked_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  email               String
+  role                String
+  scopeMode           String    @default("ALL") @map("scope_mode") // ALL, RESTRICTED
+  invitedBrandIds     String[]  @default([]) @map("invited_brand_ids")
+  invitedLocationIds  String[]  @default([]) @map("invited_location_ids")
+  tokenHash           String    @unique @map("token_hash")
+  invitedBy           String    @map("invited_by")
+  expiresAt           DateTime  @map("expires_at")
+  acceptedAt          DateTime? @map("accepted_at")
+  revokedAt           DateTime? @map("revoked_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, email], name: "idx_invitations_tenant_email")
+  @@index([expiresAt], name: "idx_invitations_expires_at")
   @@map("invitations")
 }
 
@@ -160,13 +170,15 @@ model PlatformStaffAccess {
 }
 
 model TenantMembership {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  userId      String   @map("user_id")
-  role        String   // CLIENT_OWNER, CLIENT_ADMIN, BRAND_MANAGER, LOCATION_MANAGER, ANALYST, VIEWER
-  scopeMode   String   @default("ALL") @map("scope_mode") // ALL, RESTRICTED
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  userId      String    @map("user_id")
+  role        String    // CLIENT_OWNER, CLIENT_ADMIN, BRAND_MANAGER, LOCATION_MANAGER, ANALYST, VIEWER
+  scopeMode   String    @default("ALL") @map("scope_mode") // ALL, RESTRICTED
+  status      String    @default("ACTIVE") // ACTIVE, SUSPENDED
+  suspendedAt DateTime? @map("suspended_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -176,6 +188,7 @@ model TenantMembership {
 
   @@unique([tenantId, userId], name: "uq_membership_tenant_user")
   @@unique([tenantId, id], name: "uq_membership_tenant_id")
+  @@index([tenantId, status], name: "idx_tenant_memberships_tenant_status")
   @@map("tenant_memberships")
 }
 
@@ -188,6 +201,8 @@ model Brand {
   tenantId    String    @map("tenant_id")
   name        String
   slug        String
+  version     Int       @default(1)
+  isArchived  Boolean   @default(false) @map("is_archived")
   archivedAt  DateTime? @map("archived_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -200,6 +215,7 @@ model Brand {
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
+  @@index([tenantId, isArchived, name], name: "idx_brands_tenant_archived_name")
   @@map("brands")
 }
 
@@ -229,6 +245,9 @@ model Location {
   postalCode   String    @map("postal_code")
   country      String    // ISO 3166-1 alpha-2 / alpha-3 (No hardcoded default)
   timezone     String    @default("UTC")
+  version      Int       @default(1)
+  isArchived   Boolean   @default(false) @map("is_archived")
+  archivedAt   DateTime? @map("archived_at")
   isClosed     Boolean   @default(false) @map("is_closed")
   closedAt     DateTime? @map("closed_at")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -244,6 +263,8 @@ model Location {
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
   @@unique([tenantId, brandId, storeCode], name: "uq_location_brand_code")
+  @@index([tenantId, brandId, isArchived], name: "idx_locations_tenant_brand_archived")
+  @@index([tenantId, storeCode], name: "idx_locations_tenant_store_code")
   @@map("locations")
 }
 
@@ -633,5 +654,8 @@ model AuditLog {
 
   tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, createdAt], name: "idx_audit_logs_tenant_created")
+  @@index([actorId, createdAt], name: "idx_audit_logs_actor_created")
+  @@index([resourceType, resourceId], name: "idx_audit_logs_resource")
   @@map("audit_logs")
 }
