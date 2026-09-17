@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../modules/auth/context-resolver';
 import { TenantService } from '../../../../../modules/tenancy/tenant-service';
-import { AppError } from '../../../../../shared/errors';
+import { handleRouteError } from '../../../../../shared/errors';
 
 export async function GET(
   _request: NextRequest,
@@ -23,13 +23,7 @@ export async function GET(
       role: authorizedContext.role,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch organization settings.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to fetch organization settings.');
   }
 }
 
@@ -64,12 +58,6 @@ export async function PUT(
 
     return NextResponse.json({ success: true, tenant: updated });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update organization settings.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to update organization settings.');
   }
 }

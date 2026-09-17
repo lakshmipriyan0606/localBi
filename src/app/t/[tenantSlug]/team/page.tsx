@@ -6,6 +6,8 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { prisma } from '@/shared/database/client';
 import { TeamView } from '@/features/team/components/team-view';
 
+import { TenantContextService } from '@/shared/database/tenant-context';
+
 export const metadata: Metadata = {
   title: 'Team & Permissions — localBi',
   description: 'Manage members, assign granular roles, and configure brand scopes',
@@ -35,19 +37,23 @@ export default async function TeamPage({
     notFound();
   }
 
-  // Prefetch active brands on server for restricted scope assignment
-  const brands = await prisma.brand.findMany({
-    where: {
-      tenantId: resolved.tenant.id,
-      isArchived: false,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
+  const tenantId = resolved.tenant.id;
+
+  // Prefetch active brands on server for restricted scope assignment inside tenant context
+  const brands = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+    return tx.brand.findMany({
+      where: {
+        tenantId,
+        isArchived: false,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
   });
 
   return (

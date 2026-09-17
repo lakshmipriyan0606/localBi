@@ -23,8 +23,10 @@ export interface LocationDto {
   addressLine1: string;
   city: string;
   state: string;
+  stateRegion?: string | undefined;
   postalCode: string;
   country: string;
+  countryCode?: string | undefined;
   timezone: string;
   version: number;
   isArchived: boolean;
@@ -32,7 +34,8 @@ export interface LocationDto {
   isClosed: boolean;
   createdAt: Date;
   updatedAt: Date;
-  brandName?: string;
+  brandName?: string | undefined;
+  status: 'ACTIVE' | 'ARCHIVED';
 }
 
 export interface CreateLocationInput {
@@ -41,9 +44,11 @@ export interface CreateLocationInput {
   storeCode?: string;
   addressLine1: string;
   city: string;
-  state: string;
+  state?: string;
+  stateRegion?: string;
   postalCode: string;
-  country: string;
+  country?: string;
+  countryCode?: string;
   timezone?: string;
 }
 
@@ -85,6 +90,38 @@ export class LocationService {
     return clean;
   }
 
+  private static toDto(
+    loc: {
+      id: string;
+      tenantId: string;
+      brandId: string;
+      name: string;
+      storeCode: string | null;
+      addressLine1: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+      timezone: string;
+      version: number;
+      isArchived: boolean;
+      archivedAt: Date | null;
+      isClosed: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+      brand?: { name: string } | null;
+    },
+    brandName?: string
+  ): LocationDto {
+    return {
+      ...loc,
+      brandName: brandName ?? loc.brand?.name,
+      stateRegion: loc.state,
+      countryCode: loc.country,
+      status: loc.isArchived ? 'ARCHIVED' : 'ACTIVE',
+    };
+  }
+
   /**
    * Creates a new location under a brand and tenant.
    * Enforces brand-tenant consistency, IANA timezone, ISO country, and store code uniqueness.
@@ -106,9 +143,12 @@ export class LocationService {
       throw createValidationError('Location name must be at least 2 characters');
     }
 
-    const country = this.validateCountryCode(input.country);
+    const rawCountry = input.country || input.countryCode || 'US';
+    const country = this.validateCountryCode(rawCountry);
     const timezone = this.validateTimezone(input.timezone || 'UTC');
     const storeCode = input.storeCode ? input.storeCode.trim() : null;
+    const rawState = input.state || input.stateRegion || '';
+    const state = rawState.trim();
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // 1. Verify that the parent brand exists and belongs to this tenant
@@ -151,10 +191,10 @@ export class LocationService {
           brandId: input.brandId,
           name: cleanName,
           storeCode,
-          addressLine1: input.addressLine1.trim(),
-          city: input.city.trim(),
-          state: input.state.trim(),
-          postalCode: input.postalCode.trim(),
+          addressLine1: (input.addressLine1 || '').trim(),
+          city: (input.city || '').trim(),
+          state,
+          postalCode: (input.postalCode || '').trim(),
           country,
           timezone,
           version: 1,
@@ -201,7 +241,7 @@ export class LocationService {
 
       logger.info({ tenantId, locationId: location.id, brandId: input.brandId }, 'Location created');
 
-      return location;
+      return this.toDto(location, parentBrand.name);
     });
   }
 
@@ -240,10 +280,7 @@ export class LocationService {
 
       AuthorizationService.assertLocationAccess(context, location.id, location.brandId);
 
-      return {
-        ...location,
-        brandName: location.brand.name,
-      };
+      return this.toDto(location);
     });
   }
 
@@ -305,10 +342,7 @@ export class LocationService {
       ]);
 
       return {
-        items: items.map((loc) => ({
-          ...loc,
-          brandName: loc.brand.name,
-        })),
+        items: items.map((loc) => this.toDto(loc)),
         totalCount,
         page,
         totalPages: Math.ceil(totalCount / limit) || 1,
@@ -343,10 +377,13 @@ export class LocationService {
 
       AuthorizationService.assertLocationAccess(context, existing.id, existing.brandId);
 
-      const country = data.country ? this.validateCountryCode(data.country) : undefined;
+      const rawCountry = data.country || data.countryCode;
+      const country = rawCountry ? this.validateCountryCode(rawCountry) : undefined;
       const timezone = data.timezone ? this.validateTimezone(data.timezone) : undefined;
       const cleanName = data.name ? data.name.trim() : undefined;
       const storeCode = data.storeCode !== undefined ? data.storeCode.trim() || null : undefined;
+      const rawState = data.state || data.stateRegion;
+      const state = rawState !== undefined ? rawState.trim() : undefined;
 
       // Optimistic concurrency check
       const result = await tx.location.updateMany({
@@ -362,7 +399,7 @@ export class LocationService {
           ...(storeCode !== undefined ? { storeCode } : {}),
           ...(data.addressLine1 ? { addressLine1: data.addressLine1.trim() } : {}),
           ...(data.city ? { city: data.city.trim() } : {}),
-          ...(data.state ? { state: data.state.trim() } : {}),
+          ...(state !== undefined ? { state } : {}),
           ...(data.postalCode ? { postalCode: data.postalCode.trim() } : {}),
           version: currentVersion + 1,
         },
@@ -394,10 +431,7 @@ export class LocationService {
         },
       });
 
-      return {
-        ...updated,
-        brandName: updated.brand.name,
-      };
+      return this.toDto(updated);
     });
   }
 
@@ -463,10 +497,7 @@ export class LocationService {
         },
       });
 
-      return {
-        ...updated,
-        brandName: updated.brand.name,
-      };
+      return this.toDto(updated);
     });
   }
 }

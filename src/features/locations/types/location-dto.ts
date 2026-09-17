@@ -6,11 +6,14 @@ export interface LocationDto {
   name: string;
   addressLine1: string;
   city: string;
-  stateRegion: string;
+  state?: string;
+  stateRegion?: string;
   postalCode: string;
-  countryCode: string;
+  country?: string;
+  countryCode?: string;
   timezone: string;
-  status: 'ACTIVE' | 'ARCHIVED';
+  status?: 'ACTIVE' | 'ARCHIVED';
+  isArchived?: boolean;
   version: number;
   createdAt: string;
 }

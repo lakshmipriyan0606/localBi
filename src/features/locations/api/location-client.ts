@@ -32,9 +32,21 @@ export const locationClient = {
     tenantSlug: string,
     data: LocationFormInput
   ): Promise<{ location: LocationDto }> {
+    // Map frontend schema field names to backend CreateLocationInput field names
+    const payload = {
+      brandId: data.brandId,
+      name: data.name,
+      storeCode: data.storeCode,
+      addressLine1: data.addressLine1,
+      city: data.city,
+      state: data.stateRegion,      // form: stateRegion → backend: state
+      postalCode: data.postalCode,
+      country: data.countryCode,    // form: countryCode → backend: country
+      timezone: data.timezone,
+    };
     const res = await browserClient.post<{ location: LocationDto }>(
       `/tenants/${tenantSlug}/locations`,
-      data
+      payload
     );
     return res.data;
   },
@@ -44,9 +56,20 @@ export const locationClient = {
     locationId: string,
     data: Omit<LocationFormInput, 'brandId'> & { version: number }
   ): Promise<{ location: LocationDto }> {
+    const payload = {
+      name: data.name,
+      storeCode: data.storeCode,
+      addressLine1: data.addressLine1,
+      city: data.city,
+      state: data.stateRegion,
+      postalCode: data.postalCode,
+      country: data.countryCode,
+      timezone: data.timezone,
+      version: data.version,
+    };
     const res = await browserClient.put<{ location: LocationDto }>(
       `/tenants/${tenantSlug}/locations/${locationId}`,
-      data
+      payload
     );
     return res.data;
   },

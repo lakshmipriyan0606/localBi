@@ -7,6 +7,8 @@ export interface NormalizedApiError {
   fieldErrors?: Record<string, string[]> | undefined;
   correlationId?: string | undefined;
   retryAfter?: number | undefined;
+  actualError?: string | undefined;
+  details?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -19,6 +21,8 @@ export class AppApiError extends Error implements NormalizedApiError {
   public readonly fieldErrors?: Record<string, string[]> | undefined;
   public readonly correlationId?: string | undefined;
   public readonly retryAfter?: number | undefined;
+  public readonly actualError?: string | undefined;
+  public readonly details?: Record<string, unknown> | undefined;
 
   constructor(normalized: NormalizedApiError) {
     super(normalized.message);
@@ -28,6 +32,8 @@ export class AppApiError extends Error implements NormalizedApiError {
     this.fieldErrors = normalized.fieldErrors;
     this.correlationId = normalized.correlationId;
     this.retryAfter = normalized.retryAfter;
+    this.actualError = normalized.actualError;
+    this.details = normalized.details;
 
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, AppApiError);
@@ -66,10 +72,23 @@ export function normalizeApiError(err: unknown): AppApiError {
         (err.response.headers['x-correlation-id'] as string | undefined);
 
       let fieldErrors: Record<string, string[]> | undefined;
-      if (backendError?.details && typeof backendError.details === 'object') {
-        const details = backendError.details;
-        if ('fieldErrors' in details && typeof details['fieldErrors'] === 'object') {
-          fieldErrors = details['fieldErrors'] as Record<string, string[]>;
+      const details =
+        backendError?.details && typeof backendError.details === 'object'
+          ? (backendError.details as Record<string, unknown>)
+          : undefined;
+
+      if (details && 'fieldErrors' in details && typeof details['fieldErrors'] === 'object') {
+        fieldErrors = details['fieldErrors'] as Record<string, string[]>;
+      }
+
+      let actualError: string | undefined;
+      if (details) {
+        if (typeof details['actualError'] === 'string' && details['actualError'].trim()) {
+          actualError = details['actualError'].trim();
+        } else if (typeof details['message'] === 'string' && details['message'].trim()) {
+          actualError = details['message'].trim();
+        } else if (typeof details['error'] === 'string' && details['error'].trim()) {
+          actualError = details['error'].trim();
         }
       }
 
@@ -125,6 +144,8 @@ export function normalizeApiError(err: unknown): AppApiError {
         fieldErrors,
         correlationId,
         retryAfter,
+        actualError,
+        details,
       });
     }
 
@@ -134,6 +155,7 @@ export function normalizeApiError(err: unknown): AppApiError {
         status: 408,
         code: 'TIMEOUT_ERROR',
         message: 'The request timed out. Please try again.',
+        actualError: err.message,
       });
     }
 
@@ -142,6 +164,7 @@ export function normalizeApiError(err: unknown): AppApiError {
         status: 499,
         code: 'CLIENT_CLOSED_REQUEST',
         message: 'Request was cancelled.',
+        actualError: err.message,
       });
     }
 
@@ -149,6 +172,7 @@ export function normalizeApiError(err: unknown): AppApiError {
       status: 0,
       code: 'NETWORK_ERROR',
       message: 'Unable to connect to the server. Please check your network connection.',
+      actualError: err.message,
     });
   }
 
@@ -157,7 +181,8 @@ export function normalizeApiError(err: unknown): AppApiError {
     return new AppApiError({
       status: 500,
       code: 'UNEXPECTED_ERROR',
-      message: err.message || 'An unexpected error occurred.',
+      message: 'An unexpected error occurred.',
+      actualError: err.message,
     });
   }
 
@@ -165,5 +190,6 @@ export function normalizeApiError(err: unknown): AppApiError {
     status: 500,
     code: 'UNKNOWN_ERROR',
     message: 'An unknown error occurred.',
+    actualError: String(err),
   });
 }

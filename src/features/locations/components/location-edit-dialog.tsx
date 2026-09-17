@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, AlertCircle, MapPin } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { locationFormSchema, LocationFormInput } from '../schemas/location-schema';
 import { LocationDto } from '../types/location-dto';
 import { useUpdateLocationMutation } from '../hooks/use-locations';
@@ -11,7 +11,6 @@ import { normalizeApiError, AppApiError } from '@/lib/http/api-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -28,13 +27,15 @@ interface LocationEditDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+import { ApiErrorAlert } from '@/components/ui/api-error-alert';
+
 export function LocationEditDialog({
   tenantSlug,
   location,
   open,
   onOpenChange,
 }: LocationEditDialogProps) {
-  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [errorState, setErrorState] = useState<{ message: string; actualError?: string | undefined } | null>(null);
   const updateMutation = useUpdateLocationMutation(tenantSlug);
 
   const {
@@ -63,22 +64,22 @@ export function LocationEditDialog({
     if (location) {
       reset({
         brandId: location.brandId,
-        storeCode: location.storeCode,
+        storeCode: location.storeCode || '',
         name: location.name,
         addressLine1: location.addressLine1,
         city: location.city,
-        stateRegion: location.stateRegion,
+        stateRegion: location.stateRegion || location.state || '',
         postalCode: location.postalCode,
-        countryCode: location.countryCode,
+        countryCode: location.countryCode || location.country || 'US',
         timezone: location.timezone,
       });
-      setGeneralError(null);
+      setErrorState(null);
     }
   }, [location, reset]);
 
   const onSubmit = async (data: LocationFormInput) => {
     if (!location) return;
-    setGeneralError(null);
+    setErrorState(null);
     try {
       await updateMutation.mutateAsync({
         locationId: location.id,
@@ -105,7 +106,10 @@ export function LocationEditDialog({
           });
         }
       }
-      setGeneralError(normalized.message);
+      setErrorState({
+        message: normalized.message,
+        actualError: normalized.actualError,
+      });
     }
   };
 
@@ -126,11 +130,11 @@ export function LocationEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {generalError && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription>{generalError}</AlertDescription>
-          </Alert>
+        {errorState && (
+          <ApiErrorAlert
+            message={errorState.message}
+            actualError={errorState.actualError}
+          />
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

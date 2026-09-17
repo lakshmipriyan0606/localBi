@@ -6,6 +6,8 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { prisma } from '@/shared/database/client';
 import { InvitationsView } from '@/features/invitations/tenant/components/invitations-view';
 
+import { TenantContextService } from '@/shared/database/tenant-context';
+
 export const metadata: Metadata = {
   title: 'Invitations — localBi',
   description: 'Manage and dispatch invitations to onboarding organization members',
@@ -35,19 +37,23 @@ export default async function InvitationsPage({
     notFound();
   }
 
-  // Prefetch active brands on server for brand scoping
-  const brands = await prisma.brand.findMany({
-    where: {
-      tenantId: resolved.tenant.id,
-      isArchived: false,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
+  const tenantId = resolved.tenant.id;
+
+  // Prefetch active brands on server for brand scoping inside tenant context
+  const brands = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+    return tx.brand.findMany({
+      where: {
+        tenantId,
+        isArchived: false,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
   });
 
   return (

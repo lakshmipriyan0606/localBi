@@ -6,6 +6,8 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { prisma } from '@/shared/database/client';
 import { LocationsView } from '@/features/locations/components/locations-view';
 
+import { TenantContextService } from '@/shared/database/tenant-context';
+
 export const metadata: Metadata = {
   title: 'Locations — localBi',
   description: 'Manage physical store branches, addresses, and timezones',
@@ -35,19 +37,23 @@ export default async function LocationsPage({
     notFound();
   }
 
-  // Fetch available brands directly on the server for the dropdown selector
-  const brands = await prisma.brand.findMany({
-    where: {
-      tenantId: resolved.tenant.id,
-      isArchived: false,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-    orderBy: {
-      name: 'asc',
-    },
+  const tenantId = resolved.tenant.id;
+
+  // Fetch available brands directly on the server inside tenant context for RLS compliance
+  const brands = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+    return tx.brand.findMany({
+      where: {
+        tenantId,
+        isArchived: false,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
   });
 
   return (

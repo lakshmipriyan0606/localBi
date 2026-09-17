@@ -6,6 +6,7 @@ import { TeamTable } from './team-table';
 import { useTeamQuery } from '../hooks/use-team';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
+import { PageHeader } from '@/components/layout/page-header';
 
 interface BrandOption {
   id: string;
@@ -22,23 +23,18 @@ export function TeamView({ tenantSlug, brands }: TeamViewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Team & Permissions
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage organization members, assign roles, and configure brand/location access scopes.
-          </p>
-        </div>
-
-        <Button asChild className="gap-2" id="invite-member-btn">
-          <Link href={`/t/${tenantSlug}/invitations`}>
-            <UserPlus className="h-4 w-4" />
-            Invite Member
-          </Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Team & Permissions"
+        description="Manage organization members, assign roles and configure brand or location access scopes."
+        actions={
+          <Button asChild variant="primary" className="gap-2" id="invite-member-btn">
+            <Link href={`/t/${tenantSlug}/invitations`}>
+              <UserPlus className="h-4 w-4" />
+              Invite Member
+            </Link>
+          </Button>
+        }
+      />
 
       {isError ? (
         <ErrorState

@@ -24,6 +24,7 @@ export interface BrandDto {
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  status: 'ACTIVE' | 'ARCHIVED';
 }
 
 export interface ListBrandsOptions {
@@ -54,6 +55,23 @@ export class BrandService {
     }
 
     return trimmed;
+  }
+
+  private static toDto(brand: {
+    id: string;
+    tenantId: string;
+    name: string;
+    slug: string;
+    version: number;
+    isArchived: boolean;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): BrandDto {
+    return {
+      ...brand,
+      status: brand.isArchived ? 'ARCHIVED' : 'ACTIVE',
+    };
   }
 
   /**
@@ -141,7 +159,7 @@ export class BrandService {
 
       logger.info({ tenantId, brandId: brand.id, slug: brand.slug }, 'Brand created');
 
-      return brand;
+      return this.toDto(brand);
     });
   }
 
@@ -174,7 +192,7 @@ export class BrandService {
         throw createResourceNotFoundError('Brand', brandId);
       }
 
-      return brand;
+      return this.toDto(brand);
     });
   }
 
@@ -228,7 +246,7 @@ export class BrandService {
       ]);
 
       return {
-        items,
+        items: items.map((b) => this.toDto(b)),
         totalCount,
         page,
         totalPages: Math.ceil(totalCount / limit) || 1,
@@ -314,7 +332,7 @@ export class BrandService {
         },
       });
 
-      return updated;
+      return this.toDto(updated);
     });
   }
 
@@ -372,7 +390,7 @@ export class BrandService {
         },
       });
 
-      return updated;
+      return this.toDto(updated);
     });
   }
 }

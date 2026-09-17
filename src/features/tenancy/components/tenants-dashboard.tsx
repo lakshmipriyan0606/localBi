@@ -52,7 +52,7 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-[#F5F7FB] flex flex-col">
       {/* Top Application Bar */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-4 sm:px-8 py-3.5">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -82,7 +82,7 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-10 flex-1">
+      <main className="max-w-[1400px] mx-auto w-full px-4 sm:px-8 py-10 flex-1">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>

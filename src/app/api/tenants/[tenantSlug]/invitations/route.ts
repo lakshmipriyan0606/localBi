@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../modules/auth/context-resolver';
 import { InvitationService } from '../../../../../modules/invitations/invitation-service';
-import { AppError } from '../../../../../shared/errors';
+import { handleRouteError } from '../../../../../shared/errors';
 
 export async function GET(
   _request: NextRequest,
@@ -24,13 +24,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, invitations });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list pending invitations.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to list pending invitations.');
   }
 }
 
@@ -61,13 +55,7 @@ export async function POST(
       rawToken: result.rawToken, // Sent back for testing / development UI invite link generation
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create invitation.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to create invitation.');
   }
 }
 
@@ -96,12 +84,6 @@ export async function DELETE(
     await InvitationService.revokeInvitation(authorizedContext.tenantId, invitationId, authorizedContext);
     return NextResponse.json({ success: true, message: 'Invitation revoked.' });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to revoke invitation.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to revoke invitation.');
   }
 }

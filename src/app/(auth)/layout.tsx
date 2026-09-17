@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Search, BarChart3, ShieldCheck, Building2 } from 'lucide-react';
+import { MapPin, Search, ShieldCheck, Building2, TrendingUp } from 'lucide-react';
 import { LocalBiMark } from '@/components/brand/localbi-mark';
 
 export default function AuthLayout({
@@ -8,109 +8,140 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-slate-50">
-      {/* Left Column: Enterprise Local SEO Brand Visual (Desktop only) */}
-      <aside className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-900 p-12 text-white relative overflow-hidden">
-        {/* Subtle grid pattern background */}
+    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-[#F5F7FB]">
+      {/* ── Left panel: enterprise brand & value proposition ── */}
+      <aside
+        className="hidden lg:flex lg:w-[45%] xl:w-2/5 flex-col justify-between bg-slate-900 relative overflow-hidden"
+        aria-label="localBi product overview"
+      >
+        {/* Subtle dot-grid texture */}
         <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
-            backgroundImage:
-              'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
-            backgroundSize: '24px 24px',
+            backgroundImage: 'radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)',
+            backgroundSize: '28px 28px',
           }}
           aria-hidden="true"
         />
 
-        {/* Top Branding */}
-        <div className="relative z-10">
+        {/* Gradient fade at bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none"
+          style={{
+            background: 'linear-gradient(to top, rgba(15,23,42,0.6) 0%, transparent 100%)',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* ── Top: Product brand ── */}
+        <div className="relative z-10 px-10 pt-10">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md">
-              <MapPin size={22} className="text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 shadow-md">
+              <MapPin size={18} className="text-white" aria-hidden="true" />
             </div>
             <div>
-              <span className="text-2xl font-bold tracking-tight text-white leading-none">
+              <span className="text-xl font-bold tracking-tight text-white leading-none">
                 local<span className="text-indigo-400">Bi</span>
               </span>
-              <span className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">
-                Enterprise Multi-Tenant Local SEO
+              <span className="block text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
+                Enterprise Local SEO
               </span>
             </div>
           </div>
         </div>
 
-        {/* Center: Local SEO Concept & Multi-Location Visual */}
-        <div className="relative z-10 max-w-lg space-y-8 my-auto py-12">
-          <div className="space-y-4">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-100 sm:text-4xl">
-              Unified intelligence for multi-location enterprise brands.
+        {/* ── Center: Headline + feature pillars ── */}
+        <div className="relative z-10 px-10 py-12 my-auto space-y-8 max-w-lg">
+          <div className="space-y-3">
+            <h1 className="text-[1.875rem] font-bold tracking-tight text-white leading-snug">
+              Unified intelligence for multi-location brands.
             </h1>
-            <p className="text-slate-400 text-base leading-relaxed">
-              Monitor search visibility, track localized performance across hundreds of branch stores, and protect client organization boundaries.
+            <p className="text-slate-400 text-[14px] leading-relaxed">
+              Monitor search visibility, track localized performance and protect
+              client data boundaries across every branch location.
             </p>
           </div>
 
-          {/* Local Search Architecture Pillars */}
-          <div className="grid grid-cols-1 gap-4 pt-2">
-            <div className="flex items-start gap-3.5 rounded-lg border border-slate-800 bg-slate-800/40 p-4 backdrop-blur-sm">
-              <div className="rounded-md bg-indigo-500/10 p-2 text-indigo-400">
-                <Building2 className="h-5 w-5" aria-hidden="true" />
+          <div className="space-y-3">
+            {[
+              {
+                icon: Building2,
+                color: 'text-indigo-400',
+                bg: 'bg-indigo-500/10',
+                title: 'Multi-Brand & Location Management',
+                detail:
+                  'Organize hundreds of branch storefronts under distinct client brands with scoped team permissions.',
+              },
+              {
+                icon: Search,
+                color: 'text-emerald-400',
+                bg: 'bg-emerald-500/10',
+                title: 'Cross-Channel Search Intelligence',
+                detail:
+                  'Unified reporting across Google Business Profile impressions and Google Search Console queries.',
+              },
+              {
+                icon: TrendingUp,
+                color: 'text-sky-400',
+                bg: 'bg-sky-500/10',
+                title: 'Action-Driven Analytics Drilldown',
+                detail:
+                  'Track customer calls, website link clicks, and driving direction requests per storefront.',
+              },
+            ].map(({ icon: Icon, color, bg, title, detail }) => (
+              <div
+                key={title}
+                className="flex items-start gap-3.5 rounded-xl border border-slate-800/80 bg-slate-800/30 p-4"
+              >
+                <div className={`rounded-lg ${bg} p-2 flex-shrink-0`}>
+                  <Icon className={`h-4 w-4 ${color}`} aria-hidden="true" />
+                </div>
+                <div>
+                  <h2 className="text-[13px] font-semibold text-slate-200">{title}</h2>
+                  <p className="mt-0.5 text-[12px] text-slate-400 leading-relaxed">{detail}</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Tenant & Brand Hierarchy
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                  Strict cryptographic isolation with PostgreSQL Row-Level Security across organizations and branch scopes.
-                </p>
-              </div>
-            </div>
+            ))}
+          </div>
 
-            <div className="flex items-start gap-3.5 rounded-lg border border-slate-800 bg-slate-800/40 p-4 backdrop-blur-sm">
-              <div className="rounded-md bg-emerald-500/10 p-2 text-emerald-400">
-                <Search className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Local Search Verification
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                  Accurate IANA timezone and ISO 3166 territory mapping designed for multi-store visibility analytics.
-                </p>
-              </div>
+          {/* Abstract sample UI preview */}
+          <div className="p-4 rounded-xl border border-slate-800/80 bg-slate-800/40 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                Sample Interface Preview
+              </span>
+              <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                Verified Architecture
+              </span>
             </div>
-
-            <div className="flex items-start gap-3.5 rounded-lg border border-slate-800 bg-slate-800/40 p-4 backdrop-blur-sm">
-              <div className="rounded-md bg-blue-500/10 p-2 text-blue-400">
-                <BarChart3 className="h-5 w-5" aria-hidden="true" />
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between text-xs text-slate-300">
+                <span>Google Business Profile & Search Console</span>
+                <span className="font-semibold text-emerald-400">Connected</span>
               </div>
-              <div>
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Server-Revocable Sessions
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                  Opaque CSPRNG session tokens with instant single and all-device revocation controls.
-                </p>
+              <div className="h-1.5 w-full bg-slate-700/60 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-500 rounded-full w-4/5" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bottom Security Assurance */}
-        <div className="relative z-10 flex items-center gap-2 text-xs text-slate-500">
-          <ShieldCheck className="h-4 w-4 text-emerald-500" aria-hidden="true" />
-          <span>RFC 9106 Argon2id • RLS Enforced • Zero Third-Party Tracker Cookies</span>
+        {/* ── Bottom: Security assurance ── */}
+        <div className="relative z-10 px-10 pb-10 flex items-center gap-2 text-[11px] text-slate-600">
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" aria-hidden="true" />
+          <span>RFC 9106 Argon2id · RLS enforced · Zero third-party tracker cookies</span>
         </div>
       </aside>
 
-      {/* Right Column: Interaction Form Viewport */}
-      <main className="flex flex-1 flex-col justify-center px-4 py-12 sm:px-8 md:px-12 lg:px-16 xl:px-24">
-        {/* Mobile / Tablet Header */}
-        <div className="mb-8 flex justify-center lg:hidden">
+      {/* ── Right panel: auth forms ── */}
+      <main className="flex flex-1 flex-col items-center justify-center px-5 py-12 sm:px-10 lg:px-16 xl:px-20">
+        {/* Mobile brand mark */}
+        <div className="mb-8 lg:hidden">
           <LocalBiMark size="md" />
         </div>
 
-        <div className="mx-auto w-full max-w-[440px]">
+        {/* Form container — constrained width for readability */}
+        <div className="w-full max-w-[420px]">
           {children}
         </div>
       </main>

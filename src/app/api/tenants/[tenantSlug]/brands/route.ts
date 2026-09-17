@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../modules/auth/context-resolver';
 import { BrandService } from '../../../../../modules/brands/brand-service';
-import { AppError } from '../../../../../shared/errors';
+import { handleRouteError } from '../../../../../shared/errors';
 
 export async function GET(
   request: NextRequest,
@@ -38,13 +38,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list brands.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to list brands.');
   }
 }
 
@@ -71,12 +65,6 @@ export async function POST(
 
     return NextResponse.json({ success: true, brand }, { status: 201 });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create brand.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to create brand.');
   }
 }

@@ -200,3 +200,49 @@ export function createLastOwnerProtectionError(message = 'Cannot remove, demote,
   });
 }
 
+import { logger } from '../observability/logger';
+
+export function handleRouteError(
+  error: unknown,
+  fallbackMessage = 'An unexpected internal server error occurred.',
+  context?: Record<string, unknown>
+): Response {
+  if (error instanceof AppError) {
+    if (error.statusCode >= 500) {
+      logger.error({ err: error, code: error.code, ...context }, error.message);
+    } else {
+      logger.warn({ err: error, code: error.code, ...context }, error.message);
+    }
+    return Response.json(error.toClientResponse(), { status: error.statusCode });
+  }
+
+  const actualError = error instanceof Error ? error.message : String(error);
+  const errorName = error instanceof Error ? error.name : 'UnknownError';
+  const stack = error instanceof Error ? error.stack : undefined;
+
+  logger.error(
+    {
+      err: error,
+      actualError,
+      stack,
+      ...context,
+    },
+    fallbackMessage
+  );
+
+  return Response.json(
+    {
+      error: {
+        code: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: fallbackMessage,
+        details: {
+          actualError,
+          errorType: errorName,
+        },
+      },
+    },
+    { status: 500 }
+  );
+}
+
+

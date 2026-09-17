@@ -1,38 +1,36 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoginForm } from '@/features/auth/components/login-form';
 
 export const metadata: Metadata = {
   title: 'Sign In — localBi',
-  description: 'Sign in to manage your brands, locations and local-search performance',
+  description: 'Sign in to manage your brands, locations and local-search performance.',
 };
 
 export default function LoginPage() {
   return (
-    <div className="w-full space-y-6">
-      <Card className="border-slate-200 shadow-sm bg-white">
-        <CardHeader className="space-y-2 pb-6">
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">
+    <div className="w-full space-y-7">
+      {/* Card */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="mb-7 space-y-1">
+          <h1 className="text-[1.625rem] font-bold tracking-tight text-slate-900">
             Welcome back
-          </CardTitle>
-          <CardDescription className="text-sm text-slate-500 leading-relaxed">
+          </h1>
+          <p className="text-[14px] text-slate-500 leading-relaxed">
             Sign in to manage your brands, locations and local-search performance.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+        <LoginForm />
+      </div>
 
-      {/* Quiet supporting text */}
-      <div className="text-center text-xs text-slate-500 space-y-1">
-        <p>Onboarding is invitation-driven.</p>
+      {/* Supporting links */}
+      <div className="text-center text-[13px] text-slate-500 space-y-1.5">
+        <p>Onboarding is invitation-only.</p>
         <p>
           Need access recovery?{' '}
           <Link
             href="/forgot-password"
-            className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded"
+            className="font-semibold text-indigo-600 hover:text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded"
           >
             Reset your password
           </Link>

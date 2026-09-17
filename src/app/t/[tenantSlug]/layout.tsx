@@ -51,11 +51,22 @@ export default async function TenantWorkspaceLayout({
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
       <TenantSidebar tenant={safeTenant} user={safeUser} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-6 sm:p-8 max-w-6xl w-full mx-auto">
-          {children}
+
+      {/* Main content area — shifted right on mobile to clear the fixed top bar */}
+      <div className="flex flex-1 flex-col min-w-0 lg:min-h-screen">
+        {/* Mobile spacer for the fixed top bar */}
+        <div className="h-14 lg:hidden flex-shrink-0" aria-hidden="true" />
+
+        <main className="flex-1 w-full">
+          {/*
+            Fluid container: generous padding, sensible max-width.
+            Analytics pages get full width; narrow pages (auth, forms) self-constrain.
+          */}
+          <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

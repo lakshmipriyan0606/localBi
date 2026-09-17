@@ -8,6 +8,7 @@ import { BrandOptionDto } from '../types/location-dto';
 import { useLocationsQuery } from '../hooks/use-locations';
 import { Input } from '@/components/ui/input';
 import { ErrorState } from '@/components/ui/error-state';
+import { PageHeader } from '@/components/layout/page-header';
 
 interface LocationsViewProps {
   tenantSlug: string;
@@ -27,28 +28,20 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Location Directory
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Register store locations with validated ISO countries and IANA timezones.
-          </p>
-        </div>
+      <PageHeader
+        title="Location Directory"
+        description="Register store locations with validated ISO country codes and IANA timezones."
+        actions={<LocationCreateDialog tenantSlug={tenantSlug} brands={brands} />}
+      />
 
-        <LocationCreateDialog tenantSlug={tenantSlug} brands={brands} />
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+      {/* Filter toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-xl w-full">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Search by store code or name..."
+              placeholder="Search by store code or name…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-10"
@@ -61,7 +54,7 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
               value={selectedBrandId}
               onChange={(e) => setSelectedBrandId(e.target.value)}
               aria-label="Filter by brand"
-              className="h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
+              className="h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-slate-700 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
               <option value="">All Brands</option>
               {brands.map((b) => (
@@ -73,18 +66,17 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
           )}
         </div>
 
-        <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer select-none">
+        <label className="flex items-center gap-2 text-[13px] font-medium text-slate-600 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={includeArchived}
             onChange={(e) => setIncludeArchived(e.target.checked)}
             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
           />
-          <span>Include archived locations</span>
+          <span>Include archived</span>
         </label>
       </div>
 
-      {/* Table / Error Display */}
       {isError ? (
         <ErrorState
           title="Failed to load locations"

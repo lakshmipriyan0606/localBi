@@ -150,7 +150,7 @@ export function TeamTable({
                     variant={member.status === 'ACTIVE' ? 'success' : 'danger'}
                     className="capitalize"
                   >
-                    {member.status.toLowerCase()}
+                    {(member.status || 'ACTIVE').toLowerCase()}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">

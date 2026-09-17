@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/client';
+import { TenantContextService } from '../../shared/database/tenant-context';
 import { SessionService, AuthenticatedUser, ActiveSession } from './session-service';
 import {
   AuthorizedContext,
@@ -86,19 +87,25 @@ export class ContextResolver {
       throw createResourceNotFoundError('Tenant', cleanSlug);
     }
 
-    // Query membership and scopes
-    const membership = await prisma.tenantMembership.findUnique({
-      where: {
-        uq_membership_tenant_user: {
-          tenantId: tenant.id,
-          userId: user.id,
-        },
-      },
-      include: {
-        brandScopes: { select: { brandId: true } },
-        locationScopes: { select: { locationId: true } },
-      },
-    });
+    // Query membership and scopes inside tenant context
+    const membership = await TenantContextService.withTenantContext(
+      prisma,
+      tenant.id,
+      async (tx) => {
+        return tx.tenantMembership.findUnique({
+          where: {
+            uq_membership_tenant_user: {
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+          },
+          include: {
+            brandScopes: { select: { brandId: true } },
+            locationScopes: { select: { locationId: true } },
+          },
+        });
+      }
+    );
 
     if (!membership) {
       throw createTenantAccessDeniedError(tenant.id);

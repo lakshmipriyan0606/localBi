@@ -112,14 +112,20 @@ export class TenantService {
       throw createResourceNotFoundError('Tenant', cleanSlug);
     }
 
-    const membership = await prisma.tenantMembership.findUnique({
-      where: {
-        uq_membership_tenant_user: {
-          tenantId: tenant.id,
-          userId,
-        },
-      },
-    });
+    const membership = await TenantContextService.withTenantContext(
+      prisma,
+      tenant.id,
+      async (tx) => {
+        return tx.tenantMembership.findUnique({
+          where: {
+            uq_membership_tenant_user: {
+              tenantId: tenant.id,
+              userId,
+            },
+          },
+        });
+      }
+    );
 
     if (!membership || membership.status !== 'ACTIVE') {
       throw createTenantAccessDeniedError(tenant.id);

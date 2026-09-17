@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../modules/auth/context-resolver';
 import { MembershipService } from '../../../../../modules/memberships/membership-service';
-import { AppError } from '../../../../../shared/errors';
+import { handleRouteError } from '../../../../../shared/errors';
 
 export async function GET(
   _request: NextRequest,
@@ -20,13 +20,7 @@ export async function GET(
     const members = await MembershipService.listMembers(authorizedContext.tenantId, authorizedContext);
     return NextResponse.json({ success: true, members });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list team members.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to list team members.');
   }
 }
 
@@ -57,13 +51,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, message: 'Member role and scopes updated.' });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update member.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to update member.');
   }
 }
 
@@ -98,12 +86,6 @@ export async function DELETE(
     await MembershipService.removeMember(authorizedContext.tenantId, membershipId, authorizedContext);
     return NextResponse.json({ success: true, message: 'Member removed.' });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to process member removal.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to process member removal.');
   }
 }

@@ -112,65 +112,70 @@ export function BrandTable({
               </TableCell>
             </TableRow>
           ) : (
-            brands.map((brand) => (
-              <TableRow key={brand.id}>
-                <TableCell className="font-semibold text-slate-900">
-                  {brand.name}
-                </TableCell>
-                <TableCell>
-                  <code className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                    {brand.slug}
-                  </code>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={brand.status === 'ACTIVE' ? 'success' : 'neutral'}
-                    className="capitalize"
-                  >
-                    {brand.status.toLowerCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs text-slate-400 font-mono">
-                  v{brand.version}
-                </TableCell>
-                <TableCell className="text-xs text-slate-500">
-                  {new Date(brand.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingBrand(brand)}
-                      id={`edit-brand-${brand.slug}`}
-                      className="h-8 px-2.5 text-xs text-slate-600 hover:text-slate-900"
+            brands.map((brand) => {
+              const isActive = brand.status ? brand.status === 'ACTIVE' : !brand.isArchived;
+              const statusLabel = brand.status ?? (brand.isArchived ? 'ARCHIVED' : 'ACTIVE');
+
+              return (
+                <TableRow key={brand.id}>
+                  <TableCell className="font-semibold text-slate-900">
+                    {brand.name}
+                  </TableCell>
+                  <TableCell>
+                    <code className="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {brand.slug}
+                    </code>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={isActive ? 'success' : 'neutral'}
+                      className="capitalize"
                     >
-                      <Edit2 className="h-3 w-3 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant={brand.status === 'ACTIVE' ? 'outline' : 'secondary'}
-                      size="sm"
-                      onClick={() => setArchivingBrand(brand)}
-                      id={`archive-brand-${brand.slug}`}
-                      className="h-8 px-2.5 text-xs text-slate-600 hover:text-red-700 hover:border-red-300"
-                    >
-                      {brand.status === 'ACTIVE' ? (
-                        <>
-                          <Archive className="h-3 w-3 mr-1 text-slate-400" />
-                          Archive
-                        </>
-                      ) : (
-                        <>
-                          <RotateCcw className="h-3 w-3 mr-1 text-emerald-600" />
-                          Restore
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
+                      {statusLabel.toLowerCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-400 font-mono">
+                    v{brand.version}
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-500">
+                    {new Date(brand.createdAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingBrand(brand)}
+                        id={`edit-brand-${brand.slug}`}
+                        className="h-8 px-2.5 text-xs text-slate-600 hover:text-slate-900"
+                      >
+                        <Edit2 className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant={isActive ? 'outline' : 'secondary'}
+                        size="sm"
+                        onClick={() => setArchivingBrand(brand)}
+                        id={`archive-brand-${brand.slug}`}
+                        className="h-8 px-2.5 text-xs text-slate-600 hover:text-red-700 hover:border-red-300"
+                      >
+                        {isActive ? (
+                          <>
+                            <Archive className="h-3 w-3 mr-1 text-slate-400" />
+                            Archive
+                          </>
+                        ) : (
+                          <>
+                            <RotateCcw className="h-3 w-3 mr-1 text-emerald-600" />
+                            Restore
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
@@ -189,43 +194,53 @@ export function BrandTable({
         onOpenChange={(open) => !open && setArchivingBrand(null)}
       >
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {archivingBrand?.status === 'ACTIVE' ? 'Archive Brand' : 'Restore Brand'}
-            </DialogTitle>
-            <DialogDescription>
-              {archivingBrand?.status === 'ACTIVE'
-                ? `Are you sure you want to archive brand "${archivingBrand?.name}"? Its locations will remain associated.`
-                : `Reactivate brand "${archivingBrand?.name}"? It will become active for all authorized members.`}
-            </DialogDescription>
-          </DialogHeader>
+          {(() => {
+            const isArchivingActive = archivingBrand
+              ? (archivingBrand.status ? archivingBrand.status === 'ACTIVE' : !archivingBrand.isArchived)
+              : false;
 
-          <DialogFooter className="pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setArchivingBrand(null)}
-              disabled={archiveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant={archivingBrand?.status === 'ACTIVE' ? 'destructive' : 'default'}
-              onClick={handleConfirmArchive}
-              disabled={archiveMutation.isPending}
-              id="confirm-brand-status-btn"
-            >
-              {archiveMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : archivingBrand?.status === 'ACTIVE' ? (
-                'Archive Brand'
-              ) : (
-                'Restore Brand'
-              )}
-            </Button>
-          </DialogFooter>
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {isArchivingActive ? 'Archive Brand' : 'Restore Brand'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {isArchivingActive
+                      ? `Are you sure you want to archive brand "${archivingBrand?.name}"? Its locations will remain associated.`
+                      : `Reactivate brand "${archivingBrand?.name}"? It will become active for all authorized members.`}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <DialogFooter className="pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setArchivingBrand(null)}
+                    disabled={archiveMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant={isArchivingActive ? 'destructive' : 'default'}
+                    onClick={handleConfirmArchive}
+                    disabled={archiveMutation.isPending}
+                    id="confirm-brand-status-btn"
+                  >
+                    {archiveMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : isArchivingActive ? (
+                      'Archive Brand'
+                    ) : (
+                      'Restore Brand'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

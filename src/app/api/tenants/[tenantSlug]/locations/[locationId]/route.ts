@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../../modules/auth/context-resolver';
 import { LocationService } from '../../../../../../modules/locations/location-service';
-import { AppError } from '../../../../../../shared/errors';
+import { handleRouteError } from '../../../../../../shared/errors';
 
 export async function GET(
   _request: NextRequest,
@@ -25,13 +25,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, location });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch location.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to fetch location.');
   }
 }
 
@@ -60,13 +54,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, location });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update location.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to update location.');
   }
 }
 
@@ -95,12 +83,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, location });
   } catch (error) {
-    if (error instanceof AppError) {
-      return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
-    }
-    return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to archive location.' } },
-      { status: 500 }
-    );
+    return handleRouteError(error, 'Failed to archive location.');
   }
 }

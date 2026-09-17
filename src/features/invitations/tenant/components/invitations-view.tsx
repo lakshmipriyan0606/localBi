@@ -4,6 +4,7 @@ import { InvitationTable } from './invitation-table';
 import { InvitationDialog } from './invitation-dialog';
 import { useTenantInvitationsQuery } from '../hooks/use-tenant-invitations';
 import { ErrorState } from '@/components/ui/error-state';
+import { PageHeader } from '@/components/layout/page-header';
 
 interface BrandOption {
   id: string;
@@ -20,18 +21,11 @@ export function InvitationsView({ tenantSlug, brands }: InvitationsViewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Pending Invitations
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Dispatch time-bounded invitations to onboarding team members with pre-assigned roles.
-          </p>
-        </div>
-
-        <InvitationDialog tenantSlug={tenantSlug} brands={brands} />
-      </div>
+      <PageHeader
+        title="Pending Invitations"
+        description="Dispatch time-bounded invitations to onboarding team members with pre-assigned roles."
+        actions={<InvitationDialog tenantSlug={tenantSlug} brands={brands} />}
+      />
 
       {isError ? (
         <ErrorState
