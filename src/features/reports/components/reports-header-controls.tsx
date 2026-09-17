@@ -81,7 +81,12 @@ export function ReportsHeaderControls({
         ))}
       </div>
 
-      {isFetching && <RefreshCw className="h-3.5 w-3.5 text-indigo-600 animate-spin" aria-label="Refreshing data" />}
+      {isFetching && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-700 animate-pulse">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          <span>Syncing telemetry...</span>
+        </div>
+      )}
     </div>
   );
 }

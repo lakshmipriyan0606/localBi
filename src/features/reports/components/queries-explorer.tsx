@@ -60,7 +60,7 @@ export function QueriesExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<QueryDimensionRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<QueryDimensionRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -162,7 +162,7 @@ export function QueriesExplorer({
         searchPlaceholder="Filter queries by keyword..."
         columns={columns}
         data={data?.items}
-        isLoading={isLoading}
+        isLoading={isLoading || isFetching}
         isError={isError}
         error={error}
         onRetry={refetch}

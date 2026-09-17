@@ -3,7 +3,7 @@ import { Activity, Sparkles } from 'lucide-react';
 
 interface AnalyticsLoaderProps {
   message?: string;
-  variant?: 'hero' | 'card' | 'inline';
+  variant?: 'hero' | 'card' | 'inline' | 'table';
   className?: string;
 }
 
@@ -51,6 +51,29 @@ export function AnalyticsLoader({
           <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-600" />
         </span>
         <span>{message}</span>
+      </div>
+    );
+  }
+
+  if (variant === 'table') {
+    return (
+      <div className={cn('py-12 flex flex-col items-center justify-center space-y-3', className)}>
+        <div className="relative flex items-center justify-center">
+          <div className="absolute h-10 w-10 rounded-full bg-indigo-500/20 animate-ping" />
+          <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shadow-2xs">
+            <Sparkles className="h-4 w-4 animate-spin text-indigo-600" />
+          </div>
+        </div>
+        <div className="flex items-end gap-1 h-3.5 pt-0.5">
+          {[35, 70, 45, 90, 60, 80, 50, 95].map((h, i) => (
+            <div
+              key={i}
+              className="w-1 bg-gradient-to-t from-indigo-500 to-teal-400 rounded-t-xs animate-pulse"
+              style={{ height: `${h}%`, animationDelay: `${i * 100}ms` }}
+            />
+          ))}
+        </div>
+        <p className="text-xs font-semibold text-slate-700">{message}</p>
       </div>
     );
   }

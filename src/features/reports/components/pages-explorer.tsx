@@ -60,7 +60,7 @@ export function PagesExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<PageDimensionRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<PageDimensionRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -173,7 +173,7 @@ export function PagesExplorer({
         searchPlaceholder="Filter pages by URL path..."
         columns={columns}
         data={data?.items}
-        isLoading={isLoading}
+        isLoading={isLoading || isFetching}
         isError={isError}
         error={error}
         onRetry={refetch}

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -79,16 +79,11 @@ export function InvitationTable({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <TableRow key={`skeleton-inv-${i}`}>
-                <TableCell><Skeleton className="h-4 w-44" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-              </TableRow>
-            ))
+            <TableRow>
+              <TableCell colSpan={6} className="py-10 text-center">
+                <AnalyticsLoader variant="table" message="Loading pending invitations..." />
+              </TableCell>
+            </TableRow>
           ) : !invitations || invitations.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="h-48 p-0">

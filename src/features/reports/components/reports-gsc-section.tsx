@@ -1,6 +1,7 @@
 'use client';
 
-import { MousePointerClick, Eye, BarChart2, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
+import { MousePointerClick, Eye, BarChart2, TrendingUp, Sparkles } from 'lucide-react';
 import { MetricCard } from './metric-card';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { formatNumber, formatPercent, formatPosition, formatDateRange } from '@/shared/lib/formatters';
@@ -35,6 +36,7 @@ export function ReportsGscSection({
   }
 
   const gsc = summary?.gsc;
+  const hasGscData = Boolean(gsc && (gsc.totalClicks > 0 || gsc.totalImpressions > 0));
   const comparisonLabel = `vs prior ${dateRangeDays}d`;
 
   return (
@@ -54,7 +56,7 @@ export function ReportsGscSection({
           label="Search Clicks"
           value={formatNumber(gsc?.totalClicks)}
           source="GSC"
-          deltaPercent={summary?.previousPeriod.clicksGrowthPercent ?? null}
+          deltaPercent={summary?.previousPeriod?.clicksGrowthPercent ?? null}
           higherIsBetter={true}
           comparisonLabel={comparisonLabel}
           icon={MousePointerClick}
@@ -64,7 +66,7 @@ export function ReportsGscSection({
           label="Search Impressions"
           value={formatNumber(gsc?.totalImpressions)}
           source="GSC"
-          deltaPercent={summary?.previousPeriod.impressionsGrowthPercent ?? null}
+          deltaPercent={summary?.previousPeriod?.impressionsGrowthPercent ?? null}
           higherIsBetter={true}
           comparisonLabel={comparisonLabel}
           icon={Eye}
@@ -88,6 +90,18 @@ export function ReportsGscSection({
           href={`/t/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}&sortBy=position&sortOrder=asc`}
         />
       </div>
+
+      {!hasGscData && (
+        <div className="p-3.5 bg-indigo-50/50 border border-indigo-200/80 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+            <span>No Search Console data synced for this brand. Map your Search Console property in Integrations.</span>
+          </div>
+          <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-indigo-950 flex-shrink-0">
+            Configure GSC
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

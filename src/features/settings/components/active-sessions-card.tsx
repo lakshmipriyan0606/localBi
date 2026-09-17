@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -114,16 +114,11 @@ export function ActiveSessionsCard() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <TableRow key={`skeleton-session-${i}`}>
-                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-16 ml-auto" /></TableCell>
-                  </TableRow>
-                ))
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center">
+                    <AnalyticsLoader variant="table" message="Loading active sessions..." />
+                  </TableCell>
+                </TableRow>
               ) : !sessions || sessions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-6 text-xs text-slate-400">

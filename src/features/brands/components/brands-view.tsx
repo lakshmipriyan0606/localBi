@@ -17,7 +17,7 @@ export function BrandsView({ tenantSlug }: BrandsViewProps) {
   const [search, setSearch] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
 
-  const { data, isLoading, isError, error, refetch } = useBrandsQuery(tenantSlug, {
+  const { data, isLoading, isFetching, isError, error, refetch } = useBrandsQuery(tenantSlug, {
     search: search || undefined,
     includeArchived: includeArchived || undefined,
   });
@@ -65,7 +65,7 @@ export function BrandsView({ tenantSlug }: BrandsViewProps) {
         <BrandTable
           tenantSlug={tenantSlug}
           brands={data?.items}
-          isLoading={isLoading}
+          isLoading={isLoading || isFetching}
         />
       )}
     </div>

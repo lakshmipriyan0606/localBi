@@ -41,7 +41,7 @@ export function SearchTermsExplorer({
   const selectedLocationId = state.locationId;
   const searchQuery = state.search;
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<GbpSearchKeywordRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<GbpSearchKeywordRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -138,7 +138,7 @@ export function SearchTermsExplorer({
         searchPlaceholder="Filter search keywords..."
         columns={columns}
         data={data?.items}
-        isLoading={isLoading}
+        isLoading={isLoading || isFetching}
         isError={isError}
         error={error}
         onRetry={refetch}

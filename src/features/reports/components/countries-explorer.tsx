@@ -48,7 +48,7 @@ export function CountriesExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<CountryDimensionRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<CountryDimensionRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -150,7 +150,7 @@ export function CountriesExplorer({
       searchPlaceholder="Filter countries by name or code..."
       columns={columns}
       data={data?.items}
-      isLoading={isLoading}
+      isLoading={isLoading || isFetching}
       isError={isError}
       error={error}
       onRetry={refetch}

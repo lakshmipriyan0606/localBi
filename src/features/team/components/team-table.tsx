@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -100,16 +100,11 @@ export function TeamTable({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <TableRow key={`skeleton-team-${i}`}>
-                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-              </TableRow>
-            ))
+            <TableRow>
+              <TableCell colSpan={6} className="py-10 text-center">
+                <AnalyticsLoader variant="table" message="Loading team members..." />
+              </TableCell>
+            </TableRow>
           ) : !members || members.length === 0 ? (
             <TableRow>
               <TableCell colSpan={6} className="h-48 p-0">

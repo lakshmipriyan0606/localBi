@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Tag, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { Tag, Search, Check, ChevronsUpDown, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface BrandOption {
@@ -17,10 +17,15 @@ export function TopNavBrandSelector({ brands }: { brands: BrandOption[] }) {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [switching, setSwitching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const activeBrandId = searchParams.get('brandId') || brands[0]?.id || '';
   const activeBrand = brands.find((b) => b.id === activeBrandId) || brands[0];
+
+  useEffect(() => {
+    setSwitching(false);
+  }, [searchParams]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -40,9 +45,12 @@ export function TopNavBrandSelector({ brands }: { brands: BrandOption[] }) {
 
   const selectBrand = (id: string) => {
     setOpen(false);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('brandId', id);
-    router.push(`${pathname}?${params.toString()}`);
+    if (id !== activeBrandId) {
+      setSwitching(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('brandId', id);
+      router.push(`${pathname}?${params.toString()}`);
+    }
   };
 
   if (!brands || brands.length === 0) return null;
@@ -59,7 +67,11 @@ export function TopNavBrandSelector({ brands }: { brands: BrandOption[] }) {
             : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
         )}
       >
-        <Tag className="h-3.5 w-3.5 text-indigo-600 flex-shrink-0" />
+        {switching ? (
+          <RefreshCw className="h-3.5 w-3.5 text-indigo-600 animate-spin flex-shrink-0" />
+        ) : (
+          <Tag className="h-3.5 w-3.5 text-indigo-600 flex-shrink-0" />
+        )}
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Brand:</span>
         <span className="max-w-[120px] truncate sm:max-w-[150px] font-bold text-slate-900">
           {activeBrand?.name || 'All Brands'}

@@ -1,6 +1,10 @@
-import Link from 'next/link';
+'use client';
+
 import { MousePointerClick, Eye, Globe, PhoneCall, Navigation } from 'lucide-react';
-import { formatNumber, formatDateRange } from '@/shared/lib/formatters';
+import { formatDateRange } from '@/shared/lib/formatters';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
+import { OverviewKpiCard } from './overview-kpi-card';
+import { OverviewKpiEmpty } from './overview-kpi-empty';
 
 interface OverviewKpiGridProps {
   tenantSlug: string;
@@ -8,6 +12,7 @@ interface OverviewKpiGridProps {
   performanceSummary: any;
   startDate: string;
   endDate: string;
+  isLoading?: boolean;
 }
 
 export function OverviewKpiGrid({
@@ -16,88 +21,91 @@ export function OverviewKpiGrid({
   performanceSummary,
   startDate,
   endDate,
+  isLoading = false,
 }: OverviewKpiGridProps) {
-  if (!performanceSummary) return null;
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <AnalyticsLoader key={i} variant="card" />
+        ))}
+      </div>
+    );
+  }
 
-  const { gsc, gbp, previousPeriod } = performanceSummary;
+  const gsc = performanceSummary?.gsc;
+  const gbp = performanceSummary?.gbp;
+  const prev = performanceSummary?.previousPeriod;
+  const hasData = Boolean(performanceSummary && (gsc?.totalClicks > 0 || gsc?.totalImpressions > 0 || gbp?.totalViews > 0));
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" aria-label="Executive Performance Indicators">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-indigo-600" />
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-            30-Day Executive Performance — {primaryBrand?.name}
+            30-Day Executive Performance — {primaryBrand?.name || 'All Brands'}
           </h2>
         </div>
         <span className="text-xs text-slate-400">{formatDateRange(startDate, endDate)}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <Link
+        <OverviewKpiCard
           href={`/t/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}`}
-          className="p-4 bg-white border border-slate-200/90 rounded-xl shadow-2xs hover:border-indigo-300 transition-all group"
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">GSC Clicks</span>
-            <MousePointerClick className="h-3.5 w-3.5 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(gsc.totalClicks)}</p>
-          <span className="text-[11px] text-emerald-700 font-semibold mt-1 inline-block">
-            +{previousPeriod.clicksGrowthPercent}% vs prior
-          </span>
-        </Link>
-
-        <Link
+          badgeLabel="GSC Clicks"
+          badgeClass="text-indigo-700 bg-indigo-50"
+          icon={MousePointerClick}
+          iconColor="text-indigo-600"
+          hoverBorder="hover:border-indigo-300"
+          value={gsc?.totalClicks}
+          subtext="Organic clicks"
+          growthPercent={prev?.clicksGrowthPercent}
+        />
+        <OverviewKpiCard
           href={`/t/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}&sortBy=impressions`}
-          className="p-4 bg-white border border-slate-200/90 rounded-xl shadow-2xs hover:border-indigo-300 transition-all group"
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">GSC Impr.</span>
-            <Eye className="h-3.5 w-3.5 text-indigo-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(gsc.totalImpressions)}</p>
-          <span className="text-[11px] text-emerald-700 font-semibold mt-1 inline-block">
-            +{previousPeriod.impressionsGrowthPercent}% vs prior
-          </span>
-        </Link>
-
-        <Link
+          badgeLabel="GSC Impr."
+          badgeClass="text-indigo-700 bg-indigo-50"
+          icon={Eye}
+          iconColor="text-indigo-600"
+          hoverBorder="hover:border-indigo-300"
+          value={gsc?.totalImpressions}
+          subtext="Search appearances"
+          growthPercent={prev?.impressionsGrowthPercent}
+        />
+        <OverviewKpiCard
           href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}`}
-          className="p-4 bg-white border border-slate-200/90 rounded-xl shadow-2xs hover:border-teal-300 transition-all group"
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">GBP Views</span>
-            <Globe className="h-3.5 w-3.5 text-teal-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(gbp.totalViews)}</p>
-          <span className="text-[11px] text-slate-400 mt-1 inline-block">Search & Maps</span>
-        </Link>
-
-        <Link
+          badgeLabel="GBP Views"
+          badgeClass="text-teal-700 bg-teal-50"
+          icon={Globe}
+          iconColor="text-teal-600"
+          hoverBorder="hover:border-teal-300"
+          value={gbp?.totalViews}
+          subtext="Search & Maps"
+        />
+        <OverviewKpiCard
           href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=callClicks`}
-          className="p-4 bg-white border border-slate-200/90 rounded-xl shadow-2xs hover:border-blue-300 transition-all group"
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">GBP Calls</span>
-            <PhoneCall className="h-3.5 w-3.5 text-blue-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(gbp.callClicks)}</p>
-          <span className="text-[11px] text-slate-400 mt-1 inline-block">Profile call taps</span>
-        </Link>
-
-        <Link
+          badgeLabel="GBP Calls"
+          badgeClass="text-blue-700 bg-blue-50"
+          icon={PhoneCall}
+          iconColor="text-blue-600"
+          hoverBorder="hover:border-blue-300"
+          value={gbp?.callClicks}
+          subtext="Profile call taps"
+        />
+        <OverviewKpiCard
           href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=directionRequests`}
-          className="p-4 bg-white border border-slate-200/90 rounded-xl shadow-2xs hover:border-emerald-300 transition-all group"
-        >
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">GBP Maps</span>
-            <Navigation className="h-3.5 w-3.5 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(gbp.directionRequests)}</p>
-          <span className="text-[11px] text-slate-400 mt-1 inline-block">Direction requests</span>
-        </Link>
+          badgeLabel="GBP Maps"
+          badgeClass="text-emerald-700 bg-emerald-50"
+          icon={Navigation}
+          iconColor="text-emerald-600"
+          hoverBorder="hover:border-emerald-300"
+          value={gbp?.directionRequests}
+          subtext="Direction requests"
+        />
       </div>
+
+      {!hasData && <OverviewKpiEmpty tenantSlug={tenantSlug} brandName={primaryBrand?.name} />}
     </section>
   );
 }

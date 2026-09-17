@@ -17,7 +17,7 @@ interface InvitationsViewProps {
 }
 
 export function InvitationsView({ tenantSlug, brands }: InvitationsViewProps) {
-  const { data, isLoading, isError, error, refetch } = useTenantInvitationsQuery(tenantSlug);
+  const { data, isLoading, isFetching, isError, error, refetch } = useTenantInvitationsQuery(tenantSlug);
 
   return (
     <div className="space-y-6">
@@ -37,7 +37,7 @@ export function InvitationsView({ tenantSlug, brands }: InvitationsViewProps) {
         <InvitationTable
           tenantSlug={tenantSlug}
           invitations={data?.invitations}
-          isLoading={isLoading}
+          isLoading={isLoading || isFetching}
         />
       )}
     </div>

@@ -19,8 +19,15 @@ export const metadata: Metadata = {
   description: 'Performance summary, connection readiness, and next actions',
 };
 
-export default async function WorkspaceOverviewPage({ params }: { params: Promise<{ tenantSlug: string }> }) {
+export default async function WorkspaceOverviewPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
+}) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
   if (!token) redirect('/login');
@@ -37,7 +44,10 @@ export default async function WorkspaceOverviewPage({ params }: { params: Promis
 
   const { primaryBrand, brandsCount, locationsCount, membersCount, googleConnection, mappedResourcesCount } =
     await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
-      const pBrand = await tx.brand.findFirst({ where: { tenantId: tenant.id, isArchived: false }, select: { id: true, name: true, slug: true } });
+      const pBrand = sp.brandId
+        ? await tx.brand.findFirst({ where: { id: sp.brandId, tenantId: tenant.id, isArchived: false }, select: { id: true, name: true, slug: true } })
+        : await tx.brand.findFirst({ where: { tenantId: tenant.id, isArchived: false }, select: { id: true, name: true, slug: true } });
+
       const [bCount, lCount, mCount, gConn, mapCount] = await Promise.all([
         tx.brand.count({ where: { tenantId: tenant.id, isArchived: false } }),
         tx.location.count({ where: { tenantId: tenant.id, isArchived: false } }),
@@ -57,7 +67,13 @@ export default async function WorkspaceOverviewPage({ params }: { params: Promis
   let performanceSummary = null;
   if (primaryBrand) {
     try {
-      performanceSummary = await ReportingService.getPerformanceSummary({ tenantId: tenant.id, brandId: primaryBrand.id, startDate, endDate, context: authorizedContext });
+      performanceSummary = await ReportingService.getPerformanceSummary({
+        tenantId: tenant.id,
+        brandId: primaryBrand.id,
+        startDate,
+        endDate,
+        context: authorizedContext,
+      });
     } catch {}
   }
 

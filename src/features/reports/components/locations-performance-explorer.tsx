@@ -50,7 +50,7 @@ export function LocationsPerformanceExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<GbpLocationBreakdownRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<GbpLocationBreakdownRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -175,7 +175,7 @@ export function LocationsPerformanceExplorer({
       searchPlaceholder="Filter locations by name or city..."
       columns={columns}
       data={data?.items}
-      isLoading={isLoading}
+      isLoading={isLoading || isFetching}
       isError={isError}
       error={error}
       onRetry={refetch}

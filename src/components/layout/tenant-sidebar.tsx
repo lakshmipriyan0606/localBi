@@ -28,6 +28,7 @@ import {
 import { LocalBiMark } from '@/components/brand/localbi-mark';
 import { Badge } from '@/components/ui/badge';
 import { browserClient } from '@/lib/http/browser-client';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { cn } from '@/lib/cn';
 
 export interface SafeTenantNavDto {
@@ -252,10 +253,13 @@ function getTargetTenantUrl(currentPathname: string, currentSlug: string, target
   return `/t/${targetSlug}`;
 }
 
-  const handleSelectTenant = (targetSlug: string) => {
+  const [switchingTenant, setSwitchingTenant] = useState<string | null>(null);
+
+  const handleSelectTenant = (targetSlug: string, targetName: string) => {
     setSwitcherOpen(false);
     if (onNavigate) onNavigate();
     if (targetSlug !== tenant.slug) {
+      setSwitchingTenant(targetName);
       router.push(getTargetTenantUrl(pathname, tenant.slug, targetSlug));
     }
   };
@@ -272,6 +276,16 @@ function getTargetTenantUrl(currentPathname: string, currentSlug: string, target
 
   return (
     <div className="flex h-full flex-col">
+      {switchingTenant && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-xs animate-in fade-in-50 duration-200">
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xl max-w-sm w-full mx-4">
+            <AnalyticsLoader
+              variant="hero"
+              message={`Switching workspace to ${switchingTenant}...`}
+            />
+          </div>
+        </div>
+      )}
       {/* ── Brand header ── */}
       <div className="px-4 pt-4 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5 mb-3">
@@ -352,7 +366,7 @@ function getTargetTenantUrl(currentPathname: string, currentSlug: string, target
                     <button
                       key={t.id || t.slug}
                       type="button"
-                      onClick={() => handleSelectTenant(t.slug)}
+                      onClick={() => handleSelectTenant(t.slug, t.name)}
                       className={cn(
                         'w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-left transition-all cursor-pointer',
                         isCurrent

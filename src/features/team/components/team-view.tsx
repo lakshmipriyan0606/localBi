@@ -19,7 +19,7 @@ interface TeamViewProps {
 }
 
 export function TeamView({ tenantSlug, brands }: TeamViewProps) {
-  const { data, isLoading, isError, error, refetch } = useTeamQuery(tenantSlug);
+  const { data, isLoading, isFetching, isError, error, refetch } = useTeamQuery(tenantSlug);
 
   return (
     <div className="space-y-6">
@@ -47,7 +47,7 @@ export function TeamView({ tenantSlug, brands }: TeamViewProps) {
           tenantSlug={tenantSlug}
           members={data?.members}
           brands={brands}
-          isLoading={isLoading}
+          isLoading={isLoading || isFetching}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, PhoneCall, Globe, Navigation, ArrowRight } from 'lucide-react';
+import { Search, PhoneCall, Globe, Navigation, ArrowRight, Sparkles } from 'lucide-react';
 import { ActionMetricCard } from './metric-card';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { formatNumber } from '@/shared/lib/formatters';
@@ -14,13 +14,7 @@ export interface ReportsGbpSectionProps {
   dateRangeDays: number;
 }
 
-export function ReportsGbpSection({
-  summary,
-  isLoading,
-  tenantSlug,
-  selectedBrandId,
-  dateRangeDays,
-}: ReportsGbpSectionProps) {
+export function ReportsGbpSection({ summary, isLoading, tenantSlug, selectedBrandId, dateRangeDays }: ReportsGbpSectionProps) {
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -32,6 +26,7 @@ export function ReportsGbpSection({
   }
 
   const gbp = summary?.gbp;
+  const hasGbpData = Boolean(gbp && (gbp.totalViews > 0 || gbp.callClicks > 0 || gbp.websiteClicks > 0 || gbp.directionRequests > 0));
 
   return (
     <section aria-label="Google Business Profile customer action metrics" className="space-y-4">
@@ -89,6 +84,18 @@ export function ReportsGbpSection({
           href={`/t/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}&sortBy=directionRequests`}
         />
       </div>
+
+      {!hasGbpData && (
+        <div className="p-3.5 bg-teal-50/50 border border-teal-200/80 rounded-xl flex items-center justify-between gap-3 text-xs text-teal-900">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-teal-600 flex-shrink-0" />
+            <span>No Google Business Profile metrics synced for this brand. Map your locations in the Integrations tab.</span>
+          </div>
+          <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-teal-950 flex-shrink-0">
+            Configure GBP
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

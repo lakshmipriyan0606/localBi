@@ -46,7 +46,7 @@ export function DevicesExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isError, error, refetch } = useReportsDrilldown<DeviceDimensionRow>({
+  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<DeviceDimensionRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
@@ -144,7 +144,7 @@ export function DevicesExplorer({
       searchPlaceholder="Filter devices..."
       columns={columns}
       data={data?.items}
-      isLoading={isLoading}
+      isLoading={isLoading || isFetching}
       isError={isError}
       error={error}
       onRetry={refetch}

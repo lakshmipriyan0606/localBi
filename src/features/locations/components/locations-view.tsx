@@ -20,7 +20,7 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
 
-  const { data, isLoading, isError, error, refetch } = useLocationsQuery(tenantSlug, {
+  const { data, isLoading, isFetching, isError, error, refetch } = useLocationsQuery(tenantSlug, {
     search: search || undefined,
     brandId: selectedBrandId || undefined,
     includeArchived: includeArchived || undefined,
@@ -87,7 +87,7 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
         <LocationTable
           tenantSlug={tenantSlug}
           locations={data?.items}
-          isLoading={isLoading}
+          isLoading={isLoading || isFetching}
         />
       )}
     </div>

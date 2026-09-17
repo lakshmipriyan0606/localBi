@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -86,17 +86,11 @@ export function LocationTable({
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <TableRow key={`skeleton-loc-${i}`}>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
-              </TableRow>
-            ))
+            <TableRow>
+              <TableCell colSpan={7} className="py-10 text-center">
+                <AnalyticsLoader variant="table" message="Loading store locations..." />
+              </TableCell>
+            </TableRow>
           ) : !locations || locations.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="h-48 p-0">

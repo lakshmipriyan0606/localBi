@@ -2,13 +2,15 @@
 
 import { useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/layout/page-header';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { SourceStatusBadge } from './source-status-badge';
 import { DimensionBreakdown } from './dimension-breakdown';
 import { ReportsHeaderControls } from './reports-header-controls';
-import { ReportsSourceTabs } from './reports-source-tabs';
+import { ReportsSubNav } from './reports-sub-nav';
 import { ReportsGbpSection } from './reports-gbp-section';
 import { ReportsGscSection } from './reports-gsc-section';
 import { ReportsGbpQuickLinks } from './reports-gbp-quick-links';
@@ -30,7 +32,7 @@ export interface ReportsDashboardProps {
 }
 
 export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, initialBrandId }: ReportsDashboardProps) {
-  const { state, setDateRangeDays, setBrandId, setLocationId, setTab } = useReportsQueryState({
+  const { state, setDateRangeDays, setBrandId, setLocationId } = useReportsQueryState({
     dateRangeDays: 30,
     brandId: initialBrandId,
   });
@@ -47,9 +49,11 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
   }, [state.dateRangeDays]);
 
   const queryParams = { tenantSlug, brandId: selectedBrandId, locationId: state.locationId || undefined, startDate, endDate };
-  const { data: summary, isLoading: isSummaryLoading, isFetching } = usePerformanceSummary(queryParams);
-  const { data: timeseries = [], isLoading: isTimeseriesLoading } = usePerformanceTimeseries(queryParams);
-  const { data: dimensions, isLoading: isDimensionsLoading } = usePerformanceDimensions(queryParams);
+  const { data: summary, isLoading: isSummaryLoading, isFetching: isSummaryFetching, isError: isSummaryError, error: summaryError, refetch: refetchSummary } = usePerformanceSummary(queryParams);
+  const { data: timeseries = [], isLoading: isTimeseriesLoading, isFetching: isTimeseriesFetching } = usePerformanceTimeseries(queryParams);
+  const { data: dimensions, isLoading: isDimensionsLoading, isFetching: isDimensionsFetching } = usePerformanceDimensions(queryParams);
+
+  const isDataBusy = isSummaryLoading || isSummaryFetching;
 
   return (
     <div className="space-y-6">
@@ -71,16 +75,32 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
             onLocationChange={setLocationId}
             dateRangeDays={state.dateRangeDays}
             onDateRangeChange={setDateRangeDays}
-            isFetching={isFetching}
+            isFetching={isDataBusy}
           />
         }
       />
-      <ReportsSourceTabs activeSource={activeSource} onSelectTab={setTab} tenantSlug={tenantSlug} />
+
+      <ReportsSubNav activeSource={activeSource} tenantSlug={tenantSlug} selectedBrandId={selectedBrandId} dateRangeDays={state.dateRangeDays} />
+
+      {isSummaryError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-800 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-500" />
+            <div>
+              <p className="text-xs font-bold">Failed to load live performance metrics</p>
+              <p className="text-[11px] text-rose-600 mt-0.5">{(summaryError as Error)?.message || 'An error occurred while streaming performance data.'}</p>
+            </div>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => refetchSummary()} className="border-rose-300 text-rose-800 hover:bg-rose-100 flex-shrink-0 text-xs">
+            Retry
+          </Button>
+        </div>
+      )}
 
       {activeSource === 'gsc' && (
         <ReportsGscSection
           summary={summary}
-          isLoading={isSummaryLoading}
+          isLoading={isDataBusy}
           tenantSlug={tenantSlug}
           selectedBrandId={selectedBrandId}
           dateRangeDays={state.dateRangeDays}
@@ -91,16 +111,16 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
       {activeSource === 'gbp' && (
         <ReportsGbpSection
           summary={summary}
-          isLoading={isSummaryLoading}
+          isLoading={isDataBusy}
           tenantSlug={tenantSlug}
           selectedBrandId={selectedBrandId}
           dateRangeDays={state.dateRangeDays}
         />
       )}
 
-      <TrendChartPanel data={timeseries} isLoading={isTimeseriesLoading} startDate={startDate} endDate={endDate} dateRangeDays={state.dateRangeDays} source={activeSource} />
+      <TrendChartPanel data={timeseries} isLoading={isTimeseriesLoading || isTimeseriesFetching} startDate={startDate} endDate={endDate} dateRangeDays={state.dateRangeDays} source={activeSource} />
 
-      {activeSource === 'gsc' && <DimensionBreakdown queries={dimensions?.queries || []} pages={dimensions?.pages || []} devices={dimensions?.devices || []} isLoading={isDimensionsLoading} />}
+      {activeSource === 'gsc' && <DimensionBreakdown queries={dimensions?.queries || []} pages={dimensions?.pages || []} devices={dimensions?.devices || []} isLoading={isDimensionsLoading || isDimensionsFetching} />}
       {activeSource === 'gbp' && <ReportsGbpQuickLinks tenantSlug={tenantSlug} selectedBrandId={selectedBrandId} dateRangeDays={state.dateRangeDays} brandLocations={brandLocations} />}
       <ReportsPolicyFooter activeSource={activeSource} />
     </div>
