@@ -3,7 +3,10 @@ import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
-import { TenantSidebar } from '@/components/layout/tenant-sidebar';
+import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
+import { TenantService } from '@/modules/tenancy/tenant-service';
+import { TenantLayoutShell } from '@/components/layout/tenant-layout-shell';
 
 export default async function TenantWorkspaceLayout({
   children,
@@ -50,25 +53,36 @@ export default async function TenantWorkspaceLayout({
     role: resolved.authorizedContext?.role || 'VIEWER',
   };
 
+  // Fetch authorized tenant organizations for in-place client switching
+  const userTenants = await TenantService.listUserTenants(resolved.user.id);
+  const authorizedTenants = userTenants.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    plan: t.plan,
+    role: t.role || 'VIEWER',
+  }));
+
+  const brands = await TenantContextService.withTenantContext(
+    prisma,
+    safeTenant.id,
+    async (tx) => {
+      return tx.brand.findMany({
+        where: { tenantId: safeTenant.id, isArchived: false },
+        select: { id: true, name: true, slug: true },
+        orderBy: { name: 'asc' },
+      });
+    }
+  );
+
   return (
-    <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
-      <TenantSidebar tenant={safeTenant} user={safeUser} />
-
-      {/* Main content area — shifted right on mobile to clear the fixed top bar */}
-      <div className="flex flex-1 flex-col min-w-0 lg:min-h-screen">
-        {/* Mobile spacer for the fixed top bar */}
-        <div className="h-14 lg:hidden flex-shrink-0" aria-hidden="true" />
-
-        <main className="flex-1 w-full">
-          {/*
-            Fluid container: generous padding, sensible max-width.
-            Analytics pages get full width; narrow pages (auth, forms) self-constrain.
-          */}
-          <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
+    <TenantLayoutShell
+      tenant={safeTenant}
+      user={safeUser}
+      brands={brands}
+      tenants={authorizedTenants}
+    >
+      {children}
+    </TenantLayoutShell>
   );
 }

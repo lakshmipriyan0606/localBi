@@ -220,16 +220,33 @@ export class GoogleOAuthService {
     const clientId = config.GOOGLE_CLIENT_ID;
     const clientSecret = config.GOOGLE_CLIENT_SECRET;
 
-    // Decrypt refresh token
-    const envelope = JSON.parse(encryptedRefreshTokenJson);
-    const rawRefreshToken = CryptoEnvelopeService.decrypt({
-      envelope,
-      tenantId,
-      connectionId,
-    });
-
-    if (!clientId || clientId.startsWith('mock-') || !clientSecret || clientSecret.startsWith('mock-')) {
+    // In mock/development mode or if token is a mock string, return mock refreshed access token
+    if (
+      !clientId ||
+      clientId.startsWith('mock-') ||
+      !clientSecret ||
+      clientSecret.startsWith('mock-') ||
+      encryptedRefreshTokenJson.startsWith('v1:mock-') ||
+      encryptedRefreshTokenJson.startsWith('mock-')
+    ) {
       return `mock_refreshed_access_token_${crypto.randomBytes(16).toString('hex')}`;
+    }
+
+    // Decrypt refresh token
+    let rawRefreshToken: string;
+    try {
+      const envelope = JSON.parse(encryptedRefreshTokenJson);
+      rawRefreshToken = CryptoEnvelopeService.decrypt({
+        envelope,
+        tenantId,
+        connectionId,
+      });
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production' || clientId.startsWith('mock-')) {
+        logger.warn({ connectionId, err }, 'Falling back to mock access token due to non-JSON envelope format');
+        return `mock_refreshed_access_token_${crypto.randomBytes(16).toString('hex')}`;
+      }
+      throw err;
     }
 
     const response = await fetch('https://oauth2.googleapis.com/token', {

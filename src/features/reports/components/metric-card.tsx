@@ -4,7 +4,6 @@ import * as React from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Minus, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { Skeleton } from '@/components/ui/skeleton';
 import { formatDelta } from '@/shared/lib/formatters';
 
 interface MetricCardProps {
@@ -97,8 +96,19 @@ export function MetricCard({
       {/* ── Primary value ── */}
       {isLoading ? (
         <div className="space-y-2">
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="h-4 w-32" />
+          <div className="flex items-baseline gap-2">
+            <div className="h-7 w-20 bg-slate-200/80 rounded animate-pulse" />
+            <div className="h-3 w-10 bg-slate-100 rounded animate-pulse" />
+          </div>
+          <div className="flex items-end gap-1 h-3.5 pt-1">
+            {[40, 75, 50, 90, 65, 85].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 bg-gradient-to-t from-indigo-500/60 to-teal-400/80 rounded-t-xs animate-bounce"
+                style={{ height: `${h}%`, animationDelay: `${i * 100}ms`, animationDuration: '1.2s' }}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <>
@@ -207,8 +217,16 @@ export function ActionMetricCard({
         <div className="min-w-0">
           {isLoading ? (
             <div className="space-y-1.5">
-              <Skeleton className="h-6 w-16" />
-              <Skeleton className="h-3.5 w-28" />
+              <div className="h-5 w-16 bg-slate-200/80 rounded animate-pulse" />
+              <div className="flex items-end gap-1 h-3 w-24 pt-0.5">
+                {[30, 80, 55, 95, 70].map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 bg-gradient-to-t from-teal-500/60 to-blue-400/80 rounded-t-xs animate-bounce"
+                    style={{ height: `${h}%`, animationDelay: `${i * 120}ms`, animationDuration: '1s' }}
+                  />
+                ))}
+              </div>
             </div>
           ) : (
             <>

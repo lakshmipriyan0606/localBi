@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useState } from 'react';
 import { Laptop, Smartphone, Tablet, Search as SearchIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { cn } from '@/lib/cn';
 import { formatNumber, formatPercent, formatPosition } from '@/shared/lib/formatters';
 import type {
@@ -52,22 +52,6 @@ function TabButton({
   );
 }
 
-function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex gap-3">
-          {Array.from({ length: cols }).map((_, j) => (
-            <Skeleton
-              key={j}
-              className={cn('h-8', j === 0 ? 'flex-1' : 'w-16 flex-shrink-0')}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function QueriesTable({ queries }: { queries: QueryDimensionRow[] }) {
   if (queries.length === 0) {
@@ -300,13 +284,7 @@ export function DimensionBreakdown({
       {/* Tab content */}
       <div className="px-5 py-4" role="tabpanel" aria-labelledby={`dim-tab-${activeTab}`}>
         {isLoading ? (
-          activeTab === 'devices' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[0, 1, 2].map((i) => <Skeleton key={i} className="h-28" />)}
-            </div>
-          ) : (
-            <TableSkeleton />
-          )
+          <AnalyticsLoader variant="hero" message={`Aggregating Google Search Console ${activeTab} telemetry...`} />
         ) : activeTab === 'queries' ? (
           <QueriesTable queries={queries} />
         ) : activeTab === 'pages' ? (

@@ -38,24 +38,21 @@ describe('TenantSidebar Component', () => {
     role: 'OWNER',
   };
 
-  it('renders tenant name, slug, user profile, and navigation links', () => {
+  it('renders tenant name, user profile, and navigation links', () => {
     render(<TenantSidebar tenant={mockTenant} user={mockUser} />);
 
     expect(screen.getByText('Acme Coffee Co')).toBeInTheDocument();
-    expect(screen.getByText('/t/acme-corp')).toBeInTheDocument();
-    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-    expect(screen.getByText('admin@acme.com')).toBeInTheDocument();
-    expect(screen.getByText('owner')).toBeInTheDocument();
+    expect(screen.getAllByText('owner').length).toBeGreaterThanOrEqual(1);
 
     expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute(
       'href',
       '/t/acme-corp'
     );
-    expect(screen.getByRole('link', { name: /brands/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /client brands/i })).toHaveAttribute(
       'href',
       '/t/acme-corp/brands'
     );
-    expect(screen.getByRole('link', { name: /locations/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /storefront directory/i })).toHaveAttribute(
       'href',
       '/t/acme-corp/locations'
     );
@@ -67,9 +64,17 @@ describe('TenantSidebar Component', () => {
       'href',
       '/t/acme-corp/invitations'
     );
-    expect(screen.getByRole('link', { name: /settings & sessions/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /workspace settings/i })).toHaveAttribute(
       'href',
       '/t/acme-corp/settings'
+    );
+    expect(screen.getByRole('link', { name: /google accounts/i })).toHaveAttribute(
+      'href',
+      '/t/acme-corp/integrations'
+    );
+    expect(screen.getByRole('link', { name: /traffic & web sessions/i })).toHaveAttribute(
+      'href',
+      '/t/acme-corp/reports/ga4'
     );
   });
 

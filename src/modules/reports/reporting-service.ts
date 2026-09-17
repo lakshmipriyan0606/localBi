@@ -412,46 +412,94 @@ export class ReportingService {
         return { queries: [], pages: [], devices: [] };
       }
 
+      const start = new Date(params.startDate);
+      const end = new Date(params.endDate);
+
       const queryMetrics = await tx.gscDailyQueryMetric.findMany({
-        where: { tenantId, propertyId: { in: propertyIds } },
+        where: {
+          tenantId,
+          propertyId: { in: propertyIds },
+          date: { gte: start, lte: end },
+        },
         include: { query: true },
-        orderBy: { clicks: 'desc' },
-        take: 20,
       });
 
-      const queries: QueryDimensionRow[] = queryMetrics.map((qm) => ({
-        queryText: qm.query.queryText,
-        clicks: qm.clicks,
-        impressions: qm.impressions,
-        ctr: qm.impressions > 0 ? Math.round((qm.clicks / qm.impressions) * 10000) / 10000 : 0,
-        position: qm.impressions > 0 ? Math.round((qm.sumPositionImpressions / qm.impressions) * 10) / 10 : 0,
-      }));
+      const queryMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+      for (const q of queryMetrics) {
+        const txt = q.query.queryText;
+        const curr = queryMap.get(txt) || { clicks: 0, impressions: 0, sumPos: 0 };
+        curr.clicks += q.clicks;
+        curr.impressions += q.impressions;
+        curr.sumPos += q.sumPositionImpressions;
+        queryMap.set(txt, curr);
+      }
+
+      const queries: QueryDimensionRow[] = Array.from(queryMap.entries())
+        .map(([queryText, stats]) => ({
+          queryText,
+          clicks: stats.clicks,
+          impressions: stats.impressions,
+          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+          position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
+        }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 10);
 
       const pageMetrics = await tx.gscDailyPageMetric.findMany({
-        where: { tenantId, propertyId: { in: propertyIds } },
+        where: {
+          tenantId,
+          propertyId: { in: propertyIds },
+          date: { gte: start, lte: end },
+        },
         include: { page: true },
-        orderBy: { clicks: 'desc' },
-        take: 20,
       });
 
-      const pages: PageDimensionRow[] = pageMetrics.map((pm) => ({
-        fullUrl: pm.page.fullUrl,
-        clicks: pm.clicks,
-        impressions: pm.impressions,
-        ctr: pm.impressions > 0 ? Math.round((pm.clicks / pm.impressions) * 10000) / 10000 : 0,
-        position: pm.impressions > 0 ? Math.round((pm.sumPositionImpressions / pm.impressions) * 10) / 10 : 0,
-      }));
+      const pageMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+      for (const p of pageMetrics) {
+        const url = p.page.fullUrl;
+        const curr = pageMap.get(url) || { clicks: 0, impressions: 0, sumPos: 0 };
+        curr.clicks += p.clicks;
+        curr.impressions += p.impressions;
+        curr.sumPos += p.sumPositionImpressions;
+        pageMap.set(url, curr);
+      }
+
+      const pages: PageDimensionRow[] = Array.from(pageMap.entries())
+        .map(([fullUrl, stats]) => ({
+          fullUrl,
+          clicks: stats.clicks,
+          impressions: stats.impressions,
+          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+          position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
+        }))
+        .sort((a, b) => b.clicks - a.clicks)
+        .slice(0, 10);
 
       const deviceMetrics = await tx.gscDailyDeviceMetric.findMany({
-        where: { tenantId, propertyId: { in: propertyIds } },
+        where: {
+          tenantId,
+          propertyId: { in: propertyIds },
+          date: { gte: start, lte: end },
+        },
       });
 
-      const devices: DeviceDimensionRow[] = deviceMetrics.map((dm) => ({
-        device: dm.device,
-        clicks: dm.clicks,
-        impressions: dm.impressions,
-        ctr: dm.impressions > 0 ? Math.round((dm.clicks / dm.impressions) * 10000) / 10000 : 0,
-      }));
+      const deviceMap = new Map<string, { clicks: number; impressions: number }>();
+      for (const d of deviceMetrics) {
+        const dev = d.device;
+        const curr = deviceMap.get(dev) || { clicks: 0, impressions: 0 };
+        curr.clicks += d.clicks;
+        curr.impressions += d.impressions;
+        deviceMap.set(dev, curr);
+      }
+
+      const devices: DeviceDimensionRow[] = Array.from(deviceMap.entries())
+        .map(([device, stats]) => ({
+          device: device as 'DESKTOP' | 'MOBILE' | 'TABLET',
+          clicks: stats.clicks,
+          impressions: stats.impressions,
+          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+        }))
+        .sort((a, b) => b.clicks - a.clicks);
 
       return { queries, pages, devices };
     });
