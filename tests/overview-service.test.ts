@@ -82,7 +82,7 @@ describe('OverviewService: Multi-Tenant Real Telemetry & ABC Dental Showcase Iso
     expect(overview.gsc.position).toBe(12.4);
     expect(overview.gsc.hasData).toBe(true);
     expect(overview.gsc.queries.length).toBeGreaterThan(0);
-    expect(overview.gsc.queries[0].query).toBe('abc dental');
+    expect(overview.gsc.queries[0]?.query).toBe('abc dental');
 
     // Verify Web showcase telemetry & Map
     expect(overview.web.users).toBe(12842);
@@ -137,8 +137,6 @@ describe('OverviewService: Multi-Tenant Real Telemetry & ABC Dental Showcase Iso
         postalCode: '80202',
         country: 'US',
         timezone: 'America/Denver',
-        latitude: 39.75,
-        longitude: -104.99,
         brandId: brand.id,
       },
       userContext
@@ -154,8 +152,6 @@ describe('OverviewService: Multi-Tenant Real Telemetry & ABC Dental Showcase Iso
         postalCode: '80302',
         country: 'US',
         timezone: 'America/Denver',
-        latitude: 40.01,
-        longitude: -105.27,
         brandId: brand.id,
       },
       userContext

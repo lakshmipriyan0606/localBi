@@ -55,16 +55,23 @@ export async function POST(
     AuthorizationService.assertCan(authorizedContext, Action.INTEGRATION_MAP);
 
     const body = await request.json().catch(() => ({}));
-    const { type, internalId, externalResourceId } = body;
-
-    if (!type || !internalId || !externalResourceId) {
-      throw createValidationError(
-        'Missing required mapping fields: type (LOCATION or BRAND), internalId, externalResourceId'
-      );
-    }
+    const { type, internalId, externalResourceId, brandId } = body;
 
     let result;
-    if (type === 'LOCATION') {
+    if (type === 'AUTO_BRAND') {
+      const targetBrandId = brandId || internalId;
+      if (!targetBrandId) {
+        throw createValidationError('Missing brandId for AUTO_BRAND mapping');
+      }
+      result = await ResourceMappingService.autoMapBrandLocations(
+        tenant.id,
+        targetBrandId,
+        authorizedContext
+      );
+    } else if (type === 'LOCATION') {
+      if (!internalId || !externalResourceId) {
+        throw createValidationError('Missing required mapping fields: internalId, externalResourceId');
+      }
       result = await ResourceMappingService.mapGbpLocation(
         tenant.id,
         internalId,
@@ -72,6 +79,9 @@ export async function POST(
         authorizedContext
       );
     } else if (type === 'BRAND') {
+      if (!internalId || !externalResourceId) {
+        throw createValidationError('Missing required mapping fields: internalId, externalResourceId');
+      }
       result = await ResourceMappingService.mapGscProperty(
         tenant.id,
         internalId,
@@ -79,7 +89,7 @@ export async function POST(
         authorizedContext
       );
     } else {
-      throw createValidationError(`Unsupported mapping type: "${type}". Expected LOCATION or BRAND.`);
+      throw createValidationError(`Unsupported mapping type: "${type}". Expected LOCATION, BRAND, or AUTO_BRAND.`);
     }
 
     return NextResponse.json({ success: true, data: result });

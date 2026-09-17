@@ -106,6 +106,41 @@ export function IntegrationsManager({ tenantSlug, initialState, userRole }: Inte
     } catch (err: unknown) { setErrorMsg((err as Error).message || 'Failed to unmap'); }
   };
 
+  const [isAutoMapping, setIsAutoMapping] = useState(false);
+
+  const handleAutoMapBrand = async (brandId: string) => {
+    if (!brandId) return;
+    setIsAutoMapping(true);
+    setErrorMsg(null);
+    try {
+      const res = await browserClient.post<{
+        success: boolean;
+        data: {
+          brandId: string;
+          brandName: string;
+          mappedCount: number;
+          mappings: Array<{ locationName: string; resourceName: string }>;
+        };
+      }>(`/tenants/${tenantSlug}/integrations/google/mappings`, {
+        type: 'AUTO_BRAND',
+        brandId,
+      });
+
+      const count = res.data?.data?.mappedCount ?? 0;
+      const brandName = res.data?.data?.brandName || 'Brand';
+      if (count > 0) {
+        setSuccessMsg(`Successfully auto-mapped ${count} location(s) for ${brandName}!`);
+      } else {
+        setSuccessMsg(`No new matching locations found to auto-map for ${brandName}. You can map locations manually below.`);
+      }
+      router.refresh();
+    } catch (err: unknown) {
+      setErrorMsg((err as Error).message || 'Failed to auto-map brand locations');
+    } finally {
+      setIsAutoMapping(false);
+    }
+  };
+
   const handleTriggerSync = async () => {
     setIsSyncing(true); setErrorMsg(null);
     try {
@@ -145,7 +180,7 @@ export function IntegrationsManager({ tenantSlug, initialState, userRole }: Inte
       {activeStage === 1 && <IntegrationsStageContext brands={initialState.brands} onContinue={() => setActiveStage(2)} />}
       {activeStage === 2 && <IntegrationsStageAuthorize isAuthorized={Boolean(activeConnection)} email={activeConnection?.externalEmail} isConnecting={isConnecting} canManage={canManage} onConnect={handleConnect} onContinue={() => setActiveStage(3)} />}
       {activeStage === 3 && <IntegrationsStageDiscover gbpResources={gbpResources} gscResources={gscResources} isRefreshing={isRefreshing} canManage={canManage} onRefresh={handleRefresh} onContinue={() => setActiveStage(4)} />}
-      {activeStage === 4 && <IntegrationsStageMap locations={initialState.locations} brands={initialState.brands} gbpResources={gbpResources} gscResources={gscResources} internalMappings={initialState.internalMappings} selectedLocationId={selectedLocationId} setSelectedLocationId={setSelectedLocationId} selectedGbpResourceId={selectedGbpResourceId} setSelectedGbpResourceId={setSelectedGbpResourceId} selectedBrandId={selectedBrandId} setSelectedBrandId={setSelectedBrandId} selectedGscResourceId={selectedGscResourceId} setSelectedGscResourceId={setSelectedGscResourceId} bestMatch={bestMatch} canManage={canManage} onMapLocation={handleMapLocation} onMapGsc={handleMapGsc} onUnmap={handleUnmap} onContinue={() => setActiveStage(5)} />}
+      {activeStage === 4 && <IntegrationsStageMap locations={initialState.locations} brands={initialState.brands} gbpResources={gbpResources} gscResources={gscResources} internalMappings={initialState.internalMappings} selectedLocationId={selectedLocationId} setSelectedLocationId={setSelectedLocationId} selectedGbpResourceId={selectedGbpResourceId} setSelectedGbpResourceId={setSelectedGbpResourceId} selectedBrandId={selectedBrandId} setSelectedBrandId={setSelectedBrandId} selectedGscResourceId={selectedGscResourceId} setSelectedGscResourceId={setSelectedGscResourceId} bestMatch={bestMatch} canManage={canManage} onMapLocation={handleMapLocation} onMapGsc={handleMapGsc} onAutoMapBrand={handleAutoMapBrand} isAutoMapping={isAutoMapping} onUnmap={handleUnmap} onContinue={() => setActiveStage(5)} />}
       {activeStage === 5 && <IntegrationsStageSync isSyncing={isSyncing} canManage={canManage} onTriggerSync={handleTriggerSync} onContinue={() => setActiveStage(6)} />}
       {activeStage === 6 && <IntegrationsStageReady tenantSlug={tenantSlug} externalEmail={activeConnection?.externalEmail} gbpCount={gbpResources.length} gscCount={gscResources.length} mappingsCount={initialState.internalMappings.length} />}
 

@@ -1,15 +1,38 @@
 import Link from 'next/link';
-import { BarChart3, Smartphone, Laptop, Tablet, ArrowUpRight } from 'lucide-react';
+import { BarChart3, Smartphone, Laptop, Tablet, ArrowUpRight, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { formatNumber } from '@/shared/lib/formatters';
 
-export const GA4_DEVICES = [
-  { device: 'Mobile', sessions: 89200, percent: '62.4%', icon: Smartphone },
-  { device: 'Desktop', sessions: 48900, percent: '34.2%', icon: Laptop },
-  { device: 'Tablet', sessions: 4750, percent: '3.4%', icon: Tablet },
-];
+export interface Ga4DeviceRow {
+  device: string;
+  sessions: number;
+  percent: string;
+  icon?: any;
+}
 
-export function Ga4DevicesCard({ tenantSlug }: { tenantSlug: string }) {
+export interface Ga4DevicesCardProps {
+  tenantSlug: string;
+  devices?: Ga4DeviceRow[];
+  hasRealData?: boolean;
+}
+
+const DEFAULT_ICONS: Record<string, any> = {
+  Mobile: Smartphone,
+  Desktop: Laptop,
+  Tablet: Tablet,
+};
+
+export function Ga4DevicesCard({
+  tenantSlug,
+  devices = [],
+  hasRealData = false,
+}: Ga4DevicesCardProps) {
+  const displayDevices = devices.length > 0 ? devices : [
+    { device: 'Mobile', sessions: 0, percent: '0%', icon: Smartphone },
+    { device: 'Desktop', sessions: 0, percent: '0%', icon: Laptop },
+    { device: 'Tablet', sessions: 0, percent: '0%', icon: Tablet },
+  ];
+
   return (
     <div className="space-y-6">
       <Card className="border border-slate-200/80 shadow-xs bg-white">
@@ -19,12 +42,14 @@ export function Ga4DevicesCard({ tenantSlug }: { tenantSlug: string }) {
             Device Category Share
           </CardTitle>
           <CardDescription className="text-xs text-slate-500 mt-0.5">
-            Session distribution by visitor hardware platform
+            {hasRealData
+              ? 'Real session distribution by visitor hardware platform'
+              : 'Session distribution by visitor hardware platform'}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 space-y-4">
-          {GA4_DEVICES.map((d) => {
-            const Icon = d.icon;
+          {displayDevices.map((d) => {
+            const Icon = d.icon || DEFAULT_ICONS[d.device] || HelpCircle;
             return (
               <div key={d.device} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">

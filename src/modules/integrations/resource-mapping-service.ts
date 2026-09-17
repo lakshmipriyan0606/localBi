@@ -149,6 +149,153 @@ export class ResourceMappingService {
   }
 
   /**
+   * Automatically matches and maps all unmapped GBP locations belonging to a specific Brand.
+   * Leverages storeCode, city, and name similarity matching.
+   */
+  public static async autoMapBrandLocations(
+    tenantId: string,
+    brandId: string,
+    context: AuthorizedContext
+  ): Promise<{
+    brandId: string;
+    brandName: string;
+    mappedCount: number;
+    mappings: Array<{
+      locationId: string;
+      locationName: string;
+      externalResourceId: string;
+      resourceName: string;
+      confidenceScore: number;
+    }>;
+  }> {
+    AuthorizationService.assertCan(context, Action.INTEGRATION_MAP);
+    AuthorizationService.assertBrandAccess(context, brandId);
+
+    if (context.tenantId !== tenantId) {
+      throw createTenantAccessDeniedError(tenantId);
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // 1. Verify brand exists
+      const brand = await tx.brand.findUnique({
+        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
+      });
+      if (!brand || brand.isArchived) {
+        throw createResourceNotFoundError('Brand', brandId);
+      }
+
+      // 2. Fetch all locations for this brand that are not archived
+      const locations = await tx.location.findMany({
+        where: { tenantId, brandId, isArchived: false },
+      });
+
+      // 3. Fetch existing mappings for this tenant
+      const existingMappings = await tx.internalResourceMapping.findMany({
+        where: { tenantId, internalType: 'LOCATION' },
+      });
+      const mappedLocationIds = new Set(existingMappings.map((m) => m.internalId));
+      const mappedResourceIds = new Set(existingMappings.map((m) => m.resourceId));
+
+      // 4. Fetch all GBP external resources for this tenant
+      const gbpResources = await tx.externalResource.findMany({
+        where: { tenantId, resourceType: 'LOCATION' },
+        include: { account: { select: { accountName: true } } },
+      });
+
+      const availableGbpResources = gbpResources.filter((r) => !mappedResourceIds.has(r.id));
+      const unmappedLocations = locations.filter((loc) => !mappedLocationIds.has(loc.id));
+      const newlyMapped: Array<{
+        locationId: string;
+        locationName: string;
+        externalResourceId: string;
+        resourceName: string;
+        confidenceScore: number;
+      }> = [];
+
+      const usedResourceIds = new Set<string>();
+
+      for (const loc of unmappedLocations) {
+        let bestCandidate: { res: (typeof availableGbpResources)[0]; score: number } | null = null;
+
+        for (const res of availableGbpResources) {
+          if (usedResourceIds.has(res.id)) continue;
+
+          const match = this.calculateAddressMatch(
+            {
+              name: loc.name,
+              storeCode: loc.storeCode,
+              addressLine1: loc.addressLine1,
+              city: loc.city,
+              postalCode: loc.postalCode,
+              country: loc.country,
+            },
+            {
+              resourceName: res.resourceName,
+              externalResourceId: res.externalResourceId,
+            }
+          );
+
+          let totalScore = match.score;
+
+          // Bonus if the resource or account matches the brand name
+          const brandKeywords = brand.name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+          const resText = `${res.resourceName} ${res.account?.accountName || ''}`.toLowerCase();
+          const hasBrandMatch = brandKeywords.some((k) => resText.includes(k));
+          if (hasBrandMatch) {
+            totalScore += 30;
+          }
+
+          if (totalScore >= 25 && (!bestCandidate || totalScore > bestCandidate.score)) {
+            bestCandidate = { res, score: Math.min(100, totalScore) };
+          }
+        }
+
+        if (bestCandidate) {
+          usedResourceIds.add(bestCandidate.res.id);
+
+          await tx.internalResourceMapping.upsert({
+            where: {
+              uq_internal_resource_mapping: {
+                tenantId,
+                internalType: 'LOCATION',
+                internalId: loc.id,
+                resourceId: bestCandidate.res.id,
+              },
+            },
+            create: {
+              tenantId,
+              internalType: 'LOCATION',
+              internalId: loc.id,
+              resourceId: bestCandidate.res.id,
+            },
+            update: {},
+          });
+
+          newlyMapped.push({
+            locationId: loc.id,
+            locationName: loc.name,
+            externalResourceId: bestCandidate.res.externalResourceId,
+            resourceName: bestCandidate.res.resourceName,
+            confidenceScore: bestCandidate.score,
+          });
+        }
+      }
+
+      logger.info(
+        { tenantId, brandId, brandName: brand.name, mappedCount: newlyMapped.length },
+        'Auto-mapped GBP locations for brand'
+      );
+
+      return {
+        brandId: brand.id,
+        brandName: brand.name,
+        mappedCount: newlyMapped.length,
+        mappings: newlyMapped,
+      };
+    });
+  }
+
+  /**
    * Maps an external GSC Property resource to an internal Brand.
    */
   public static async mapGscProperty(
