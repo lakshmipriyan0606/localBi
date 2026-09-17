@@ -156,10 +156,10 @@ export function LocationsPerformanceExplorer({
       tenantName={tenantName}
       breadcrumbs={[
         { label: 'Reports', href: `/t/${tenantSlug}/reports` },
-        { label: 'Business Profile', href: `/t/${tenantSlug}/reports` },
-        { label: 'Location Performance', current: true },
+        { label: 'Business Profile', href: `/t/${tenantSlug}/reports?tab=gbp` },
+        { label: 'Location Matrix', current: true },
       ]}
-      title="Google Business Profile Locations"
+      title="Location Matrix"
       description="Compare multi-location impressions across Google Search and Maps, plus consumer conversion actions."
       sourceBadge="GBP"
       brands={brands}

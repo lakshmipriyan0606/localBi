@@ -2,8 +2,8 @@
 
 import { MousePointerClick, Eye, Globe, PhoneCall, Navigation } from 'lucide-react';
 import { formatDateRange } from '@/shared/lib/formatters';
-import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { OverviewKpiCard } from './overview-kpi-card';
+import { OverviewKpiCardSkeleton } from './overview-kpi-card-skeleton';
 import { OverviewKpiEmpty } from './overview-kpi-empty';
 
 interface OverviewKpiGridProps {
@@ -25,9 +25,9 @@ export function OverviewKpiGrid({
 }: OverviewKpiGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 animate-in fade-in duration-300">
         {[1, 2, 3, 4, 5].map((i) => (
-          <AnalyticsLoader key={i} variant="card" />
+          <OverviewKpiCardSkeleton key={i} />
         ))}
       </div>
     );
@@ -39,7 +39,7 @@ export function OverviewKpiGrid({
   const hasData = Boolean(performanceSummary && (gsc?.totalClicks > 0 || gsc?.totalImpressions > 0 || gbp?.totalViews > 0));
 
   return (
-    <section className="space-y-3" aria-label="Executive Performance Indicators">
+    <section className="space-y-3 animate-in fade-in duration-300" aria-label="Executive Performance Indicators">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-indigo-600" />

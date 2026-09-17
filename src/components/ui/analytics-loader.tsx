@@ -1,5 +1,5 @@
 import { cn } from '@/lib/cn';
-import { Activity, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface AnalyticsLoaderProps {
   message?: string;
@@ -14,31 +14,13 @@ export function AnalyticsLoader({
 }: AnalyticsLoaderProps) {
   if (variant === 'card') {
     return (
-      <div className={cn('p-4 rounded-xl border border-slate-200/80 bg-white/90 shadow-2xs space-y-3 animate-pulse', className)}>
+      <div className={cn('p-4 rounded-xl border border-slate-200 bg-white/95 shadow-2xs space-y-3 transition-all', className)}>
         <div className="flex items-center justify-between">
-          <div className="h-3 w-24 bg-slate-200 rounded-full" />
-          <div className="h-4 w-4 rounded bg-indigo-100 text-indigo-500 flex items-center justify-center">
-            <Activity className="h-2.5 w-2.5 animate-spin" />
-          </div>
+          <div className="h-3.5 w-24 rounded-md skeleton-shimmer" />
+          <div className="h-6 w-6 rounded-lg skeleton-shimmer" />
         </div>
-        <div className="flex items-baseline gap-2">
-          <div className="h-7 w-20 bg-slate-300/80 rounded-lg" />
-          <div className="h-3 w-12 bg-slate-200 rounded-full" />
-        </div>
-        {/* Animated mini-data waveform bars */}
-        <div className="flex items-end gap-1 h-4 pt-1">
-          {[40, 70, 45, 90, 60, 80, 50, 95].map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 bg-gradient-to-t from-indigo-500/60 to-teal-400/80 rounded-t-xs animate-bounce"
-              style={{
-                height: `${h}%`,
-                animationDelay: `${i * 120}ms`,
-                animationDuration: '1.2s',
-              }}
-            />
-          ))}
-        </div>
+        <div className="h-7 w-20 rounded-lg skeleton-shimmer my-1" />
+        <div className="h-3 w-32 rounded-md skeleton-shimmer" />
       </div>
     );
   }

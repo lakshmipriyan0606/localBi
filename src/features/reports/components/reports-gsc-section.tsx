@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { MousePointerClick, Eye, BarChart2, TrendingUp, Sparkles } from 'lucide-react';
 import { MetricCard } from './metric-card';
-import { AnalyticsLoader } from '@/components/ui/analytics-loader';
+import { MetricCardSkeleton } from './metric-card-skeleton';
 import { formatNumber, formatPercent, formatPosition, formatDateRange } from '@/shared/lib/formatters';
 
 export interface ReportsGscSectionProps {
@@ -27,11 +27,22 @@ export function ReportsGscSection({
 }: ReportsGscSectionProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <AnalyticsLoader key={i} variant="card" />
-        ))}
-      </div>
+      <section aria-label="Loading search metrics" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-indigo-600 animate-pulse" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Google Search Console — Organic Search Performance
+            </h2>
+          </div>
+          <span className="text-xs text-slate-400">Syncing telemetry…</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
+          {[1, 2, 3, 4].map((i) => (
+            <MetricCardSkeleton key={i} />
+          ))}
+        </div>
+      </section>
     );
   }
 
@@ -40,7 +51,7 @@ export function ReportsGscSection({
   const comparisonLabel = `vs prior ${dateRangeDays}d`;
 
   return (
-    <section aria-label="Google Search Console metrics" className="space-y-4">
+    <section aria-label="Google Search Console metrics" className="space-y-4 animate-in fade-in duration-300">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-indigo-600" />

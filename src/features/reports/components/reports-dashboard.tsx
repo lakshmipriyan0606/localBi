@@ -10,7 +10,6 @@ import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { SourceStatusBadge } from './source-status-badge';
 import { DimensionBreakdown } from './dimension-breakdown';
 import { ReportsHeaderControls } from './reports-header-controls';
-import { ReportsSubNav } from './reports-sub-nav';
 import { ReportsGbpSection } from './reports-gbp-section';
 import { ReportsGscSection } from './reports-gsc-section';
 import { ReportsGbpQuickLinks } from './reports-gbp-quick-links';
@@ -58,12 +57,17 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
   return (
     <div className="space-y-6">
       <Breadcrumbs
-        items={[{ label: 'Reports', href: `/t/${tenantSlug}/reports?tab=${activeSource}` }, { label: activeSource === 'gbp' ? 'Google Business Profile' : 'Google Search Console', current: true }]}
+        items={[
+          { label: 'Reports', href: `/t/${tenantSlug}/reports?tab=${activeSource}` },
+          { label: activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance', current: true }
+        ]}
         tenantSlug={tenantSlug}
       />
       <PageHeader
-        title={activeSource === 'gbp' ? 'Google Business Profile Performance' : 'Google Search Console Performance'}
-        description={`Performance indicators, customer engagement, and search reach for ${tenantName}.`}
+        title={activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance'}
+        description={activeSource === 'gbp'
+          ? `Local search reach, customer actions, and storefront performance for ${tenantName}.`
+          : `Organic search visibility, queries, and landing page reach for ${tenantName}.`}
         badge={<SourceStatusBadge connections={[{ provider: activeSource === 'gbp' ? 'GBP' : 'GSC', state: 'connected', lastSyncedAt: null }]} />}
         actions={
           <ReportsHeaderControls
@@ -79,8 +83,6 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
           />
         }
       />
-
-      <ReportsSubNav activeSource={activeSource} tenantSlug={tenantSlug} selectedBrandId={selectedBrandId} dateRangeDays={state.dateRangeDays} />
 
       {isSummaryError && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-800 shadow-2xs">

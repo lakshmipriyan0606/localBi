@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Search, PhoneCall, Globe, Navigation, ArrowRight, Sparkles } from 'lucide-react';
 import { ActionMetricCard } from './metric-card';
-import { AnalyticsLoader } from '@/components/ui/analytics-loader';
+import { ActionMetricCardSkeleton } from './action-metric-card-skeleton';
 import { formatNumber } from '@/shared/lib/formatters';
 
 export interface ReportsGbpSectionProps {
@@ -17,11 +17,23 @@ export interface ReportsGbpSectionProps {
 export function ReportsGbpSection({ summary, isLoading, tenantSlug, selectedBrandId, dateRangeDays }: ReportsGbpSectionProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <AnalyticsLoader key={i} variant="card" />
-        ))}
-      </div>
+      <section aria-label="Loading customer action metrics" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-teal-600 animate-pulse" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              Google Business Profile — Local Listings & Customer Actions
+            </h2>
+          </div>
+          <span className="text-xs text-slate-400">Syncing telemetry…</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-300">
+          <ActionMetricCardSkeleton icon={Search} iconBg="bg-teal-50 border border-teal-100" iconColor="text-teal-600" />
+          <ActionMetricCardSkeleton icon={PhoneCall} iconBg="bg-blue-50 border border-blue-100" iconColor="text-blue-600" />
+          <ActionMetricCardSkeleton icon={Globe} iconBg="bg-indigo-50 border border-indigo-100" iconColor="text-indigo-600" />
+          <ActionMetricCardSkeleton icon={Navigation} iconBg="bg-emerald-50 border border-emerald-100" iconColor="text-emerald-600" />
+        </div>
+      </section>
     );
   }
 
@@ -29,7 +41,7 @@ export function ReportsGbpSection({ summary, isLoading, tenantSlug, selectedBran
   const hasGbpData = Boolean(gbp && (gbp.totalViews > 0 || gbp.callClicks > 0 || gbp.websiteClicks > 0 || gbp.directionRequests > 0));
 
   return (
-    <section aria-label="Google Business Profile customer action metrics" className="space-y-4">
+    <section aria-label="Google Business Profile customer action metrics" className="space-y-4 animate-in fade-in duration-300">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-teal-600" />
