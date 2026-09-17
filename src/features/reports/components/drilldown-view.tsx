@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Download, Search, RefreshCw, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Download, Search, RefreshCw, AlertCircle, ShieldCheck, LayoutGrid, Table as TableIcon, BarChart3 } from 'lucide-react';
 import { Breadcrumbs, BreadcrumbItem } from '@/components/layout/breadcrumbs';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { DrilldownFilterBar } from './drilldown-filter-bar';
 import { DrilldownTable } from './drilldown-table';
+import { DrilldownVisualAnalytics } from './drilldown-visual-analytics';
 
 export interface ColumnDef<T> {
   key: string;
@@ -51,6 +52,8 @@ export interface DrilldownViewProps<T> {
   actions?: React.ReactNode | undefined;
 }
 
+type ViewMode = 'both' | 'charts' | 'table';
+
 export function DrilldownView<T>({
   tenantSlug,
   tenantName,
@@ -84,6 +87,7 @@ export function DrilldownView<T>({
 }: DrilldownViewProps<T>) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('both');
 
   const { startDate, endDate } = useMemo(() => {
     const today = new Date();
@@ -97,8 +101,19 @@ export function DrilldownView<T>({
     setIsExporting(true);
     try {
       const headers = columns.map((c) => c.header).join(',');
-      const rows = data.map((row) => columns.map((c) => `"${String((row as Record<string, unknown>)[c.key] ?? '').replace(/"/g, '""')}"`).join(','));
-      const meta = [`# localBi Report Export: ${title}`, `# Client: ${tenantName || tenantSlug}`, `# Scope: ${brands.find((b) => b.id === selectedBrandId)?.name || 'All Brands'}`, `# Date Range: ${startDate} to ${endDate} (${dateRangeDays}d)`, `# Source: ${sourceBadge}`, `# Generated: ${new Date().toISOString()}`].join('\n');
+      const rows = data.map((row) =>
+        columns
+          .map((c) => `"${String((row as Record<string, unknown>)[c.key] ?? '').replace(/"/g, '""')}"`)
+          .join(',')
+      );
+      const meta = [
+        `# localBi Report Export: ${title}`,
+        `# Client: ${tenantName || tenantSlug}`,
+        `# Scope: ${brands.find((b) => b.id === selectedBrandId)?.name || 'All Brands'}`,
+        `# Date Range: ${startDate} to ${endDate} (${dateRangeDays}d)`,
+        `# Source: ${sourceBadge}`,
+        `# Generated: ${new Date().toISOString()}`,
+      ].join('\n');
       const blob = new Blob([`${meta}\n\n${headers}\n${rows.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -109,21 +124,85 @@ export function DrilldownView<T>({
       document.body.removeChild(link);
       setExportNotice('CSV exported successfully with active filter constraints.');
       setTimeout(() => setExportNotice(null), 4000);
-    } catch { setExportNotice('Failed to generate export file.'); }
-    finally { setIsExporting(false); }
+    } catch {
+      setExportNotice('Failed to generate export file.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-8">
       <Breadcrumbs items={breadcrumbs} tenantSlug={tenantSlug} />
+
       <PageHeader
         title={title}
         description={description}
-        badge={<Badge className={sourceBadge === 'GSC' ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-teal-100 text-teal-800 border-teal-200'}>{sourceBadge === 'GSC' ? 'Google Search Console' : 'Google Business Profile'}</Badge>}
+        badge={
+          <Badge
+            className={
+              sourceBadge === 'GSC'
+                ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                : 'bg-teal-100 text-teal-800 border-teal-200'
+            }
+          >
+            {sourceBadge === 'GSC' ? 'Google Search Console' : 'Google Business Profile'}
+          </Badge>
+        }
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Segmented Controls */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => setViewMode('both')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-all ${
+                  viewMode === 'both'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Split View (Visual Charts & Table)"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Visual & Table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('charts')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-all ${
+                  viewMode === 'charts'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Charts and Metric Cards Only"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Charts</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-all ${
+                  viewMode === 'table'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Data Table Only"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Table</span>
+              </button>
+            </div>
+
             {actions}
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading || !data || data.length === 0 || isExporting} className="flex items-center gap-1.5 text-xs font-semibold">
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={isLoading || !data || data.length === 0 || isExporting}
+              className="flex items-center gap-1.5 text-xs font-semibold"
+            >
               <Download className="h-3.5 w-3.5" />
               <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
             </Button>
@@ -131,39 +210,84 @@ export function DrilldownView<T>({
         }
       />
 
-      {exportNotice && <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-in fade-in duration-200"><ShieldCheck className="h-4 w-4 flex-shrink-0" /><span>{exportNotice}</span></div>}
+      {exportNotice && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs flex items-center gap-2 animate-in fade-in duration-200">
+          <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+          <span>{exportNotice}</span>
+        </div>
+      )}
 
-      <DrilldownFilterBar brands={brands} locations={locations} selectedBrandId={selectedBrandId} onBrandChange={onBrandChange} selectedLocationId={selectedLocationId} onLocationChange={onLocationChange} dateRangeDays={dateRangeDays} onDateRangeChange={onDateRangeChange} searchQuery={searchQuery} onSearchChange={onSearchChange} searchPlaceholder={searchPlaceholder} startDate={startDate} endDate={endDate} />
+      {/* Filter Controls Bar */}
+      <DrilldownFilterBar
+        brands={brands}
+        locations={locations}
+        selectedBrandId={selectedBrandId}
+        onBrandChange={onBrandChange}
+        selectedLocationId={selectedLocationId}
+        onLocationChange={onLocationChange}
+        dateRangeDays={dateRangeDays}
+        onDateRangeChange={onDateRangeChange}
+        searchQuery={searchQuery}
+        onSearchChange={onSearchChange}
+        searchPlaceholder={searchPlaceholder}
+        startDate={startDate}
+        endDate={endDate}
+      />
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        {isLoading ? (
-          <AnalyticsLoader variant="hero" message={`Streaming ${title} telemetry records...`} />
-        ) : isError ? (
-          <div className="p-12 text-center space-y-3">
-            <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-            <p className="text-sm font-semibold text-slate-900">Failed to load analytics records</p>
-            <p className="text-xs text-slate-500">{error?.message || 'Network or server timeout.'}</p>
-            <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5"><RefreshCw className="h-3.5 w-3.5" /><span>Retry</span></Button>
-          </div>
-        ) : !data || data.length === 0 ? (
-          <div className="p-16 text-center space-y-3">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400"><Search className="h-5 w-5" /></div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">No analytics records found</p>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">No matching telemetry observed during this {dateRangeDays}-day reporting window. Try expanding the date range or clearing filters.</p>
+      {/* Visual Analytics Section (KPI Cards + Horizontal Distribution Bar + Donut Share Breakdown) */}
+      {!isLoading && !isError && data && data.length > 0 && viewMode !== 'table' && (
+        <DrilldownVisualAnalytics data={data} sourceBadge={sourceBadge} title={title} />
+      )}
+
+      {/* Data Table Section */}
+      {viewMode !== 'charts' && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+          {isLoading ? (
+            <AnalyticsLoader variant="hero" message={`Streaming ${title} telemetry records...`} />
+          ) : isError ? (
+            <div className="p-12 text-center space-y-3">
+              <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+              <p className="text-sm font-semibold text-slate-900">Failed to load analytics records</p>
+              <p className="text-xs text-slate-500">{error?.message || 'Network or server timeout.'}</p>
+              <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" />
+                <span>Retry</span>
+              </Button>
             </div>
-            {searchQuery && <Button variant="outline" size="sm" onClick={() => onSearchChange('')} className="text-xs">Clear search query</Button>}
-          </div>
-        ) : (
-          <DrilldownTable columns={columns} data={data} sortBy={sortBy} sortOrder={sortOrder} onSort={onSort} />
-        )}
-      </div>
+          ) : !data || data.length === 0 ? (
+            <div className="p-16 text-center space-y-3">
+              <div className="h-12 w-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+                <Search className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">No analytics records found</p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  No matching telemetry observed during this {dateRangeDays}-day reporting window. Try expanding the
+                  date range or clearing filters.
+                </p>
+              </div>
+              {searchQuery && (
+                <Button variant="outline" size="sm" onClick={() => onSearchChange('')} className="text-xs">
+                  Clear search query
+                </Button>
+              )}
+            </div>
+          ) : (
+            <DrilldownTable columns={columns} data={data} sortBy={sortBy} sortOrder={sortOrder} onSort={onSort} />
+          )}
+        </div>
+      )}
 
       {(accuracyNotice || retentionNote) && (
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs text-slate-600">
-          <div className="flex items-center gap-2 font-semibold text-slate-900"><ShieldCheck className="h-4 w-4 text-indigo-600" /><span>Reporting Integrity & Retention Policy</span></div>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-xs text-slate-600">
+          <div className="flex items-center gap-2 font-semibold text-slate-900">
+            <ShieldCheck className="h-4 w-4 text-indigo-600" />
+            <span>Reporting Integrity & Retention Policy</span>
+          </div>
           {accuracyNotice && <p className="leading-relaxed">{accuracyNotice}</p>}
-          {retentionNote && <p className="text-[11px] text-slate-500 leading-relaxed italic">Retention note: {retentionNote}</p>}
+          {retentionNote && (
+            <p className="text-[11px] text-slate-500 leading-relaxed italic">Retention note: {retentionNote}</p>
+          )}
         </div>
       )}
     </div>

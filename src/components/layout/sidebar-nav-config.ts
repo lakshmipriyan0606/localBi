@@ -47,7 +47,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   pillBadge?: string;
-  badgeVariant?: 'purple' | 'slate' | 'emerald' | 'amber';
+  badgeVariant?: 'purple' | 'slate' | 'emerald' | 'amber' | 'indigo';
 }
 
 export interface NavGroup {

@@ -1,64 +1,80 @@
-import { Users, Activity, Target, Clock } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+'use client';
+
+import { BarChart3 } from 'lucide-react';
+import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
 
 export function Ga4KpiGrid() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card className="border border-slate-200/80 shadow-xs bg-white">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Web Sessions</span>
-            <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600"><Users className="h-4 w-4" /></div>
+    <section className="rounded-2xl border border-[#D2E7F9] bg-[#F0F7FD] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-blue-600 shadow-xs">
+          <BarChart3 className="w-4 h-4" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-[17px] font-bold tracking-tight text-slate-900 leading-none">
+              Web Analytics Telemetry
+            </h2>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-800">
+              ✓ From Visitors to Patients
+            </span>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">142,850</span>
-            <span className="text-xs font-semibold text-emerald-600">+12.4%</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">30-day recorded web visits</p>
-        </CardContent>
-      </Card>
+          <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
+            Understand how visitors use your website and convert to patients
+          </p>
+        </div>
+      </div>
 
-      <Card className="border border-slate-200/80 shadow-xs bg-white">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Active Users</span>
-            <div className="p-2 rounded-lg bg-teal-50 text-teal-600"><Activity className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">98,420</span>
-            <span className="text-xs font-semibold text-emerald-600">+8.7%</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Unique engaged users</p>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-slate-200/80 shadow-xs bg-white">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Engagement Rate</span>
-            <div className="p-2 rounded-lg bg-amber-50 text-amber-600"><Target className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">68.4%</span>
-            <span className="text-xs font-semibold text-emerald-600">+3.2%</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Sessions exceeding 10s or 2+ views</p>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-slate-200/80 shadow-xs bg-white">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Avg Engagement Time</span>
-            <div className="p-2 rounded-lg bg-purple-50 text-purple-600"><Clock className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold font-mono text-slate-900">1m 48s</span>
-            <span className="text-xs font-semibold text-emerald-600">+14s</span>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Average active user focus</p>
-        </CardContent>
-      </Card>
-    </div>
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <DashboardMetricCard
+          label="Users"
+          value={12842}
+          delta={22.6}
+          icon="users"
+          color="blue"
+          sparkColor="#3B82F6"
+          seed={1}
+        />
+        <DashboardMetricCard
+          label="Sessions"
+          value={18421}
+          delta={18.9}
+          icon="mouse-pointer-click"
+          color="purple"
+          sparkColor="#8B5CF6"
+          seed={2}
+        />
+        <DashboardMetricCard
+          label="Engaged Sessions"
+          value={9538}
+          delta={27.3}
+          icon="activity"
+          color="cyan"
+          sparkColor="#14B8A6"
+          seed={3}
+        />
+        <DashboardMetricCard
+          label="Conversion Rate"
+          value={4.8}
+          delta={34.1}
+          suffix="%"
+          icon="target"
+          color="blue"
+          sparkColor="#3B82F6"
+          seed={4}
+        />
+        <DashboardMetricCard
+          label="Website Conversions"
+          value={885}
+          delta={28.6}
+          icon="flag"
+          color="purple"
+          sparkColor="#8B5CF6"
+          seed={5}
+        />
+      </div>
+    </section>
   );
 }

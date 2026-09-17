@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { Menu, Calendar } from 'lucide-react';
+import { Menu, Calendar, Search, CheckCircle2 } from 'lucide-react';
 import { TopNavBrandSelector, BrandOption } from './top-nav-brand-selector';
 import { TopNavUserMenu } from './top-nav-user-menu';
 
@@ -15,67 +15,53 @@ export interface AuthorizedTenantDto {
 }
 
 interface TenantTopNavProps {
-  tenant: {
-    id: string;
-    name: string;
-    slug: string;
-    plan: string;
-  };
-  user: {
-    id: string;
-    email: string;
-    fullName?: string | null | undefined;
-    role: string;
-  };
+  tenant: { id: string; name: string; slug: string; plan: string };
+  user: { id: string; email: string; fullName?: string | null | undefined; role: string };
   brands: BrandOption[];
   tenants?: AuthorizedTenantDto[] | undefined;
   onToggleMobileSidebar?: () => void;
 }
 
-export function TenantTopNav({
-  tenant,
-  user,
-  brands,
-  onToggleMobileSidebar,
-}: TenantTopNavProps) {
+export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: TenantTopNavProps) {
   const dateRangeLabel = useMemo(() => {
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - 30);
-    const format = (d: Date) =>
-      d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' });
-    return `${format(start)} to ${format(end)}`;
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${fmt(start)} – ${fmt(end)}`;
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200/90 bg-white px-4 sm:px-6 shadow-xs">
-      {/* ── Left side: Hamburger (mobile) + Date Window Pill ── */}
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200/90 bg-white px-4 sm:px-5 shadow-xs">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         {onToggleMobileSidebar && (
-          <button
-            type="button"
-            onClick={onToggleMobileSidebar}
-            className="lg:hidden p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-            aria-label="Toggle navigation menu"
-          >
+          <button type="button" onClick={onToggleMobileSidebar} className="lg:hidden p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors" aria-label="Toggle navigation menu">
             <Menu className="h-4 w-4" />
           </button>
         )}
-
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 text-xs font-medium text-slate-700">
-          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          <span>{dateRangeLabel}</span>
+        <div className="relative max-w-xs w-full hidden sm:block">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search reports, pages, or insights..."
+            className="w-full rounded-lg border border-slate-200 bg-slate-50/70 pl-8 pr-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+          />
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-mono hidden md:inline">⌘ K</span>
         </div>
       </div>
 
-      {/* ── Right side: Google Connection Status + Brand Selector + User Menu ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
+        <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 text-[11px] font-medium text-slate-600">
+          <Calendar className="h-3.5 w-3.5 text-slate-400" />
+          <span>{dateRangeLabel}</span>
+        </div>
+
         <Link
           href={`/t/${tenant.slug}/integrations`}
-          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50/60 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100/60 transition-colors"
+          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50/60 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100/60 transition-colors"
           title="Google Accounts authorized and streaming"
         >
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
           <span>Google Connected</span>
         </Link>
 

@@ -49,16 +49,18 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
 
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4" aria-label="Workspace navigation">
-      {groups.map((group) => (
-        <div key={group.heading} className="space-y-0.5">
-          <div className="px-2.5 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.heading}</span>
-            {group.sourceBadge && (
-              <span className={cn('text-[9px] font-bold tracking-wider px-1.5 py-0.2 rounded border font-mono', group.badgeColor || 'bg-slate-100 text-slate-600 border-slate-200')}>
-                {group.sourceBadge}
-              </span>
-            )}
-          </div>
+      {groups.map((group, gi) => (
+        <div key={group.heading || `group-${gi}`} className={cn('space-y-0.5', !group.heading && 'pt-2 mt-2 border-t border-slate-100')}>
+          {group.heading && (
+            <div className="px-2.5 pb-1 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.heading}</span>
+              {group.sourceBadge && (
+                <span className={cn('text-[9px] font-bold tracking-wider px-1.5 py-0.2 rounded border font-mono', group.badgeColor || 'bg-slate-100 text-slate-600 border-slate-200')}>
+                  {group.sourceBadge}
+                </span>
+              )}
+            </div>
+          )}
           {group.items.map((item) => {
             const isActive = isItemActive(item, pathname, searchParams);
             const Icon = item.icon;
@@ -76,7 +78,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                 <Icon className={cn('h-4 w-4 flex-shrink-0 transition-colors', isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600')} aria-hidden="true" />
                 <span className="truncate">{item.label}</span>
                 {item.pillBadge && (
-                  <span className={cn('ml-auto text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0', item.badgeVariant === 'purple' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500')}>
+                  <span className={cn('ml-auto text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0', item.badgeVariant === 'purple' ? 'bg-purple-100 text-purple-700' : item.badgeVariant === 'indigo' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500')}>
                     {item.pillBadge}
                   </span>
                 )}
