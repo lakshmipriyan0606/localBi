@@ -5,67 +5,68 @@ import { DashboardSection } from './dashboard-section';
 import { DashboardMetricCard } from './dashboard-metric-card';
 import { LocationPerformanceMap } from './location-performance-map';
 import { LocationRankingsTable } from './location-rankings-table';
-import { WebInsightsRecommendations } from './web-insights-recommendations';
+import type { OverviewDataDto } from '@/modules/overview/overview-service';
 
 interface WebAnalyticsSectionProps {
   tenantSlug: string;
+  data?: OverviewDataDto['web'] | undefined;
 }
 
-const WEB_CARDS = [
-  {
-    key: 'users',
-    label: 'Users',
-    value: 12842,
-    delta: 22.6,
-    icon: 'users',
-    color: 'blue',
-    sparkColor: '#3B82F6',
-    seed: 1,
-  },
-  {
-    key: 'sessions',
-    label: 'Sessions',
-    value: 18421,
-    delta: 18.9,
-    icon: 'mouse-pointer-click',
-    color: 'purple',
-    sparkColor: '#8B5CF6',
-    seed: 2,
-  },
-  {
-    key: 'engaged',
-    label: 'Engaged Sessions',
-    value: 9538,
-    delta: 27.3,
-    icon: 'activity',
-    color: 'cyan',
-    sparkColor: '#14B8A6',
-    seed: 3,
-  },
-  {
-    key: 'conv-rate',
-    label: 'Conversion Rate',
-    value: 4.8,
-    delta: 34.1,
-    suffix: '%',
-    icon: 'target',
-    color: 'blue',
-    sparkColor: '#3B82F6',
-    seed: 4,
-  },
-  {
-    key: 'conversions',
-    label: 'Website Conversions',
-    value: 885,
-    delta: 28.6,
-    icon: 'flag',
-    color: 'purple',
-    sparkColor: '#8B5CF6',
-    seed: 5,
-  },
-];
+export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionProps) {
+  const webCards = [
+    {
+      key: 'users',
+      label: 'Users',
+      value: data ? data.users : 0,
+      delta: data ? data.usersDelta : 0,
+      icon: 'users',
+      color: 'blue' as const,
+      sparkColor: '#3B82F6',
+      seed: 1,
+    },
+    {
+      key: 'sessions',
+      label: 'Sessions',
+      value: data ? data.sessions : 0,
+      delta: data ? data.sessionsDelta : 0,
+      icon: 'mouse-pointer-click',
+      color: 'purple' as const,
+      sparkColor: '#8B5CF6',
+      seed: 2,
+    },
+    {
+      key: 'engaged',
+      label: 'Engaged Sessions',
+      value: data ? data.engagedSessions : 0,
+      delta: data ? data.engagedSessionsDelta : 0,
+      icon: 'activity',
+      color: 'cyan' as const,
+      sparkColor: '#14B8A6',
+      seed: 3,
+    },
+    {
+      key: 'conv-rate',
+      label: 'Conversion Rate',
+      value: data ? data.conversionRate : 0,
+      delta: data ? data.conversionRateDelta : 0,
+      suffix: '%',
+      icon: 'target',
+      color: 'blue' as const,
+      sparkColor: '#3B82F6',
+      seed: 4,
+    },
+    {
+      key: 'conversions',
+      label: 'Website Conversions',
+      value: data ? data.conversions : 0,
+      delta: data ? data.conversionsDelta : 0,
+      icon: 'flag',
+      color: 'purple' as const,
+      sparkColor: '#8B5CF6',
+      seed: 5,
+    },
+  ];
 
-export function WebAnalyticsSection({ tenantSlug }: WebAnalyticsSectionProps) {
   return (
     <DashboardSection
       icon={
@@ -84,7 +85,7 @@ export function WebAnalyticsSection({ tenantSlug }: WebAnalyticsSectionProps) {
     >
       {/* Top Row: 5 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
-        {WEB_CARDS.map((card) => (
+        {webCards.map((card) => (
           <DashboardMetricCard
             key={card.key}
             label={card.label}
@@ -99,16 +100,13 @@ export function WebAnalyticsSection({ tenantSlug }: WebAnalyticsSectionProps) {
         ))}
       </div>
 
-      {/* Bottom Row: Location Map + Location Rankings + Insights & Recommendations */}
+      {/* Bottom Row: Location Map (7 cols) + Location Rankings (5 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
-        <div className="lg:col-span-6 flex flex-col">
-          <LocationPerformanceMap />
+        <div className="lg:col-span-7 flex flex-col">
+          <LocationPerformanceMap locations={data?.locations} />
         </div>
-        <div className="lg:col-span-3.5 lg:col-span-3 flex flex-col">
-          <LocationRankingsTable />
-        </div>
-        <div className="lg:col-span-2.5 lg:col-span-3 flex flex-col">
-          <WebInsightsRecommendations />
+        <div className="lg:col-span-5 flex flex-col">
+          <LocationRankingsTable rankings={data?.rankings} />
         </div>
       </div>
     </DashboardSection>

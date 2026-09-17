@@ -6,9 +6,29 @@ interface ClientHeroProps {
   tenantName: string;
   tenantSlug: string;
   locationsCount: number;
+  categoriesCount?: number;
+  brandTagline?: string;
+  storeBadgeName?: string;
+  storeBadgeIcon?: string;
+  marketingQuote?: {
+    quote: string;
+    authorOrStore: string;
+  } | null;
+  growthPercent?: number;
 }
 
-export function ClientHero({ tenantName, locationsCount }: ClientHeroProps) {
+export function ClientHero({
+  tenantName,
+  locationsCount,
+  categoriesCount = 12,
+  brandTagline = 'Local visibility. Real patients. Measurable growth.',
+  storeBadgeName,
+  storeBadgeIcon = '🏢',
+  marketingQuote,
+  growthPercent = 28,
+}: ClientHeroProps) {
+  const displayBadgeName = storeBadgeName || tenantName.toUpperCase().slice(0, 16);
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
       <div className="flex items-center justify-between gap-4">
@@ -25,7 +45,7 @@ export function ClientHero({ tenantName, locationsCount }: ClientHeroProps) {
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             </div>
             <p className="text-[12px] text-slate-500 mt-1">
-              Local visibility. Real patients. Measurable growth.
+              {brandTagline}
             </p>
             <div className="flex items-center gap-2.5 mt-2 flex-wrap">
               <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
@@ -38,7 +58,7 @@ export function ClientHero({ tenantName, locationsCount }: ClientHeroProps) {
                 <MapPin className="h-3 w-3 text-slate-400" /> {locationsCount} Google locations
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Tag className="h-3 w-3 text-slate-400" /> 12 search categories
+                <Tag className="h-3 w-3 text-slate-400" /> {categoriesCount} search categories
               </span>
             </div>
           </div>
@@ -46,16 +66,20 @@ export function ClientHero({ tenantName, locationsCount }: ClientHeroProps) {
 
         {/* Right: Marketing quote, storefront preview & export */}
         <div className="hidden lg:flex items-center gap-5 flex-shrink-0">
-          <div className="text-right">
-            <p className="text-[11.5px] text-slate-600 italic font-medium leading-tight">
-              &ldquo;More visibility.<br />More patients.<br />A healthier tomorrow.&rdquo;
-            </p>
-          </div>
+          {marketingQuote && (
+            <div className="text-right">
+              <p className="text-[11.5px] text-slate-600 italic font-medium leading-tight max-w-[180px]">
+                {marketingQuote.quote}
+              </p>
+            </div>
+          )}
 
-          {/* Dental storefront miniature */}
-          <div className="h-12 w-28 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 p-2 flex items-center justify-center gap-1.5 text-white shadow-xs border border-slate-700">
-            <span className="text-sm">🦷</span>
-            <span className="text-[11px] font-bold tracking-tight">ABC DENTAL</span>
+          {/* Storefront badge miniature */}
+          <div className="h-12 px-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-center gap-1.5 text-white shadow-xs border border-slate-700">
+            <span className="text-sm">{storeBadgeIcon}</span>
+            <span className="text-[11px] font-bold tracking-tight truncate max-w-[120px]">
+              {displayBadgeName}
+            </span>
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -67,7 +91,7 @@ export function ClientHero({ tenantName, locationsCount }: ClientHeroProps) {
             <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
               <div className="flex items-center justify-center gap-1">
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
-                <span className="text-[15px] font-bold text-emerald-700">+28%</span>
+                <span className="text-[15px] font-bold text-emerald-700">+{growthPercent}%</span>
               </div>
               <span className="text-[9.5px] text-emerald-600 font-semibold block leading-none mt-0.5">
                 Visibility Growth

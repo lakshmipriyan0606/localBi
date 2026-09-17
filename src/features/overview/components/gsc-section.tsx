@@ -6,9 +6,11 @@ import { GscAchievementCard } from './gsc-achievement-card';
 import { GscPerformanceChart } from './gsc-performance-chart';
 import { GscSearchQueriesTable } from './gsc-search-queries-table';
 import { GscKeywordOpportunities } from './gsc-keyword-opportunities';
+import type { OverviewDataDto } from '@/modules/overview/overview-service';
 
 interface GscSectionProps {
   tenantSlug: string;
+  data?: OverviewDataDto['gsc'] | undefined;
 }
 
 function GoogleGIcon() {
@@ -34,52 +36,52 @@ function GoogleGIcon() {
   );
 }
 
-const GSC_CARDS = [
-  {
-    key: 'clicks',
-    label: 'Clicks',
-    value: 16304,
-    delta: 18.2,
-    icon: 'mouse-pointer-click',
-    color: 'purple',
-    sparkColor: '#8B5CF6',
-    seed: 1,
-  },
-  {
-    key: 'impressions',
-    label: 'Impressions',
-    value: 412903,
-    delta: 27.6,
-    icon: 'bar-chart',
-    color: 'blue',
-    sparkColor: '#3B82F6',
-    seed: 2,
-  },
-  {
-    key: 'ctr',
-    label: 'CTR',
-    value: 3.9,
-    delta: 12.1,
-    suffix: '%',
-    icon: 'percent',
-    color: 'teal',
-    sparkColor: '#14B8A6',
-    seed: 3,
-  },
-  {
-    key: 'position',
-    label: 'Average Position',
-    value: 12.4,
-    delta: -3.8,
-    icon: 'crown',
-    color: 'purple',
-    sparkColor: '#10B981', // green sparkline for position improvements
-    invertDelta: true,
-    seed: 4,
-  },
-];
+export function GscSection({ tenantSlug, data }: GscSectionProps) {
+  const gscCards = [
+    {
+      key: 'clicks',
+      label: 'Clicks',
+      value: data ? data.clicks : 0,
+      delta: data ? data.clicksDelta : 0,
+      icon: 'mouse-pointer-click',
+      color: 'purple' as const,
+      sparkColor: '#8B5CF6',
+      seed: 1,
+    },
+    {
+      key: 'impressions',
+      label: 'Impressions',
+      value: data ? data.impressions : 0,
+      delta: data ? data.impressionsDelta : 0,
+      icon: 'bar-chart',
+      color: 'blue' as const,
+      sparkColor: '#3B82F6',
+      seed: 2,
+    },
+    {
+      key: 'ctr',
+      label: 'CTR',
+      value: data ? data.ctr : 0,
+      delta: data ? data.ctrDelta : 0,
+      suffix: '%',
+      icon: 'percent',
+      color: 'teal' as const,
+      sparkColor: '#14B8A6',
+      seed: 3,
+    },
+    {
+      key: 'position',
+      label: 'Average Position',
+      value: data ? data.position : 0,
+      delta: data ? data.positionDelta : 0,
+      icon: 'crown',
+      color: 'purple' as const,
+      sparkColor: '#10B981',
+      invertDelta: true,
+      seed: 4,
+    },
+  ];
 
-export function GscSection({ tenantSlug }: GscSectionProps) {
   return (
     <DashboardSection
       icon={
@@ -98,7 +100,7 @@ export function GscSection({ tenantSlug }: GscSectionProps) {
     >
       {/* Top Row: 4 KPI Cards + 1 Achievement Card */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
-        {GSC_CARDS.map((card) => (
+        {gscCards.map((card) => (
           <DashboardMetricCard
             key={card.key}
             label={card.label}
@@ -118,13 +120,13 @@ export function GscSection({ tenantSlug }: GscSectionProps) {
       {/* Analytics Row: Search Trend + Top Queries + Keyword Opportunities */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
         <div className="lg:col-span-6 flex flex-col">
-          <GscPerformanceChart />
+          <GscPerformanceChart trendData={data?.trendData} />
         </div>
         <div className="lg:col-span-3.5 lg:col-span-4 flex flex-col">
-          <GscSearchQueriesTable tenantSlug={tenantSlug} />
+          <GscSearchQueriesTable tenantSlug={tenantSlug} queries={data?.queries} />
         </div>
         <div className="lg:col-span-2.5 lg:col-span-2 flex flex-col">
-          <GscKeywordOpportunities tenantSlug={tenantSlug} />
+          <GscKeywordOpportunities tenantSlug={tenantSlug} opportunities={data?.keywordOpportunities} />
         </div>
       </div>
     </DashboardSection>

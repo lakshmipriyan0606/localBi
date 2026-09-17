@@ -1,7 +1,11 @@
 'use client';
 
 import { MapPin, ChevronDown } from 'lucide-react';
-import { LOCATION_RANKINGS } from './dashboard-mock-data';
+import type { OverviewLocationRankingItem } from '@/modules/overview/overview-service';
+
+interface LocationRankingsTableProps {
+  rankings?: OverviewLocationRankingItem[] | undefined;
+}
 
 const PIN_COLORS = [
   'text-emerald-500 fill-emerald-500',
@@ -11,7 +15,7 @@ const PIN_COLORS = [
   'text-rose-500 fill-rose-500',
 ];
 
-export function LocationRankingsTable() {
+export function LocationRankingsTable({ rankings = [] }: LocationRankingsTableProps) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between h-full">
       {/* Header */}
@@ -28,45 +32,52 @@ export function LocationRankingsTable() {
 
       {/* Table */}
       <div className="overflow-x-auto -mx-1 flex-1">
-        <table className="w-full text-[11.5px] text-left">
-          <thead>
-            <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
-              <th className="pb-2 font-bold w-5 pl-1">#</th>
-              <th className="pb-2 font-bold">Location</th>
-              <th className="pb-2 font-bold text-right">Users</th>
-              <th className="pb-2 font-bold text-right">Conversions</th>
-              <th className="pb-2 font-bold text-right pr-1">Conv. Rate</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {LOCATION_RANKINGS.map((row, idx) => {
-              const pinColor = PIN_COLORS[idx % PIN_COLORS.length];
-              const isHighlight = idx < 3;
-              return (
-                <tr key={row.name} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-2.5 text-slate-400 font-medium pl-1">{row.rank}</td>
-                  <td className="py-2.5">
-                    <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                      <MapPin className={`w-3.5 h-3.5 flex-shrink-0 ${pinColor}`} />
-                      <span className="truncate">{row.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5 text-right font-medium text-slate-600 tabular-nums">
-                    {row.users.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 text-right font-bold text-emerald-600 tabular-nums">
-                    {row.conversions.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 text-right pr-1 tabular-nums font-bold">
-                    <span className={isHighlight ? 'text-emerald-600' : 'text-slate-700'}>
-                      {row.rate}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {rankings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 text-xs">
+            <MapPin className="w-6 h-6 stroke-1 text-slate-300 mb-1" />
+            <span>No location rankings available yet</span>
+          </div>
+        ) : (
+          <table className="w-full text-[11.5px] text-left">
+            <thead>
+              <tr className="border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                <th className="pb-2 font-bold w-5 pl-1">#</th>
+                <th className="pb-2 font-bold">Location</th>
+                <th className="pb-2 font-bold text-right">Users</th>
+                <th className="pb-2 font-bold text-right">Conversions</th>
+                <th className="pb-2 font-bold text-right pr-1">Conv. Rate</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {rankings.map((row, idx) => {
+                const pinColor = PIN_COLORS[idx % PIN_COLORS.length];
+                const isHighlight = idx < 3;
+                return (
+                  <tr key={row.name} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-2.5 text-slate-400 font-medium pl-1">{row.rank}</td>
+                    <td className="py-2.5">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                        <MapPin className={`w-3.5 h-3.5 flex-shrink-0 ${pinColor}`} />
+                        <span className="truncate">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 text-right font-medium text-slate-600 tabular-nums">
+                      {row.users.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 text-right font-bold text-emerald-600 tabular-nums">
+                      {row.conversions.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 text-right pr-1 tabular-nums font-bold">
+                      <span className={isHighlight ? 'text-emerald-600' : 'text-slate-700'}>
+                        {row.rate}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

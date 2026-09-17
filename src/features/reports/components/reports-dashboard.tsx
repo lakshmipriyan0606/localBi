@@ -58,8 +58,14 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
     <div className="space-y-6">
       <Breadcrumbs
         items={[
-          { label: 'Reports', href: `/t/${tenantSlug}/reports?tab=${activeSource}` },
-          { label: activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance', current: true }
+          {
+            label: activeSource === 'gbp' ? 'Google Business Profile' : 'Search Console',
+            href: `/t/${tenantSlug}?tab=${activeSource}`,
+          },
+          {
+            label: activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance',
+            current: true,
+          },
         ]}
         tenantSlug={tenantSlug}
       />

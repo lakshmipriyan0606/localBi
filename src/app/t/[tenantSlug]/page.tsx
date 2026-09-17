@@ -3,12 +3,9 @@ import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
-import { prisma } from '@/shared/database/client';
-import { TenantContextService } from '@/shared/database/tenant-context';
+import { OverviewService } from '@/modules/overview/overview-service';
 import { ClientHero } from '@/features/overview/components/client-hero';
-import { GbpSection } from '@/features/overview/components/gbp-section';
-import { GscSection } from '@/features/overview/components/gsc-section';
-import { WebAnalyticsSection } from '@/features/overview/components/web-analytics-section';
+import { OverviewTabsContainer } from '@/features/overview/components/overview-tabs-container';
 
 export const metadata: Metadata = {
   title: 'Client Overview — localBi',
@@ -33,31 +30,34 @@ export default async function WorkspaceOverviewPage({
   }
   if (!resolved.tenant || !resolved.authorizedContext) notFound();
 
-  const { tenant } = resolved;
+  const { tenant, authorizedContext } = resolved;
 
-  const { locationsCount } =
-    await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
-      const lCount = await tx.location.count({ where: { tenantId: tenant.id, isArchived: false } });
-      return { locationsCount: lCount };
-    });
+  // Backend single source of truth for overview data (showcase dental for abc-dental, real database metrics for all other clients)
+  const overviewData = await OverviewService.getOverviewData(
+    tenant.id,
+    tenant.slug,
+    authorizedContext
+  );
 
   return (
     <div className="space-y-3.5 pb-8">
       {/* 1. Client Hero Banner */}
       <ClientHero
-        tenantName={tenant.name}
-        tenantSlug={tenant.slug}
-        locationsCount={locationsCount || 3}
+        tenantName={overviewData.tenantName}
+        tenantSlug={overviewData.tenantSlug}
+        locationsCount={overviewData.locationsCount}
+        categoriesCount={overviewData.categoriesCount}
+        brandTagline={overviewData.brandTagline}
+        storeBadgeName={overviewData.storeBadgeName}
+        storeBadgeIcon={overviewData.storeBadgeIcon}
+        marketingQuote={overviewData.marketingQuote}
       />
 
-      {/* 2. Major Section #1: Google Business Profile (mint green tint) */}
-      <GbpSection tenantSlug={tenant.slug} />
-
-      {/* 3. Major Section #2: Google Search Console (lavender tint) */}
-      <GscSection tenantSlug={tenant.slug} />
-
-      {/* 4. Major Section #3: Web Analytics & Location Map (cyan tint) */}
-      <WebAnalyticsSection tenantSlug={tenant.slug} />
+      {/* 2. Single-Page 3-Way Tab-wise Overview (Google Business Profile, Search Console, Web Analytics) */}
+      <OverviewTabsContainer
+        tenantSlug={tenant.slug}
+        overviewData={overviewData}
+      />
     </div>
   );
 }

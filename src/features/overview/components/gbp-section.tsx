@@ -3,65 +3,67 @@
 import { MapPin } from 'lucide-react';
 import { DashboardSection } from './dashboard-section';
 import { DashboardMetricCard } from './dashboard-metric-card';
+import type { OverviewDataDto } from '@/modules/overview/overview-service';
 
 interface GbpSectionProps {
   tenantSlug: string;
+  data?: OverviewDataDto['gbp'] | undefined;
 }
 
-const GBP_CARDS = [
-  {
-    key: 'profile-views',
-    label: 'Profile Views',
-    value: 25814,
-    delta: 24.1,
-    icon: 'eye',
-    color: 'purple',
-    sparkColor: '#10B981', // emerald sparkline
-    seed: 1,
-  },
-  {
-    key: 'calls',
-    label: 'Calls',
-    value: 958,
-    delta: 12.3,
-    icon: 'phone',
-    color: 'blue',
-    sparkColor: '#3B82F6',
-    seed: 2,
-  },
-  {
-    key: 'directions',
-    label: 'Direction Requests',
-    value: 1855,
-    delta: 28.6,
-    icon: 'navigation',
-    color: 'teal',
-    sparkColor: '#14B8A6',
-    seed: 3,
-  },
-  {
-    key: 'reviews',
-    label: 'Reviews',
-    value: 312,
-    delta: 36.8,
-    icon: 'star',
-    color: 'amber',
-    sparkColor: '#8B5CF6',
-    seed: 4,
-  },
-  {
-    key: 'photo-views',
-    label: 'Photo Views',
-    value: 7421,
-    delta: 18.9,
-    icon: 'image',
-    color: 'blue',
-    sparkColor: '#10B981',
-    seed: 5,
-  },
-];
+export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
+  const gbpCards = [
+    {
+      key: 'profile-views',
+      label: 'Profile Views',
+      value: data ? data.profileViews : 0,
+      delta: data ? data.profileViewsDelta : 0,
+      icon: 'eye',
+      color: 'purple' as const,
+      sparkColor: '#10B981',
+      seed: 1,
+    },
+    {
+      key: 'calls',
+      label: 'Calls',
+      value: data ? data.calls : 0,
+      delta: data ? data.callsDelta : 0,
+      icon: 'phone',
+      color: 'blue' as const,
+      sparkColor: '#3B82F6',
+      seed: 2,
+    },
+    {
+      key: 'directions',
+      label: 'Direction Requests',
+      value: data ? data.directions : 0,
+      delta: data ? data.directionsDelta : 0,
+      icon: 'navigation',
+      color: 'teal' as const,
+      sparkColor: '#14B8A6',
+      seed: 3,
+    },
+    {
+      key: 'reviews',
+      label: 'Reviews',
+      value: data ? data.reviews : 0,
+      delta: data ? data.reviewsDelta : 0,
+      icon: 'star',
+      color: 'amber' as const,
+      sparkColor: '#8B5CF6',
+      seed: 4,
+    },
+    {
+      key: 'photo-views',
+      label: 'Photo Views',
+      value: data ? data.photoViews : 0,
+      delta: data ? data.photoViewsDelta : 0,
+      icon: 'image',
+      color: 'blue' as const,
+      sparkColor: '#10B981',
+      seed: 5,
+    },
+  ];
 
-export function GbpSection({ tenantSlug }: GbpSectionProps) {
   return (
     <DashboardSection
       icon={
@@ -79,7 +81,7 @@ export function GbpSection({ tenantSlug }: GbpSectionProps) {
       reportLabel="View GBP Report"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        {GBP_CARDS.map((card) => (
+        {gbpCards.map((card) => (
           <DashboardMetricCard
             key={card.key}
             label={card.label}
