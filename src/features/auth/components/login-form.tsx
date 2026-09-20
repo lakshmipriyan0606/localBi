@@ -139,7 +139,7 @@ export function LoginForm() {
         className="w-full font-semibold shadow-sm mt-2"
         id="login-submit-button"
       >
-        {isSubmitting ? 'Authenticating...' : 'Sign In to Workspace'}
+        {isSubmitting ? 'Signing in...' : 'Continue'}
       </Button>
     </form>
   );

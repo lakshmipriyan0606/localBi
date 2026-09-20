@@ -6,6 +6,8 @@ export interface BrandDto {
   isArchived?: boolean;
   version: number;
   createdAt: string;
+  ga4MeasurementId?: string | null;
+  gscWebsiteUrl?: string | null;
 }
 
 export interface BrandListResponse {
