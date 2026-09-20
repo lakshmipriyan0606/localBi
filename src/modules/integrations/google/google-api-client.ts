@@ -1,5 +1,6 @@
 import { getConfig } from '@/shared/config';
 import { logger } from '@/shared/observability/logger';
+import { createGoogleRateLimitedError } from '@/shared/errors';
 import {
   MOCK_FIXTURES,
   MockGbpAccount,
@@ -107,6 +108,11 @@ export class GoogleApiClient {
       );
 
       if (!accountsRes.ok) {
+        if (accountsRes.status === 429) {
+          throw createGoogleRateLimitedError(
+            'Google is temporarily limiting requests. Please wait a moment, then click Refresh again.'
+          );
+        }
         throw new Error(`Failed to fetch GBP accounts: ${accountsRes.statusText}`);
       }
 
@@ -191,6 +197,11 @@ export class GoogleApiClient {
       });
 
       if (!res.ok) {
+        if (res.status === 429) {
+          throw createGoogleRateLimitedError(
+            'Google is temporarily limiting requests. Please wait a moment, then click Refresh again.'
+          );
+        }
         throw new Error(`Failed to fetch GSC sites: ${res.statusText}`);
       }
 

@@ -12,16 +12,8 @@ import {
   Zap,
   ArrowRight,
   ArrowLeft,
-  ShieldCheck,
-  Info,
   Plus,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  Copy,
   Check,
-  Lock,
-  HelpCircle,
   Layers,
   Store,
   BarChart3,
@@ -32,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { IntegrationsDisconnectDialog } from './integrations-disconnect-dialog';
-import { formatRelativeTime } from '@/shared/lib/formatters';
+
 import { cn } from '@/lib/cn';
 
 export interface IntegrationsManagerProps {
@@ -80,31 +72,7 @@ export interface IntegrationsManagerProps {
   userRole: string;
 }
 
-/**
- * Enterprise Tooltip with zero hydration overhead and instant hover behavior
- */
-function InfoTooltip({ content, position = 'top' }: { content: string; position?: 'top' | 'bottom' }) {
-  return (
-    <span className="relative inline-flex items-center group cursor-help ml-1">
-      <Info className="h-3.5 w-3.5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
-      <span
-        role="tooltip"
-        className={cn(
-          'pointer-events-none absolute left-1/2 -translate-x-1/2 w-64 p-2.5 bg-slate-900/95 text-white text-[11px] leading-relaxed rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-200 z-50 text-left font-normal border border-slate-700/80 backdrop-blur-xs',
-          position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
-        )}
-      >
-        {content}
-        <span
-          className={cn(
-            'absolute left-1/2 -translate-x-1/2 border-4 border-transparent',
-            position === 'top' ? 'top-full border-t-slate-900/95' : 'bottom-full border-b-slate-900/95'
-          )}
-        />
-      </span>
-    </span>
-  );
-}
+
 
 export function IntegrationsManager({
   tenantSlug,
@@ -122,9 +90,7 @@ export function IntegrationsManager({
   const [unmappingInProgressId, setUnmappingInProgressId] = useState<string | null>(null);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
-  // Expandable help drawers
-  const [showGscGuide, setShowGscGuide] = useState(false);
-  const [copiedTag, setCopiedTag] = useState(false);
+
 
   // STEPPER WIZARD STATE (Step 1 -> Step 2 -> Step 3)
   // Smart default: If not connected -> Step 1. If connected -> Step 2.
@@ -171,15 +137,7 @@ export function IntegrationsManager({
   const mappedGbpCount = gbpResources.filter((r) => mappedGbpResourceIds.has(r.id)).length;
   const totalMappingsCount = initialState.internalMappings.length;
 
-  // Verification meta tag snippet
-  const verificationTagCode = `<meta name="google-site-verification" content="localbi-verified-${tenantSlug}" />`;
 
-  const handleCopyTag = () => {
-    navigator.clipboard.writeText(verificationTagCode);
-    setCopiedTag(true);
-    notify.success('Verification meta tag copied to clipboard!');
-    setTimeout(() => setCopiedTag(false), 2000);
-  };
 
   // Handler: Initiate Google OAuth
   const handleConnect = async () => {
@@ -559,48 +517,7 @@ export function IntegrationsManager({
         </div>
       </div>
 
-      {/* ── COMPACT AT-A-GLANCE STATUS SUMMARY RIBBON ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-        <div className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between">
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 block">Google Account</span>
-            <span className="text-xs font-extrabold text-slate-800 truncate block">
-              {activeConnection ? activeConnection.externalEmail : 'Not Connected'}
-            </span>
-          </div>
-          <span className={cn('h-2 w-2 rounded-full flex-shrink-0', isAuthorized ? 'bg-emerald-500' : 'bg-amber-400')} />
-        </div>
 
-        <div className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between">
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 block">Search Console</span>
-            <span className="text-xs font-extrabold text-slate-800 truncate block">
-              {mappedGscCount > 0 ? `${mappedGscCount} Website Linked` : '0 Linked'}
-            </span>
-          </div>
-          <span className={cn('h-2 w-2 rounded-full flex-shrink-0', mappedGscCount > 0 ? 'bg-indigo-500' : 'bg-slate-300')} />
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between">
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 block">Business Profile</span>
-            <span className="text-xs font-extrabold text-slate-800 truncate block">
-              {mappedGbpCount > 0 ? `${mappedGbpCount} Storefronts` : gbpResources.length > 0 ? 'Pending Mapping' : 'Online Business'}
-            </span>
-          </div>
-          <span className={cn('h-2 w-2 rounded-full flex-shrink-0', mappedGbpCount > 0 ? 'bg-teal-500' : 'bg-slate-300')} />
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200/80 p-3 shadow-2xs flex items-center justify-between">
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold text-slate-500 block">Data Status</span>
-            <span className="text-xs font-extrabold text-slate-800 truncate block">
-              {totalMappingsCount > 0 ? 'Ready to Sync' : 'Link in Step 2'}
-            </span>
-          </div>
-          <span className={cn('h-2 w-2 rounded-full flex-shrink-0', totalMappingsCount > 0 ? 'bg-emerald-500' : 'bg-slate-300')} />
-        </div>
-      </div>
 
       {/* ========================================================================= */}
       {/* ── STEP 1 VIEW: GOOGLE ACCOUNT CONNECTION ──                              */}
@@ -678,12 +595,9 @@ export function IntegrationsManager({
                             {activeConnection.externalEmail}
                           </span>
                           <span className="text-[11px] font-extrabold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            ✓ Verified & Active
+                            ✓ Connected
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
-                          Connected on {new Date(activeConnection.createdAt).toLocaleDateString()} • Verified {formatRelativeTime(new Date(activeConnection.lastUsedAt || activeConnection.createdAt))}
-                        </p>
                       </div>
                     </div>
 
@@ -700,38 +614,7 @@ export function IntegrationsManager({
                   </div>
                 </div>
 
-                {/* Explanatory Permissions Box */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                  <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
-                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5 text-indigo-600" />
-                      Google Search Console
-                    </span>
-                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
-                      Read-only access granted. Ready to pull organic queries, clicks, impressions, and ranking positions.
-                    </p>
-                  </div>
 
-                  <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
-                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 text-teal-600" />
-                      Google Business Profile
-                    </span>
-                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
-                      Read-only access granted. Ready to pull Google Maps actions (calls, directions, and reviews).
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-1">
-                    <span className="font-bold text-slate-900 flex items-center gap-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                      Zero Modification Safety
-                    </span>
-                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
-                      localBi never edits your profiles, alters website headers, or manages Google Ads spend.
-                    </p>
-                  </div>
-                </div>
 
                 {/* PRIMARY CTA FOOTER FOR STEP 1 */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-5 border-t border-slate-100">
@@ -777,9 +660,7 @@ export function IntegrationsManager({
                   </Button>
                 </div>
 
-                <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                  OAuth 2.0 with read-only scopes. No password stored. Tokens encrypted via AES-256-GCM.
-                </p>
+
               </div>
             )}
           </CardContent>
@@ -846,7 +727,6 @@ export function IntegrationsManager({
                     <h3 className="text-sm font-bold text-slate-900">
                       Website (Google Search Console)
                     </h3>
-                    <InfoTooltip content="Tracks organic queries, page impressions, clicks, and rankings directly from Google." />
                   </div>
                   <span className="text-xs font-bold text-slate-500">
                     {mappedGscCount} of {gscResources.length} Linked
@@ -1014,58 +894,7 @@ export function IntegrationsManager({
                       </form>
                     )}
 
-                    {/* Expandable Search Console Verification Guide */}
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 text-xs space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowGscGuide(!showGscGuide)}
-                        className="w-full flex items-center justify-between text-left font-bold text-slate-800 hover:text-indigo-600 transition-colors cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-                          Need to verify website in Google Search Console?
-                        </span>
-                        {showGscGuide ? (
-                          <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
-                        ) : (
-                          <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                        )}
-                      </button>
 
-                      {showGscGuide && (
-                        <div className="pt-2 border-t border-slate-200/60 space-y-2 text-[11.5px] text-slate-600 leading-relaxed">
-                          <p>
-                            1. Open{' '}
-                            <a
-                              href="https://search.google.com/search-console"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-indigo-600 underline font-semibold inline-flex items-center gap-0.5"
-                            >
-                              Google Search Console <ExternalLink className="h-2.5 w-2.5 inline" />
-                            </a>{' '}
-                            with <strong className="text-slate-800">{activeConnection?.externalEmail}</strong>.
-                          </p>
-                          <p>
-                            2. Add your website URL prefix and copy this HTML meta verification tag:
-                          </p>
-                          <div className="flex items-center justify-between gap-2 bg-slate-900 text-slate-200 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
-                            <code className="truncate">{verificationTagCode}</code>
-                            <button
-                              type="button"
-                              onClick={handleCopyTag}
-                              className="inline-flex items-center gap-1 text-[10.5px] font-sans font-semibold text-indigo-300 hover:text-white px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 transition-colors flex-shrink-0 cursor-pointer"
-                            >
-                              {copiedTag ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-                              <span>{copiedTag ? 'Copied!' : 'Copy Tag'}</span>
-                            </button>
-                          </div>
-                          <p>
-                            3. After verifying on Google, click &ldquo;Refresh Discovered Listings&rdquo; at the top to import it immediately.
-                          </p>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
@@ -1080,7 +909,6 @@ export function IntegrationsManager({
                     <h3 className="text-sm font-bold text-slate-900">
                       Storefront (Google Business Profile)
                     </h3>
-                    <InfoTooltip content="Pulls local phone calls, driving directions, website visits, and Google Maps queries." />
                   </div>
                   <div className="flex items-center gap-2">
                     {gbpResources.length > 1 && canManage && (
@@ -1173,7 +1001,6 @@ export function IntegrationsManager({
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
                       >
                         <span>Open Google Business Profile</span>
-                        <ExternalLink className="h-3 w-3 text-slate-400" />
                       </a>
                     </div>
                   </div>
@@ -1334,7 +1161,7 @@ export function IntegrationsManager({
             <div className="p-5 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-emerald-50/80 border border-indigo-200/80 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
                   <h4 className="font-extrabold text-slate-900 text-sm">
                     {totalMappingsCount > 0 ? `${totalMappingsCount} Connected Account(s) Ready to Sync` : 'Ready to Sync Google Data'}
                   </h4>
@@ -1464,30 +1291,7 @@ export function IntegrationsManager({
         </Card>
       )}
 
-      {/* ── ENTERPRISE SECURITY & PRIVACY POLICY FOOTER ── */}
-      <div className="p-4 bg-slate-100/60 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-600 flex-shrink-0 shadow-2xs">
-            <Lock className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="font-bold text-slate-800 block text-[11.5px]">
-              Bank-Grade Security & Read-Only Policy
-            </span>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-tight">
-              OAuth tokens encrypted at rest via AES-256-GCM. localBi never modifies your website, business listings, or Google Ads campaigns.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0 text-[11px] font-semibold text-slate-600">
-          <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-2xs">
-            HTTPS TLS 1.3
-          </span>
-          <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-2xs">
-            Read-Only Scopes
-          </span>
-        </div>
-      </div>
+
 
       {/* Disconnect confirmation modal */}
       <IntegrationsDisconnectDialog

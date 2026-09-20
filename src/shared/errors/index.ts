@@ -200,6 +200,18 @@ export function createLastOwnerProtectionError(message = 'Cannot remove, demote,
   });
 }
 
+export function createGoogleRateLimitedError(
+  message = 'Google is temporarily limiting requests. Please wait a moment and try again.',
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.GOOGLE_RATE_LIMITED,
+    message,
+    statusCode: 429,
+    requestId,
+  });
+}
+
 import { logger } from '../observability/logger';
 
 export function handleRouteError(
@@ -229,6 +241,25 @@ export function handleRouteError(
     },
     fallbackMessage
   );
+
+  // Detect Google / upstream rate limiting (429) and give a friendly message
+  const isRateLimit =
+    (error instanceof Error &&
+      /too many requests|rate.?limit/i.test(error.message));
+
+  if (isRateLimit) {
+    logger.warn({ err: error, ...context }, 'Google API rate limit hit');
+    return Response.json(
+      {
+        error: {
+          code: ErrorCode.GOOGLE_RATE_LIMITED,
+          message:
+            'Google is temporarily limiting requests. Please wait a moment and try again.',
+        },
+      },
+      { status: 429 }
+    );
+  }
 
   return Response.json(
     {
