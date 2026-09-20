@@ -42,7 +42,7 @@ export default async function ReportsPage({
   const { tenant, authorizedContext } = resolved;
 
   // Preload unarchived brands and locations scoped to the user's permissions inside tenant context
-  const { brands, locations, isConnected } = await TenantContextService.withTenantContext(
+  const { brands, locations, isConnected, isGbpConnected, isGscConnected } = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
     async (tx) => {
@@ -82,7 +82,23 @@ export default async function ReportsPage({
         where: { tenantId: tenant.id, status: 'ACTIVE' }
       });
 
-      return { brands: bList, locations: lList, isConnected: !!activeConnection };
+      const hasGbpScope = activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/business.manage') ?? false;
+      const hasGscScope = activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false;
+
+      const mappings = await tx.internalResourceMapping.findMany({
+        where: { tenantId: tenant.id }
+      });
+
+      const hasGbpMapping = mappings.some(m => m.internalType === 'LOCATION');
+      const hasGscMapping = mappings.some(m => m.internalType === 'BRAND');
+
+      return { 
+        brands: bList, 
+        locations: lList, 
+        isConnected: !!activeConnection,
+        isGbpConnected: hasGbpScope && hasGbpMapping,
+        isGscConnected: hasGscScope && hasGscMapping
+      };
     }
   );
 
@@ -114,8 +130,8 @@ export default async function ReportsPage({
       brands={brands}
       locations={locations}
       initialBrandId={brands[0]?.id || ''}
-      isGbpConnected={isConnected}
-      isGscConnected={isConnected}
+      isGbpConnected={isGbpConnected}
+      isGscConnected={isGscConnected}
     />
   );
 }

@@ -77,7 +77,14 @@ export default async function CountriesReportPage({
       const activeConnection = await tx.integrationConnection.findFirst({
         where: { tenantId: tenant.id, status: 'ACTIVE' }
       });
-      return { brands: bList, locations: lList, isConnected: !!activeConnection };
+
+      const hasGscScope = activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false;
+      const mappings = await tx.internalResourceMapping.findMany({
+        where: { tenantId: tenant.id, internalType: 'BRAND' }
+      });
+      const hasGscMapping = mappings.length > 0;
+
+      return { brands: bList, locations: lList, isConnected: hasGscScope && hasGscMapping };
     }
   );
 

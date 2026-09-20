@@ -154,7 +154,7 @@ export default async function Ga4ReportingPage({
           gscImpressions: gscTotals._sum.impressions || 0,
           gbpWebsiteClicks: Number(gbpWebClicks._sum.value || 0n),
           deviceGroups,
-          isConnected: !!activeConnection,
+          isConnected: activeConnection?.grantedScopes?.includes('https://www.googleapis.com/auth/analytics.readonly') ?? false,
         };
       },
     );
@@ -333,17 +333,16 @@ export default async function Ga4ReportingPage({
             </svg>
           </div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">
-            Google Account Not Connected
+            Google Analytics 4 Not Linked
           </h3>
           <p className="text-sm text-slate-500 mb-6 max-w-md">
-            You need to connect your Google account to view real-time
-            performance analytics and reports.
+            You need to connect your Google account and link a valid GA4 property to view real-time performance analytics and reports.
           </p>
           <a
             href={`/t/${tenant.slug}/integrations`}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
           >
-            Connect Google Account
+            Manage Connections
           </a>
         </div>
       ) : (

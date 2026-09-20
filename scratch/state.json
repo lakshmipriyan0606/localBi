@@ -1,0 +1,34 @@
+{
+  "connections": [
+    {
+      "id": "conn_4fe205170ad752fdf6c756b6",
+      "provider": "GOOGLE",
+      "externalEmail": "lakshmipriyan0606@gmail.com",
+      "createdAt": "2026-09-20T05:49:37.628Z",
+      "lastUsedAt": "2026-09-20T14:51:56.667Z"
+    }
+  ],
+  "externalResources": [],
+  "internalMappings": [],
+  "brands": [
+    {
+      "id": "cmu9eqki30001ubj4kulafgt4",
+      "name": "Lakshmi Food",
+      "slug": "lakshmi-food"
+    }
+  ],
+  "locations": [
+    {
+      "id": "cmu9eqkit0003ubj4ydojjz8d",
+      "brandId": "cmu9eqki30001ubj4kulafgt4",
+      "name": "Lakshmi Food - Main Storefront",
+      "storeCode": "LF-01",
+      "addressLine1": "Chennai Main Storefront",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "postalCode": "600001",
+      "country": "IN",
+      "timezone": "Asia/Kolkata"
+    }
+  ]
+}

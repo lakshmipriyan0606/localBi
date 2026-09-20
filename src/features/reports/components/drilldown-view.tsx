@@ -50,6 +50,7 @@ export interface DrilldownViewProps<T> {
   accuracyNotice?: string | undefined;
   retentionNote?: string | undefined;
   actions?: React.ReactNode | undefined;
+  isConnected?: boolean;
 }
 
 type ViewMode = 'both' | 'charts' | 'table';
@@ -84,6 +85,7 @@ export function DrilldownView<T>({
   accuracyNotice,
   retentionNote,
   actions,
+  isConnected = true,
 }: DrilldownViewProps<T>) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
@@ -218,36 +220,71 @@ export function DrilldownView<T>({
       )}
 
       {/* Filter Controls Bar */}
-      <DrilldownFilterBar
-        brands={brands}
-        locations={locations}
-        selectedBrandId={selectedBrandId}
-        onBrandChange={onBrandChange}
-        selectedLocationId={selectedLocationId}
-        onLocationChange={onLocationChange}
-        dateRangeDays={dateRangeDays}
-        onDateRangeChange={onDateRangeChange}
-        searchQuery={searchQuery}
-        onSearchChange={onSearchChange}
-        searchPlaceholder={searchPlaceholder}
-        startDate={startDate}
-        endDate={endDate}
-      />
-
-      {/* Visual Analytics Section (KPI Cards + Horizontal Distribution Bar + Donut Share Breakdown) */}
-      {!isLoading && !isError && data && data.length > 0 && viewMode !== 'table' && (
-        <DrilldownVisualAnalytics data={data} sourceBadge={sourceBadge} title={title} />
+      {isConnected && (
+        <DrilldownFilterBar
+          brands={brands}
+          locations={locations}
+          selectedBrandId={selectedBrandId}
+          onBrandChange={onBrandChange}
+          selectedLocationId={selectedLocationId}
+          onLocationChange={onLocationChange}
+          dateRangeDays={dateRangeDays}
+          onDateRangeChange={onDateRangeChange}
+          searchQuery={searchQuery}
+          onSearchChange={onSearchChange}
+          searchPlaceholder={searchPlaceholder}
+          startDate={startDate}
+          endDate={endDate}
+        />
       )}
 
-      {/* Data Table Section */}
-      {viewMode !== 'charts' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          {isLoading ? (
-            <AnalyticsLoader variant="hero" message={`Loading ${title} report records...`} />
-          ) : isError ? (
-            <div className="p-12 text-center space-y-3">
-              <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
-              <p className="text-sm font-semibold text-slate-900">Failed to load analytics records</p>
+      {!isConnected ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-slate-200 border-dashed rounded-2xl bg-slate-50/50 mt-6">
+          <div className="w-12 h-12 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            Website Domain Not Linked
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 max-w-md">
+            You need to link a valid Google property to this brand to view real-time performance analytics and reports.
+          </p>
+          <a
+            href={`/t/${tenantSlug}/integrations`}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
+          >
+            Manage Connections
+          </a>
+        </div>
+      ) : (
+        <>
+          {/* Visual Analytics Section (KPI Cards + Horizontal Distribution Bar + Donut Share Breakdown) */}
+          {!isLoading && !isError && data && data.length > 0 && viewMode !== 'table' && (
+            <DrilldownVisualAnalytics data={data} sourceBadge={sourceBadge} title={title} />
+          )}
+
+          {/* Data Table Section */}
+          {viewMode !== 'charts' && (
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+              {isLoading ? (
+                <AnalyticsLoader variant="hero" message={`Loading ${title} report records...`} />
+              ) : isError ? (
+                <div className="p-12 text-center space-y-3">
+                  <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+                  <p className="text-sm font-semibold text-slate-900">Failed to load analytics records</p>
               <p className="text-xs text-slate-500">{error?.message || 'Network or server timeout.'}</p>
               <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5" />
@@ -277,6 +314,8 @@ export function DrilldownView<T>({
           )}
         </div>
       )}
+      </>
+    )}
 
       {(accuracyNotice || retentionNote) && (
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-xs text-slate-600">

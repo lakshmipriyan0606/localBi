@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   description: 'Connect Google Business Profile (GBP) and Google Search Console (GSC) and map to internal brands and locations',
 };
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
+
 export default async function TenantIntegrationsPage({
   params,
 }: {

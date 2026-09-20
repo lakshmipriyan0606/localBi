@@ -312,21 +312,15 @@ export class ResourceMappingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // 1. Validate internal brand
+      // 1. Verify brand exists
       const brand = await tx.brand.findUnique({
-        where: {
-          uq_brand_tenant_id: {
-            tenantId,
-            id: internalBrandId,
-          },
-        },
+        where: { uq_brand_tenant_id: { tenantId, id: internalBrandId } },
       });
-
       if (!brand || brand.isArchived) {
         throw createResourceNotFoundError('Brand', internalBrandId);
       }
 
-      // 2. Validate external resource belongs to this tenant and is GSC PROPERTY
+      // 2. Fetch GSC external resource
       const extRes = await tx.externalResource.findUnique({
         where: {
           uq_external_resource_tenant_id: {
@@ -336,13 +330,32 @@ export class ResourceMappingService {
         },
       });
 
-      if (!extRes || extRes.resourceType !== 'PROPERTY') {
-        throw createValidationError(
-          `Resource ${externalResourceId} is not a valid Google Search Console property for this organization`
-        );
+      if (!extRes || extRes.provider !== 'GOOGLE_SEARCH_CONSOLE' || extRes.resourceType !== 'PROPERTY') {
+        throw createResourceNotFoundError('GSC Property', externalResourceId);
       }
 
-      // 3. Upsert internal resource mapping
+      // 3. Enforce 1:1 mapping (Brand to GSC Property) by removing any existing GSC mappings for this Brand
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          internalType: 'BRAND',
+          internalId: internalBrandId,
+          resource: {
+            provider: 'GOOGLE_SEARCH_CONSOLE',
+          },
+        },
+      });
+
+      // Also ensure this specific GSC property isn't mapped to another brand (1:1 constraint the other way)
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          resourceId: extRes.id,
+          internalType: 'BRAND',
+        },
+      });
+
+      // 4. Upsert internal resource mapping
       const mapping = await tx.internalResourceMapping.upsert({
         where: {
           uq_internal_resource_mapping: {
@@ -420,6 +433,10 @@ export class ResourceMappingService {
               account: {
                 select: { accountName: true, provider: true },
               },
+              connectionAccess: {
+                where: { tenantId },
+                select: { canAccess: true },
+              },
             },
           }),
           tx.internalResourceMapping.findMany({
@@ -482,3 +499,4 @@ export class ResourceMappingService {
     });
   }
 }
+// force recompile turbopack cache
