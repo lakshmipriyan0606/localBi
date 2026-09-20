@@ -519,7 +519,7 @@ export class OverviewService {
         locationsCount,
         brandsCount,
         categoriesCount,
-        brandTagline: 'Real-time local presence, search visibility, and conversion telemetry.',
+        brandTagline: 'Real-time local presence, search visibility, and customer analytics.',
         storeBadgeName: tenantName.toUpperCase().slice(0, 16),
         storeBadgeIcon: '🏢',
         marketingQuote: {

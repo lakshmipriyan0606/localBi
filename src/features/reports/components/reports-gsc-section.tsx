@@ -130,10 +130,10 @@ export function ReportsGscSection({
         <div className="p-3 bg-white/80 border border-indigo-200/70 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-indigo-600 flex-shrink-0" />
-            <span>Search Console telemetry stream active. Map additional properties in Integrations.</span>
+            <span>Google Search Console connected. Link more websites in Connections.</span>
           </div>
           <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-indigo-950 flex-shrink-0">
-            Configure GSC
+            Manage Connections
           </Link>
         </div>
       )}

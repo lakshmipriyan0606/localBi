@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "react-toastify/dist/ReactToastify.css";
 @import "leaflet/dist/leaflet.css";
 
 /* =============================================================================
@@ -7,6 +8,10 @@
    ============================================================================= */
 
 @theme {
+  /* ── Typography ── */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', sans-serif;
+
   /* ── Semantic surface colors ── */
   --color-background: var(--canvas);
   --color-foreground: var(--text-primary);
@@ -131,11 +136,22 @@
 body {
   background-color: var(--canvas);
   color: var(--text-primary);
-  font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: var(--font-sans), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.012em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), var(--font-sans), 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 /* =============================================================================
@@ -259,3 +275,43 @@ body {
     display: none !important;
   }
 }
+
+/* =============================================================================
+   Toastify Enterprise Theme Overrides
+   ============================================================================= */
+
+.Toastify__toast {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif !important;
+  border-radius: 14px !important;
+  box-shadow: 0 12px 32px -4px rgba(15, 23, 42, 0.14), 0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  letter-spacing: -0.01em !important;
+  padding: 14px 16px !important;
+}
+
+.Toastify__toast-body {
+  font-family: inherit !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.Toastify__progress-bar--success {
+  background: #10b981 !important;
+}
+
+.Toastify__progress-bar--error {
+  background: #ef4444 !important;
+}
+
+.Toastify__progress-bar--info {
+  background: #6366f1 !important;
+}
+
+.Toastify__progress-bar--warning {
+  background: #f59e0b !important;
+}
+

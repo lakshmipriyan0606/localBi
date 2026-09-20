@@ -243,7 +243,7 @@ export function DrilldownView<T>({
       {viewMode !== 'charts' && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
           {isLoading ? (
-            <AnalyticsLoader variant="hero" message={`Streaming ${title} telemetry records...`} />
+            <AnalyticsLoader variant="hero" message={`Loading ${title} report records...`} />
           ) : isError ? (
             <div className="p-12 text-center space-y-3">
               <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
@@ -262,7 +262,7 @@ export function DrilldownView<T>({
               <div>
                 <p className="text-sm font-bold text-slate-900">No analytics records found</p>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  No matching telemetry observed during this {dateRangeDays}-day reporting window. Try expanding the
+                  No performance data recorded during this {dateRangeDays}-day reporting window. Try expanding the
                   date range or clearing filters.
                 </p>
               </div>

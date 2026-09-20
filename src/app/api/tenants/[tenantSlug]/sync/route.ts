@@ -73,7 +73,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Enqueued ${result.scheduledJobsCount} background synchronization jobs`,
+      message: 'Data sync started! Updating your Google search and store reports in the background.',
       data: result,
     });
   } catch (error) {

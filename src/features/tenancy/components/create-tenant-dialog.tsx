@@ -109,7 +109,7 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
             <DialogTitle>New Organization</DialogTitle>
           </div>
           <DialogDescription>
-            Create an isolated multi-tenant organization to manage brands, branch stores, and team access.
+            Set up a new workspace to manage your brands, store locations, and team members.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +143,7 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
 
           {/* Workspace Slug */}
           <div className="space-y-1.5">
-            <Label htmlFor="tenant-slug">Workspace URL Slug</Label>
+            <Label htmlFor="tenant-slug">Short URL Name</Label>
             <Input
               id="tenant-slug"
               type="text"

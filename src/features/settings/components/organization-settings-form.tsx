@@ -66,7 +66,7 @@ export function OrganizationSettingsForm({ tenant }: OrganizationSettingsFormPro
           Organization Preferences
         </CardTitle>
         <CardDescription>
-          Updates are protected with optimistic concurrency locking to prevent conflicting overwrite.
+          Changes are saved safely to avoid any accidental overwrites.
         </CardDescription>
       </CardHeader>
 
@@ -105,7 +105,7 @@ export function OrganizationSettingsForm({ tenant }: OrganizationSettingsFormPro
 
             {/* Workspace Slug (Immutable) */}
             <div className="space-y-1.5">
-              <Label htmlFor="org-slug-input">Workspace URL Slug (Immutable)</Label>
+              <Label htmlFor="org-slug-input">Workspace Address (cannot be changed)</Label>
               <Input
                 id="org-slug-input"
                 value={currentTenant.slug}
@@ -145,8 +145,8 @@ export function OrganizationSettingsForm({ tenant }: OrganizationSettingsFormPro
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-4">
-            <span className="text-xs text-slate-400 font-mono">
-              Optimistic Concurrency Version: v{currentTenant.version}
+            <span className="text-xs text-slate-400">
+              Last saved: version {currentTenant.version}
             </span>
 
             <Button

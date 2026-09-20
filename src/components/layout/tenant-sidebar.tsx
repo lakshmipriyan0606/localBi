@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { LocalBiMark } from '@/components/brand/localbi-mark';
 import { SafeTenantNavDto, SafeUserNavDto, AuthorizedTenantDto, getNavGroups } from './sidebar-nav-config';
@@ -19,7 +19,7 @@ export interface TenantSidebarProps {
 }
 
 function SidebarContent({ tenant, user, tenants, onNavigate }: TenantSidebarProps & { onNavigate?: () => void }) {
-  const groups = getNavGroups(tenant.slug);
+  const groups = useMemo(() => getNavGroups(tenant.slug), [tenant.slug]);
 
   return (
     <div className="flex h-full flex-col">
@@ -57,14 +57,14 @@ export function TenantSidebar({
 
   return (
     <>
-      <aside className="hidden lg:flex w-60 flex-shrink-0 flex-col border-r border-slate-200/90 bg-white min-h-screen">
+      <aside className="hidden lg:flex w-72 flex-shrink-0 flex-col border-r border-slate-200/90 bg-white min-h-screen">
         <SidebarContent tenant={tenant} user={user} tenants={tenants} />
       </aside>
 
       {isMobileOpen && (
         <>
           <div className="lg:hidden fixed inset-0 z-40 bg-black/30 backdrop-blur-xs transition-opacity" aria-hidden="true" onClick={closeMobile} />
-          <aside className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-64 bg-white shadow-xl overflow-y-auto" aria-label="Mobile navigation">
+          <aside className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-72 bg-white shadow-xl overflow-y-auto" aria-label="Mobile navigation">
             <div className="flex items-center justify-between px-4 pt-3 pb-1">
               <div className="flex items-center gap-2">
                 <LocalBiMark size="sm" showLabel={false} />

@@ -13,7 +13,7 @@ export function ReportsPolicyFooter({ activeSource }: { activeSource: 'gbp' | 'g
           <strong className="text-slate-700">Google Search Console policy notice:</strong>{' '}
           Search Console average position is impression-weighted and may differ from rank-tracking tools.
           Clicks and impressions are sourced directly from the Google Search Console API. Search Console retains
-          historical query telemetry for up to 16 months.
+          historical search query data for up to 16 months.
         </p>
       )}
     </footer>

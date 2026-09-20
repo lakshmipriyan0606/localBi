@@ -1,12 +1,14 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
+import { ToastProvider } from '@/components/providers/toast-provider';
 import './globals.css';
 
-const inter = Inter({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-sans',
+  weight: ['300', '400', '500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
@@ -20,9 +22,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased" suppressHydrationWarning>
-        <QueryProvider>{children}</QueryProvider>
+    <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-indigo-100 selection:text-indigo-900" suppressHydrationWarning>
+        <QueryProvider>
+          {children}
+          <ToastProvider />
+        </QueryProvider>
       </body>
     </html>
   );

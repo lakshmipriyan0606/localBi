@@ -16,7 +16,7 @@ import { Ga4DevicesCard, Ga4DeviceRow } from '@/features/reports/components/ga4-
 
 export const metadata: Metadata = {
   title: 'Google Analytics 4 (GA4) — localBi',
-  description: 'Web traffic sessions, engagement, and channel attribution telemetry',
+  description: 'Website visitors, sessions, engagement, and traffic sources',
 };
 
 export default async function Ga4ReportingPage({
@@ -201,22 +201,21 @@ export default async function Ga4ReportingPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <Breadcrumbs
         items={[
           { label: 'Overview', href: `/t/${tenant.slug}` },
-          { label: 'Analytics', href: `/t/${tenant.slug}/reports` },
-          { label: 'Google Analytics (GA4)', current: true },
+          { label: 'Website Visitors & Traffic', href: `/t/${tenant.slug}/reports/ga4` },
         ]}
       />
 
       <PageHeader
         title="Google Analytics 4 (GA4)"
-        description="Comprehensive web session telemetry, visitor engagement rates, and cross-channel traffic attribution for mapped brand properties."
+        description="Track website visitors, engagement, and traffic sources across your brands and websites."
         badge={
           <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-semibold text-xs py-1 px-2.5">
             <Sparkles className="h-3 w-3 text-purple-600" />
-            GA4 Telemetry Stream
+            Live Website Analytics
           </Badge>
         }
         actions={
@@ -225,7 +224,7 @@ export default async function Ga4ReportingPage({
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
           >
             <Link2 className="h-3.5 w-3.5 text-slate-500" />
-            Configure Stream ID
+            Connect Analytics Account
           </Link>
         }
       />

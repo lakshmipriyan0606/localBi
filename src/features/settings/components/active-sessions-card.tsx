@@ -69,7 +69,7 @@ export function ActiveSessionsCard() {
             Active Device Sessions
           </CardTitle>
           <CardDescription>
-            Review and revoke authenticated browser sessions holding opaque CSPRNG session tokens.
+            Review and manage the devices that are currently signed into your account.
           </CardDescription>
         </div>
 
@@ -165,7 +165,7 @@ export function ActiveSessionsCard() {
                           id={`revoke-session-${s.id}`}
                           className="h-7 px-2 text-xs text-slate-600 hover:text-red-700 hover:border-red-300"
                         >
-                          Revoke
+                          Sign Out
                         </Button>
                       )}
                     </TableCell>
@@ -184,11 +184,11 @@ export function ActiveSessionsCard() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Revoke Active Session</DialogTitle>
+            <DialogTitle>Sign Out This Device</DialogTitle>
             <DialogDescription>
-              Revoke session on device{' '}
+              Sign out{' '}
               <strong className="font-semibold">{revokingSession?.userAgent || 'Unknown device'}</strong>{' '}
-              ({revokingSession?.ipAddress || '127.0.0.1'})? The device will be signed out immediately.
+              ({revokingSession?.ipAddress || '127.0.0.1'})? This device will be signed out immediately.
             </DialogDescription>
           </DialogHeader>
 
@@ -209,10 +209,10 @@ export function ActiveSessionsCard() {
               {revokeMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Revoking...
+                  Signing out...
                 </>
               ) : (
-                'Revoke Session'
+                'Sign Out Device'
               )}
             </Button>
           </DialogFooter>
@@ -252,7 +252,7 @@ export function ActiveSessionsCard() {
               {revokeAllMutation.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Revoking all...
+                  Signing out...
                 </>
               ) : (
                 <>

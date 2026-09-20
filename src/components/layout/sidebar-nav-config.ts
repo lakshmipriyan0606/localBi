@@ -75,22 +75,22 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
     items: [
       {
-        label: 'Performance Hub',
+        label: 'Store Overview',
         href: `/t/${slug}/reports?tab=gbp`,
         icon: Store,
       },
       {
-        label: 'Location Matrix',
+        label: 'All Store Locations',
         href: `/t/${slug}/reports/gbp/locations`,
         icon: Layers,
       },
       {
-        label: 'Monthly Search Terms',
+        label: 'Customer Search Keywords',
         href: `/t/${slug}/reports/gbp/search-terms`,
         icon: SearchCode,
       },
       {
-        label: 'Storefront Directory',
+        label: 'Manage Store Locations',
         href: `/t/${slug}/locations`,
         icon: MapPin,
       },
@@ -102,27 +102,27 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     items: [
       {
-        label: 'Search Performance',
+        label: 'Website Search Overview',
         href: `/t/${slug}/reports?tab=gsc`,
         icon: TrendingUp,
       },
       {
-        label: 'Search Queries',
+        label: 'Top Search Keywords',
         href: `/t/${slug}/reports/gsc/queries`,
         icon: Search,
       },
       {
-        label: 'Landing Pages',
+        label: 'Top Website Pages',
         href: `/t/${slug}/reports/gsc/pages`,
         icon: FileText,
       },
       {
-        label: 'Country Distribution',
+        label: 'Visitor Countries',
         href: `/t/${slug}/reports/gsc/countries`,
         icon: Globe,
       },
       {
-        label: 'Device Platforms',
+        label: 'Visitor Devices',
         href: `/t/${slug}/reports/gsc/devices`,
         icon: MonitorSmartphone,
       },
@@ -134,14 +134,14 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
     items: [
       {
-        label: 'Traffic & Web Sessions',
+        label: 'Website Visitors & Traffic',
         href: `/t/${slug}/reports/ga4`,
         icon: Activity,
         pillBadge: 'PREVIEW',
         badgeVariant: 'purple',
       },
       {
-        label: 'Acquisition Channels',
+        label: 'Traffic Sources',
         href: `/t/${slug}/reports/ga4?view=channels`,
         icon: Share2,
         pillBadge: 'SOON',
@@ -153,7 +153,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     heading: 'Connections',
     items: [
       {
-        label: 'Google Accounts & Mapping',
+        label: 'Connect Google Accounts',
         href: `/t/${slug}/integrations`,
         icon: Link2,
       },
@@ -163,7 +163,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     heading: 'Administration',
     items: [
       {
-        label: 'Client Brands',
+        label: 'Brands & Businesses',
         href: `/t/${slug}/brands`,
         icon: Tag,
       },
@@ -173,12 +173,12 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: Users,
       },
       {
-        label: 'Invitations',
+        label: 'Invite Team Members',
         href: `/t/${slug}/invitations`,
         icon: Mail,
       },
       {
-        label: 'Workspace Settings',
+        label: 'General Settings',
         href: `/t/${slug}/settings`,
         icon: Settings,
       },

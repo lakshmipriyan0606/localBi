@@ -432,7 +432,7 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
             <Globe2 className="w-8 h-8 stroke-1 text-slate-400 mb-2" />
             <span className="font-bold text-slate-800 text-[13px]">No Store Locations Added Yet</span>
             <span className="text-slate-500 mt-1 max-w-sm">
-              Add your store locations in the Storefront Directory to plot real-time patient reach and conversion telemetry.
+              Add your store locations in Manage Store Locations to view your customer reach and local store activity on the map.
             </span>
           </div>
         )}

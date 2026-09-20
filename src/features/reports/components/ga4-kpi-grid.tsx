@@ -33,7 +33,7 @@ export function Ga4KpiGrid({
   hasRealData = false,
 }: Ga4KpiGridProps) {
   const customerLabel = hasRealData
-    ? `Live Telemetry: ${brandName || 'Brand'}`
+    ? `Live Analytics: ${brandName || 'Brand'}`
     : brandName
     ? `Visitors to ${brandName} Customers`
     : 'From Visitors to Customers';
@@ -48,7 +48,7 @@ export function Ga4KpiGrid({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-[17px] font-bold tracking-tight text-slate-900 leading-none">
-              Web Analytics Telemetry
+              Website Visitors & Traffic
             </h2>
             <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-100/80 text-sky-800">
               ✓ {customerLabel}

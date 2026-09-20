@@ -35,7 +35,7 @@ export function GscSearchQueriesTable({ tenantSlug, queries = [] }: GscSearchQue
         {queries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400 text-xs">
             <Search className="w-6 h-6 stroke-1 text-slate-300 mb-1" />
-            <span>No search query telemetry recorded yet</span>
+            <span>No search keywords recorded yet</span>
           </div>
         ) : (
           <table className="w-full text-[11.5px] text-left">

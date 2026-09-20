@@ -21,7 +21,7 @@ export function ClientHero({
   tenantName,
   locationsCount,
   categoriesCount = 0,
-  brandTagline = 'Local visibility, storefront performance, and customer telemetry.',
+  brandTagline = 'Local search visibility, store performance, and customer analytics.',
   storeBadgeName,
   storeBadgeIcon = '🏢',
   marketingQuote,
@@ -52,7 +52,7 @@ export function ClientHero({
                 <CheckCircle2 className="h-3 w-3" /> Data Ready & Syncing
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Clock className="h-3 w-3 text-slate-400" /> Live Telemetry
+                <Clock className="h-3 w-3 text-slate-400" /> Live Data
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
                 <MapPin className="h-3 w-3 text-slate-400" /> {locationsCount} Google locations
@@ -103,10 +103,10 @@ export function ClientHero({
             ) : (
               <div className="bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-[13px] font-bold text-slate-700">Telemetry</span>
+                  <span className="text-[13px] font-bold text-slate-700">Active</span>
                 </div>
                 <span className="text-[9.5px] text-slate-500 font-semibold block leading-none mt-0.5">
-                  Live Stream
+                  Data Status
                 </span>
               </div>
             )}

@@ -23,7 +23,7 @@ export function InvitationsView({ tenantSlug, brands }: InvitationsViewProps) {
     <div className="space-y-6">
       <PageHeader
         title="Pending Invitations"
-        description="Dispatch time-bounded invitations to onboarding team members with pre-assigned roles."
+        description="Send email invitations to new team members and set their role before they join."
         actions={<InvitationDialog tenantSlug={tenantSlug} brands={brands} />}
       />
 

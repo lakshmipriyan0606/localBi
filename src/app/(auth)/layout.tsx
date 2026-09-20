@@ -68,25 +68,25 @@ export default function AuthLayout({
                 icon: Building2,
                 color: 'text-indigo-400',
                 bg: 'bg-indigo-500/10',
-                title: 'Multi-Brand & Location Management',
+                title: 'Manage Multiple Brands & Locations',
                 detail:
-                  'Organize hundreds of branch storefronts under distinct client brands with scoped team permissions.',
+                  'Organize hundreds of branch storefronts under distinct client brands with team-level access controls.',
               },
               {
                 icon: Search,
                 color: 'text-emerald-400',
                 bg: 'bg-emerald-500/10',
-                title: 'Cross-Channel Search Intelligence',
+                title: 'All Your Search Data in One Place',
                 detail:
-                  'Unified reporting across Google Business Profile impressions and Google Search Console queries.',
+                  'Unified reporting across Google Business Profile and Google Search Console — side by side.',
               },
               {
                 icon: TrendingUp,
                 color: 'text-sky-400',
                 bg: 'bg-sky-500/10',
-                title: 'Action-Driven Analytics Drilldown',
+                title: 'Understand What Customers Do',
                 detail:
-                  'Track customer calls, website link clicks, and driving direction requests per storefront.',
+                  'Track calls, website visits, and direction requests per store location.',
               },
             ].map(({ icon: Icon, color, bg, title, detail }) => (
               <div
@@ -111,7 +111,7 @@ export default function AuthLayout({
                 Sample Interface Preview
               </span>
               <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                Verified Architecture
+                Trusted & Secure
               </span>
             </div>
             <div className="space-y-1.5 pt-1">
@@ -129,7 +129,7 @@ export default function AuthLayout({
         {/* ── Bottom: Security assurance ── */}
         <div className="relative z-10 px-10 pb-10 flex items-center gap-2 text-[11px] text-slate-600">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" aria-hidden="true" />
-          <span>RFC 9106 Argon2id · RLS enforced · Zero third-party tracker cookies</span>
+          <span>Secure login · Your data stays private · No third-party tracking</span>
         </div>
       </aside>
 

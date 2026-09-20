@@ -1,5 +1,15 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import { normalizeApiError } from './api-error';
+import { notify } from '@/lib/notify';
+
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    toast?: {
+      success?: string;
+      error?: string;
+    };
+  }
+}
 
 /**
  * Standard HTTP Browser Client for localBi Client Components.
@@ -33,8 +43,21 @@ browserClient.interceptors.request.use(
   (error) => Promise.reject(normalizeApiError(error))
 );
 
-// Response interceptor: Normalize errors without concealing HTTP status
+// Response interceptor: Normalize errors and trigger optional toast notifications
 browserClient.interceptors.response.use(
-  (response) => response,
-  (error) => Promise.reject(normalizeApiError(error))
+  (response) => {
+    const toastConfig = (response.config as { toast?: { success?: string; error?: string } }).toast;
+    if (toastConfig?.success) {
+      notify.success(toastConfig.success);
+    }
+    return response;
+  },
+  (error) => {
+    const normalized = normalizeApiError(error);
+    const toastConfig = (error.config as { toast?: { success?: string; error?: string } })?.toast;
+    if (toastConfig?.error) {
+      notify.error(toastConfig.error);
+    }
+    return Promise.reject(normalized);
+  }
 );

@@ -27,7 +27,7 @@ export function DashboardSparkline({
     const hasData = Boolean(points && points.length >= 2 && points.some((p) => p > 0));
 
     if (!hasData) {
-      // Clean flat baseline at the bottom representing zero telemetry
+      // Clean flat baseline at the bottom representing no data yet
       return {
         pathD: `M 0,${h - padding} L ${width},${h - padding}`,
         areaD: '',

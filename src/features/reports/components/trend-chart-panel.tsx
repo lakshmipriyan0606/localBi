@@ -85,7 +85,7 @@ function TrendPanel({
   isLoading: boolean;
 }) {
   if (isLoading) {
-    return <AnalyticsLoader variant="hero" message={`Synchronizing ${title} trend telemetry...`} />;
+    return <AnalyticsLoader variant="hero" message={`Loading ${title} trend data...`} />;
   }
 
   const hasData = data.length > 0 && data.some((d) => d[seriesKey] > 0);

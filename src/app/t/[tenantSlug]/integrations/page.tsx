@@ -47,12 +47,11 @@ export default async function TenantIntegrationsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Google Reporting Integrations"
+        title="Connect Google Accounts"
         description={
           <>
-            Authorize your Google account, discover Business Profile locations and Search Console
-            properties, and establish verified reporting mappings for{' '}
-            <strong className="text-slate-700 font-semibold">{tenant.name}</strong>.
+            Connect your Google account to automatically import and link your website and store
+            locations for <strong className="text-slate-700 font-semibold">{tenant.name}</strong>.
           </>
         }
       />

@@ -284,7 +284,7 @@ export function DimensionBreakdown({
       {/* Tab content */}
       <div className="px-5 py-4" role="tabpanel" aria-labelledby={`dim-tab-${activeTab}`}>
         {isLoading ? (
-          <AnalyticsLoader variant="hero" message={`Aggregating Google Search Console ${activeTab} telemetry...`} />
+          <AnalyticsLoader variant="hero" message={`Loading Google Search Console ${activeTab} data...`} />
         ) : activeTab === 'queries' ? (
           <QueriesTable queries={queries} />
         ) : activeTab === 'pages' ? (

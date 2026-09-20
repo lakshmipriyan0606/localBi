@@ -47,7 +47,7 @@ export function ReportsGbpSection({
               </span>
             </div>
             <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
-              Local listings and customer action telemetry across all locations
+              Customer calls, driving directions, and local interactions across all locations
             </p>
           </div>
         </div>
@@ -105,10 +105,10 @@ export function ReportsGbpSection({
         <div className="p-3 bg-white/80 border border-emerald-200/70 rounded-xl flex items-center justify-between gap-3 text-xs text-emerald-900">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-            <span>Telemetry streaming live from Google Business Profile. Map your locations in Integrations.</span>
+            <span>Connected to Google Business Profile. Link your store locations in Connections.</span>
           </div>
           <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-emerald-950 flex-shrink-0">
-            Configure GBP
+            Manage Connections
           </Link>
         </div>
       )}

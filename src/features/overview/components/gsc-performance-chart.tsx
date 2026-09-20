@@ -157,7 +157,7 @@ export function GscPerformanceChart({ trendData = [] }: GscPerformanceChartProps
       <div className="relative w-full h-[180px] select-none">
         {trendData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 text-xs">
-            <span>No search performance trend telemetry available yet</span>
+            <span>No search performance trend data available yet</span>
           </div>
         ) : (
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">

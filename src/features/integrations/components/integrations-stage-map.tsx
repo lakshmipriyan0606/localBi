@@ -355,7 +355,7 @@ export function IntegrationsStageMap({
             onClick={onContinue}
             className="flex items-center gap-1 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white"
           >
-            <span>Proceed to Ingestion & Sync</span>
+            <span>Proceed to Sync & Reports</span>
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>

@@ -8,7 +8,7 @@ interface AnalyticsLoaderProps {
 }
 
 export function AnalyticsLoader({
-  message = 'Synchronizing verified Google telemetry...',
+  message = 'Loading your Google reports and analytics...',
   variant = 'hero',
   className,
 }: AnalyticsLoaderProps) {
