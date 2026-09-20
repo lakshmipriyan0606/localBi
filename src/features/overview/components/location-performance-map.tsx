@@ -139,7 +139,7 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
                 <span class="font-bold text-slate-900">${loc.conversions.toLocaleString()} (${loc.rate})</span>
               </div>
               <div class="flex items-center justify-between text-slate-600">
-                <span>Monthly Patients:</span>
+                <span>Monthly Visitors:</span>
                 <span class="font-medium text-slate-800">${loc.users.toLocaleString()}</span>
               </div>
               <div class="flex items-center justify-between pt-1 border-t border-slate-50 text-[10px] font-bold text-emerald-600">

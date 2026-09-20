@@ -145,7 +145,6 @@ export function DrilldownVisualAnalytics<T>({
         <DashboardMetricCard
           label={primaryMetricName}
           value={summary.totalPrimary}
-          delta={18.4}
           icon={isGbp ? 'eye' : 'mouse-pointer-click'}
           color={isGbp ? 'teal' : 'indigo'}
           sparkColor={isGbp ? '#10B981' : '#6366F1'}
@@ -154,7 +153,6 @@ export function DrilldownVisualAnalytics<T>({
         <DashboardMetricCard
           label={secondaryMetricName}
           value={summary.totalSecondary}
-          delta={24.2}
           icon="bar-chart"
           color="blue"
           sparkColor="#3B82F6"
@@ -163,7 +161,6 @@ export function DrilldownVisualAnalytics<T>({
         <DashboardMetricCard
           label="Tracked Entities"
           value={parsedData.length}
-          delta={12.0}
           icon="globe"
           color="purple"
           sparkColor="#8B5CF6"

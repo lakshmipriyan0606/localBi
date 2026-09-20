@@ -44,7 +44,6 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
         <DashboardMetricCard
           label="Active Locations"
           value={activeCount}
-          delta={100}
           icon="navigation"
           color="emerald"
           sparkColor="#10B981"
@@ -53,7 +52,6 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
         <DashboardMetricCard
           label="Cities Covered"
           value={uniqueCities}
-          delta={15.4}
           icon="globe"
           color="blue"
           sparkColor="#3B82F6"
@@ -62,7 +60,6 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
         <DashboardMetricCard
           label="Registered Brands"
           value={brands.length}
-          delta={25.0}
           icon="target"
           color="purple"
           sparkColor="#8B5CF6"

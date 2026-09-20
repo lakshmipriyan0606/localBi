@@ -47,10 +47,10 @@ export function ReportsGscSection({
   const gsc = summary?.gsc;
   const hasGscData = Boolean(gsc && (gsc.totalClicks > 0 || gsc.totalImpressions > 0));
 
-  const clicks = gsc?.totalClicks ?? 16304;
-  const impressions = gsc?.totalImpressions ?? 412903;
-  const ctr = gsc?.ctr ?? 3.9;
-  const position = gsc?.averagePosition ?? 12.4;
+  const clicks = gsc?.totalClicks ?? 0;
+  const impressions = gsc?.totalImpressions ?? 0;
+  const ctr = gsc?.ctr ? Number((gsc.ctr * 100).toFixed(1)) : 0;
+  const position = gsc?.averagePosition ? Number(gsc.averagePosition.toFixed(1)) : 0;
 
   return (
     <section className="rounded-2xl border border-[#DCE2F6] bg-[#F1F3FB] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
@@ -66,7 +66,7 @@ export function ReportsGscSection({
                 Search Console
               </h2>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100/70 text-indigo-800">
-                ✓ More Clicks. Higher Rankings. More Patients.
+                ✓ More Clicks. Higher Rankings.
               </span>
             </div>
             <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
@@ -89,7 +89,7 @@ export function ReportsGscSection({
         <DashboardMetricCard
           label="Clicks"
           value={clicks}
-          delta={18.2}
+          delta={hasGscData ? summary?.previousPeriod?.clicksGrowthPercent : undefined}
           icon="mouse-pointer-click"
           color="purple"
           sparkColor="#8B5CF6"
@@ -98,7 +98,7 @@ export function ReportsGscSection({
         <DashboardMetricCard
           label="Impressions"
           value={impressions}
-          delta={27.6}
+          delta={hasGscData ? summary?.previousPeriod?.impressionsGrowthPercent : undefined}
           icon="bar-chart"
           color="blue"
           sparkColor="#3B82F6"
@@ -107,7 +107,7 @@ export function ReportsGscSection({
         <DashboardMetricCard
           label="CTR"
           value={ctr}
-          delta={12.1}
+          delta={hasGscData ? summary?.previousPeriod?.clicksGrowthPercent : undefined}
           suffix="%"
           icon="percent"
           color="teal"
@@ -117,7 +117,7 @@ export function ReportsGscSection({
         <DashboardMetricCard
           label="Average Position"
           value={position}
-          delta={-3.8}
+          delta={hasGscData ? summary?.previousPeriod?.positionGrowthPercent : undefined}
           icon="crown"
           color="purple"
           sparkColor="#10B981"

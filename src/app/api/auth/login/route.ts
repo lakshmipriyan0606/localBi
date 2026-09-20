@@ -39,8 +39,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(error.toClientResponse(), { status: error.statusCode });
     }
 
+    const isDev = process.env.NODE_ENV !== 'production';
+    let message = 'An unexpected authentication error occurred.';
+
+    if (error instanceof Error) {
+      if (error.message.includes("Can't reach database server") || error.message.includes('ECONNREFUSED')) {
+        message = isDev
+          ? `Database offline: Cannot connect to PostgreSQL at 127.0.0.1:5432. Please make sure Docker Desktop is running and run 'docker compose up -d'.`
+          : 'Service temporarily unavailable. Please try again shortly.';
+      } else if (isDev) {
+        message = error.message;
+      }
+    }
+
     return NextResponse.json(
-      { error: { code: 'INTERNAL_SERVER_ERROR', message: 'An unexpected authentication error occurred.' } },
+      { error: { code: 'INTERNAL_SERVER_ERROR', message } },
       { status: 500 }
     );
   }

@@ -74,7 +74,17 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
         description={activeSource === 'gbp'
           ? `Local search reach, customer actions, and storefront performance for ${tenantName}.`
           : `Organic search visibility, queries, and landing page reach for ${tenantName}.`}
-        badge={<SourceStatusBadge connections={[{ provider: activeSource === 'gbp' ? 'GBP' : 'GSC', state: 'connected', lastSyncedAt: null }]} />}
+        badge={
+          <SourceStatusBadge
+            connections={
+              (activeSource === 'gsc'
+                ? summary?.gsc && (summary.gsc.totalClicks > 0 || summary.gsc.totalImpressions > 0)
+                : summary?.gbp && (summary.gbp.totalViews > 0 || summary.gbp.websiteClicks > 0))
+                ? [{ provider: activeSource === 'gbp' ? 'GBP' : 'GSC', state: 'connected', lastSyncedAt: null }]
+                : [{ provider: activeSource === 'gbp' ? 'GBP' : 'GSC', state: 'disconnected', lastSyncedAt: null }]
+            }
+          />
+        }
         actions={
           <ReportsHeaderControls
             brands={brands}

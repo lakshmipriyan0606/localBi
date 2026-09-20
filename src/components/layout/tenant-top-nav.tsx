@@ -58,11 +58,11 @@ export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: Te
 
         <Link
           href={`/t/${tenant.slug}/integrations`}
-          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-emerald-200/80 bg-emerald-50/60 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100/60 transition-colors"
-          title="Google Accounts authorized and streaming"
+          className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50/70 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+          title="Google Accounts & Integrations"
         >
-          <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-          <span>Google Connected</span>
+          <CheckCircle2 className="h-3 w-3 text-indigo-600" />
+          <span>Google Integrations</span>
         </Link>
 
         <TopNavBrandSelector brands={brands} />

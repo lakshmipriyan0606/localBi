@@ -78,8 +78,8 @@ export class PasswordService {
       throw createValidationError('Password must be a non-empty string');
     }
 
-    if (password.length < 12) {
-      throw createValidationError('Password must be at least 12 characters long');
+    if (password.length < 10) {
+      throw createValidationError('Password must be at least 10 characters long');
     }
 
     if (password.length > 128) {

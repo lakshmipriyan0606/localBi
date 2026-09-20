@@ -24,10 +24,10 @@ export function ReportsGbpSection({
     gbp && (gbp.totalViews > 0 || gbp.callClicks > 0 || gbp.websiteClicks > 0 || gbp.directionRequests > 0)
   );
 
-  const views = gbp?.totalViews ?? 25814;
-  const calls = gbp?.callClicks ?? 958;
-  const directions = gbp?.directionRequests ?? 1855;
-  const websiteClicks = gbp?.websiteClicks ?? 7421;
+  const views = gbp?.totalViews ?? 0;
+  const calls = gbp?.callClicks ?? 0;
+  const directions = gbp?.directionRequests ?? 0;
+  const websiteClicks = gbp?.websiteClicks ?? 0;
 
   return (
     <section className="rounded-2xl border border-[#C5E8D8] bg-[#EBF7F2] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
@@ -43,7 +43,7 @@ export function ReportsGbpSection({
                 Google Business Profile
               </h2>
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800">
-                ✓ Local Presence Drives Real Patients
+                ✓ Local Presence & Customer Reach
               </span>
             </div>
             <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
@@ -66,7 +66,7 @@ export function ReportsGbpSection({
         <DashboardMetricCard
           label="Profile Views"
           value={views}
-          delta={24.1}
+          delta={hasGbpData ? summary?.previousPeriod?.viewsGrowthPercent : undefined}
           icon="eye"
           color="purple"
           sparkColor="#10B981"
@@ -75,7 +75,7 @@ export function ReportsGbpSection({
         <DashboardMetricCard
           label="Phone Calls"
           value={calls}
-          delta={12.3}
+          delta={hasGbpData ? summary?.previousPeriod?.callsGrowthPercent : undefined}
           icon="phone"
           color="blue"
           sparkColor="#3B82F6"
@@ -84,7 +84,7 @@ export function ReportsGbpSection({
         <DashboardMetricCard
           label="Direction Requests"
           value={directions}
-          delta={28.6}
+          delta={hasGbpData ? summary?.previousPeriod?.directionsGrowthPercent : undefined}
           icon="navigation"
           color="teal"
           sparkColor="#14B8A6"
@@ -93,7 +93,7 @@ export function ReportsGbpSection({
         <DashboardMetricCard
           label="Website & Photo Views"
           value={websiteClicks}
-          delta={18.9}
+          delta={hasGbpData ? summary?.previousPeriod?.websiteClicksGrowthPercent : undefined}
           icon="image"
           color="blue"
           sparkColor="#10B981"

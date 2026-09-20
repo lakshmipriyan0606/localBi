@@ -13,12 +13,13 @@ interface WebAnalyticsSectionProps {
 }
 
 export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionProps) {
+  const hasData = Boolean(data?.hasData);
   const webCards = [
     {
       key: 'users',
       label: 'Users',
       value: data ? data.users : 0,
-      delta: data ? data.usersDelta : 0,
+      delta: hasData ? data?.usersDelta : undefined,
       icon: 'users',
       color: 'blue' as const,
       sparkColor: '#3B82F6',
@@ -28,7 +29,7 @@ export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionPro
       key: 'sessions',
       label: 'Sessions',
       value: data ? data.sessions : 0,
-      delta: data ? data.sessionsDelta : 0,
+      delta: hasData ? data?.sessionsDelta : undefined,
       icon: 'mouse-pointer-click',
       color: 'purple' as const,
       sparkColor: '#8B5CF6',
@@ -38,7 +39,7 @@ export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionPro
       key: 'engaged',
       label: 'Engaged Sessions',
       value: data ? data.engagedSessions : 0,
-      delta: data ? data.engagedSessionsDelta : 0,
+      delta: hasData ? data?.engagedSessionsDelta : undefined,
       icon: 'activity',
       color: 'cyan' as const,
       sparkColor: '#14B8A6',
@@ -48,7 +49,7 @@ export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionPro
       key: 'conv-rate',
       label: 'Conversion Rate',
       value: data ? data.conversionRate : 0,
-      delta: data ? data.conversionRateDelta : 0,
+      delta: hasData ? data?.conversionRateDelta : undefined,
       suffix: '%',
       icon: 'target',
       color: 'blue' as const,
@@ -59,7 +60,7 @@ export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionPro
       key: 'conversions',
       label: 'Website Conversions',
       value: data ? data.conversions : 0,
-      delta: data ? data.conversionsDelta : 0,
+      delta: hasData ? data?.conversionsDelta : undefined,
       icon: 'flag',
       color: 'purple' as const,
       sparkColor: '#8B5CF6',
@@ -75,9 +76,9 @@ export function WebAnalyticsSection({ tenantSlug, data }: WebAnalyticsSectionPro
         </div>
       }
       title="Web Analytics"
-      badge="✓ From Visitors to Patients"
+      badge="✓ From Visitors to Customers"
       badgeColor="bg-sky-100/80 text-sky-800"
-      subtitle="Understand how visitors use your website and convert to patients"
+      subtitle="Understand how visitors use your website and convert to customers"
       bgClass="bg-[#F0F7FD]"
       borderClass="border-[#D2E7F9]"
       reportHref={`/t/${tenantSlug}/reports/ga4`}

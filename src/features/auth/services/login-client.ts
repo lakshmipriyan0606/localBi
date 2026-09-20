@@ -81,6 +81,13 @@ export async function loginClient(credentials: LoginInput): Promise<LoginResult>
         if (data.error.code === 'INVALID_CREDENTIALS' || data.error.code === 'VALIDATION_FAILED') {
           return { success: false, errorMessage: GENERIC_AUTH_ERROR, errorCode: data.error.code };
         }
+        if (data.error.message) {
+          return {
+            success: false,
+            errorMessage: data.error.message,
+            errorCode: data.error.code,
+          };
+        }
       }
 
       return {

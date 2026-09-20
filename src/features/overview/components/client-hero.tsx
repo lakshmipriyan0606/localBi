@@ -20,12 +20,12 @@ interface ClientHeroProps {
 export function ClientHero({
   tenantName,
   locationsCount,
-  categoriesCount = 12,
-  brandTagline = 'Local visibility. Real patients. Measurable growth.',
+  categoriesCount = 0,
+  brandTagline = 'Local visibility, storefront performance, and customer telemetry.',
   storeBadgeName,
   storeBadgeIcon = '🏢',
   marketingQuote,
-  growthPercent = 28,
+  growthPercent,
 }: ClientHeroProps) {
   const displayBadgeName = storeBadgeName || tenantName.toUpperCase().slice(0, 16);
 
@@ -52,14 +52,16 @@ export function ClientHero({
                 <CheckCircle2 className="h-3 w-3" /> Data Ready & Syncing
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Clock className="h-3 w-3 text-slate-400" /> Last updated 2 minutes ago
+                <Clock className="h-3 w-3 text-slate-400" /> Live Telemetry
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
                 <MapPin className="h-3 w-3 text-slate-400" /> {locationsCount} Google locations
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Tag className="h-3 w-3 text-slate-400" /> {categoriesCount} search categories
-              </span>
+              {categoriesCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                  <Tag className="h-3 w-3 text-slate-400" /> {categoriesCount} search categories
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -88,15 +90,26 @@ export function ClientHero({
               <span>Export Report</span>
             </button>
 
-            <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
-              <div className="flex items-center justify-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
-                <span className="text-[15px] font-bold text-emerald-700">+{growthPercent}%</span>
+            {typeof growthPercent === 'number' && growthPercent > 0 ? (
+              <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
+                <div className="flex items-center justify-center gap-1">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
+                  <span className="text-[15px] font-bold text-emerald-700">+{growthPercent}%</span>
+                </div>
+                <span className="text-[9.5px] text-emerald-600 font-semibold block leading-none mt-0.5">
+                  Visibility Growth
+                </span>
               </div>
-              <span className="text-[9.5px] text-emerald-600 font-semibold block leading-none mt-0.5">
-                Visibility Growth
-              </span>
-            </div>
+            ) : (
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
+                <div className="flex items-center justify-center gap-1">
+                  <span className="text-[13px] font-bold text-slate-700">Telemetry</span>
+                </div>
+                <span className="text-[9.5px] text-slate-500 font-semibold block leading-none mt-0.5">
+                  Live Stream
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

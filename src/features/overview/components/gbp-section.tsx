@@ -16,7 +16,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
       key: 'profile-views',
       label: 'Profile Views',
       value: data ? data.profileViews : 0,
-      delta: data ? data.profileViewsDelta : 0,
+      delta: data?.hasData ? data.profileViewsDelta : undefined,
       icon: 'eye',
       color: 'purple' as const,
       sparkColor: '#10B981',
@@ -26,7 +26,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
       key: 'calls',
       label: 'Calls',
       value: data ? data.calls : 0,
-      delta: data ? data.callsDelta : 0,
+      delta: data?.hasData ? data.callsDelta : undefined,
       icon: 'phone',
       color: 'blue' as const,
       sparkColor: '#3B82F6',
@@ -36,7 +36,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
       key: 'directions',
       label: 'Direction Requests',
       value: data ? data.directions : 0,
-      delta: data ? data.directionsDelta : 0,
+      delta: data?.hasData ? data.directionsDelta : undefined,
       icon: 'navigation',
       color: 'teal' as const,
       sparkColor: '#14B8A6',
@@ -46,7 +46,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
       key: 'reviews',
       label: 'Reviews',
       value: data ? data.reviews : 0,
-      delta: data ? data.reviewsDelta : 0,
+      delta: data?.hasData ? data.reviewsDelta : undefined,
       icon: 'star',
       color: 'amber' as const,
       sparkColor: '#8B5CF6',
@@ -56,7 +56,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
       key: 'photo-views',
       label: 'Photo Views',
       value: data ? data.photoViews : 0,
-      delta: data ? data.photoViewsDelta : 0,
+      delta: data?.hasData ? data.photoViewsDelta : undefined,
       icon: 'image',
       color: 'blue' as const,
       sparkColor: '#10B981',
@@ -72,7 +72,7 @@ export function GbpSection({ tenantSlug, data }: GbpSectionProps) {
         </div>
       }
       title="Google Business Profile"
-      badge="✓ Local Presence Drives Real Patients"
+      badge="✓ Local Presence & Customer Reach"
       badgeColor="bg-emerald-100/70 text-emerald-800"
       subtitle="Your Google Business Profile performance across all locations"
       bgClass="bg-[#EBF7F2]"

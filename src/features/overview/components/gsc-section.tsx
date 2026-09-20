@@ -37,12 +37,13 @@ function GoogleGIcon() {
 }
 
 export function GscSection({ tenantSlug, data }: GscSectionProps) {
+  const hasData = Boolean(data?.hasData);
   const gscCards = [
     {
       key: 'clicks',
       label: 'Clicks',
       value: data ? data.clicks : 0,
-      delta: data ? data.clicksDelta : 0,
+      delta: hasData ? data?.clicksDelta : undefined,
       icon: 'mouse-pointer-click',
       color: 'purple' as const,
       sparkColor: '#8B5CF6',
@@ -52,7 +53,7 @@ export function GscSection({ tenantSlug, data }: GscSectionProps) {
       key: 'impressions',
       label: 'Impressions',
       value: data ? data.impressions : 0,
-      delta: data ? data.impressionsDelta : 0,
+      delta: hasData ? data?.impressionsDelta : undefined,
       icon: 'bar-chart',
       color: 'blue' as const,
       sparkColor: '#3B82F6',
@@ -62,7 +63,7 @@ export function GscSection({ tenantSlug, data }: GscSectionProps) {
       key: 'ctr',
       label: 'CTR',
       value: data ? data.ctr : 0,
-      delta: data ? data.ctrDelta : 0,
+      delta: hasData ? data?.ctrDelta : undefined,
       suffix: '%',
       icon: 'percent',
       color: 'teal' as const,
@@ -73,7 +74,7 @@ export function GscSection({ tenantSlug, data }: GscSectionProps) {
       key: 'position',
       label: 'Average Position',
       value: data ? data.position : 0,
-      delta: data ? data.positionDelta : 0,
+      delta: hasData ? data?.positionDelta : undefined,
       icon: 'crown',
       color: 'purple' as const,
       sparkColor: '#10B981',
@@ -90,7 +91,7 @@ export function GscSection({ tenantSlug, data }: GscSectionProps) {
         </div>
       }
       title="Search Console"
-      badge="✓ More Clicks. Higher Rankings. More Patients."
+      badge="✓ More Clicks. Higher Rankings."
       badgeColor="bg-indigo-100/70 text-indigo-800"
       subtitle="Track your website's search performance on Google"
       bgClass="bg-[#F1F3FB]"

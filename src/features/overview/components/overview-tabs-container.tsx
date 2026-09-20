@@ -107,7 +107,7 @@ export function OverviewTabsContainer({
       label: 'Web Analytics & Map',
       shortLabel: 'Web Analytics',
       kpi: webKpi,
-      badge: 'Patients & World Map',
+      badge: 'Storefronts & Map',
       icon: BarChart3,
       colorClass: {
         active: 'bg-[#F0F7FD] text-[#0369A1] border-[#BAE6FD] shadow-xs',

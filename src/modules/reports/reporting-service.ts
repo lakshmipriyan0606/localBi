@@ -39,11 +39,14 @@ export interface PerformanceSummaryDto {
     callClicks: number;
     directionRequests: number;
   };
-  previousPeriod: {
-    clicksGrowthPercent: number;
-    impressionsGrowthPercent: number;
-    viewsGrowthPercent: number;
-  };
+  previousPeriod?: {
+    clicksGrowthPercent?: number | undefined;
+    impressionsGrowthPercent?: number | undefined;
+    viewsGrowthPercent?: number | undefined;
+    callsGrowthPercent?: number | undefined;
+    directionsGrowthPercent?: number | undefined;
+    websiteClicksGrowthPercent?: number | undefined;
+  } | undefined;
 }
 
 export interface TimeseriesPoint {
@@ -248,6 +251,76 @@ export class ReportingService {
         }
       }
 
+      // 7. Query Previous Period Telemetry for real growth deltas
+      const durationMs = end.getTime() - start.getTime();
+      const prevStart = new Date(start.getTime() - durationMs);
+      const prevEnd = new Date(start.getTime());
+
+      let prevGscClicks = 0;
+      let prevGscImpressions = 0;
+      if (propertyIds.length > 0) {
+        const prevGscTotals = await tx.gscDailyPropertyTotal.findMany({
+          where: {
+            tenantId,
+            propertyId: { in: propertyIds },
+            date: { gte: prevStart, lte: prevEnd },
+          },
+        });
+        for (const row of prevGscTotals) {
+          prevGscClicks += row.clicks;
+          prevGscImpressions += row.impressions;
+        }
+      }
+
+      let prevSearchViews = 0;
+      let prevMapsViews = 0;
+      let prevWebsiteClicks = 0;
+      let prevCallClicks = 0;
+      let prevDirectionRequests = 0;
+
+      if (allowedLocationIds.length > 0) {
+        const prevGbpMetrics = await tx.gbpDailyMetric.findMany({
+          where: {
+            tenantId,
+            locationId: { in: allowedLocationIds },
+            date: { gte: prevStart, lte: prevEnd },
+          },
+        });
+
+        for (const m of prevGbpMetrics) {
+          const val = Number(m.value);
+          switch (m.metricType) {
+            case 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH':
+            case 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH':
+              prevSearchViews += val;
+              break;
+            case 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS':
+            case 'BUSINESS_IMPRESSIONS_MOBILE_MAPS':
+              prevMapsViews += val;
+              break;
+            case 'WEBSITE_CLICKS':
+              prevWebsiteClicks += val;
+              break;
+            case 'CALL_CLICKS':
+              prevCallClicks += val;
+              break;
+            case 'BUSINESS_DIRECTION_REQUESTS':
+              prevDirectionRequests += val;
+              break;
+          }
+        }
+      }
+
+      const totalViews = searchViews + mapsViews;
+      const prevTotalViews = prevSearchViews + prevMapsViews;
+
+      const calcGrowth = (curr: number, prev: number): number | undefined => {
+        if (prev === 0) {
+          return curr > 0 ? 100 : undefined;
+        }
+        return Math.round(((curr - prev) / prev) * 1000) / 10;
+      };
+
       return {
         period: { startDate, endDate },
         gsc: {
@@ -259,15 +332,18 @@ export class ReportingService {
         gbp: {
           totalSearchViews: searchViews,
           totalMapsViews: mapsViews,
-          totalViews: searchViews + mapsViews,
+          totalViews,
           websiteClicks,
           callClicks,
           directionRequests,
         },
         previousPeriod: {
-          clicksGrowthPercent: 14.5,
-          impressionsGrowthPercent: 18.2,
-          viewsGrowthPercent: 11.8,
+          clicksGrowthPercent: calcGrowth(totalClicks, prevGscClicks),
+          impressionsGrowthPercent: calcGrowth(totalImpressions, prevGscImpressions),
+          viewsGrowthPercent: calcGrowth(totalViews, prevTotalViews),
+          callsGrowthPercent: calcGrowth(callClicks, prevCallClicks),
+          directionsGrowthPercent: calcGrowth(directionRequests, prevDirectionRequests),
+          websiteClicksGrowthPercent: calcGrowth(websiteClicks, prevWebsiteClicks),
         },
       };
     });
@@ -685,35 +761,7 @@ export class ReportingService {
             position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
           }));
         } else {
-          // If country metrics table not yet ingested, generate realistic country distribution from property totals
-          const totals = await tx.gscDailyPropertyTotal.aggregate({
-            where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
-            _sum: { clicks: true, impressions: true, sumPositionImpressions: true },
-          });
-          const totalClicks = totals._sum.clicks || 0;
-          const totalImpr = totals._sum.impressions || 0;
-          const basePos = totalImpr > 0 ? (totals._sum.sumPositionImpressions || 0) / totalImpr : 6.5;
-
-          const ratios = [
-            { code: 'IND', name: 'India', pct: 0.78 },
-            { code: 'USA', name: 'United States', pct: 0.12 },
-            { code: 'ARE', name: 'United Arab Emirates', pct: 0.05 },
-            { code: 'GBR', name: 'United Kingdom', pct: 0.03 },
-            { code: 'SGP', name: 'Singapore', pct: 0.02 },
-          ];
-
-          items = ratios.map((r) => {
-            const clicks = Math.round(totalClicks * r.pct);
-            const impressions = Math.round(totalImpr * r.pct);
-            return {
-              countryCode: r.code,
-              countryName: r.name,
-              clicks,
-              impressions,
-              ctr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 10000 : 0,
-              position: Math.round(basePos * 10) / 10,
-            };
-          });
+          items = [];
         }
 
         if (search) {
@@ -740,20 +788,12 @@ export class ReportingService {
           where: { tenantId, propertyId: { in: propertyIds } },
         });
 
-        let items: DeviceDimensionRow[] = deviceMetrics.map((dm) => ({
+        const items: DeviceDimensionRow[] = deviceMetrics.map((dm) => ({
           device: dm.device,
           clicks: dm.clicks,
           impressions: dm.impressions,
           ctr: dm.impressions > 0 ? Math.round((dm.clicks / dm.impressions) * 10000) / 10000 : 0,
         }));
-
-        if (items.length === 0) {
-          items = [
-            { device: 'MOBILE', clicks: 845, impressions: 16200, ctr: 0.052 },
-            { device: 'DESKTOP', clicks: 312, impressions: 7800, ctr: 0.040 },
-            { device: 'TABLET', clicks: 42, impressions: 950, ctr: 0.044 },
-          ];
-        }
 
         return { items, totalCount: items.length, page, pageSize };
       }
@@ -836,23 +876,64 @@ export class ReportingService {
       }
 
       if (dimension === 'search-keywords') {
-        // Strict adherence to Google GBP API: monthly keyword impressions with privacy thresholds
-        const sampleKeywords: GbpSearchKeywordRow[] = [
-          { keyword: 'dentist near me', month: '2026-08', impressions: 340, impressionsText: '340', isThreshold: false },
-          { keyword: 'dental clinic anna nagar', month: '2026-08', impressions: 185, impressionsText: '185', isThreshold: false },
-          { keyword: 'teeth cleaning cost', month: '2026-08', impressions: 72, impressionsText: '72', isThreshold: false },
-          { keyword: 'emergency dental hospital', month: '2026-08', impressions: 45, impressionsText: '45', isThreshold: false },
-          { keyword: 'pediatric dentist salem', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-          { keyword: 'root canal specialist nearby', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-          { keyword: 'braces price list fairlands', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-        ];
+        const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
+        const isDemo = tenant?.slug === 'abc-dental' || tenant?.slug?.startsWith('abc-dental');
+        if (isDemo) {
+          const sampleKeywords: GbpSearchKeywordRow[] = [
+            { keyword: 'dentist near me', month: '2026-08', impressions: 340, impressionsText: '340', isThreshold: false },
+            { keyword: 'dental clinic anna nagar', month: '2026-08', impressions: 185, impressionsText: '185', isThreshold: false },
+            { keyword: 'teeth cleaning cost', month: '2026-08', impressions: 72, impressionsText: '72', isThreshold: false },
+            { keyword: 'emergency dental hospital', month: '2026-08', impressions: 45, impressionsText: '45', isThreshold: false },
+            { keyword: 'pediatric dentist salem', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
+            { keyword: 'root canal specialist nearby', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
+            { keyword: 'braces price list fairlands', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
+          ];
 
-        let items = sampleKeywords;
-        if (search) {
-          items = items.filter((i) => i.keyword.toLowerCase().includes(search.toLowerCase()));
+          let items = sampleKeywords;
+          if (search) {
+            items = items.filter((i) => i.keyword.toLowerCase().includes(search.toLowerCase()));
+          }
+
+          return { items, totalCount: items.length, page, pageSize };
         }
 
-        return { items, totalCount: items.length, page, pageSize };
+        // Real Client: Query actual search queries mapped to this brand
+        if (propertyIds.length > 0) {
+          const queryMetrics = await tx.gscDailyQueryMetric.findMany({
+            where: {
+              tenantId,
+              propertyId: { in: propertyIds },
+              date: { gte: start, lte: end },
+              ...(search ? { query: { queryText: { contains: search, mode: 'insensitive' } } } : {}),
+            },
+            include: { query: true },
+          });
+
+          const keywordMap = new Map<string, number>();
+          for (const q of queryMetrics) {
+            const kw = q.query.queryText;
+            keywordMap.set(kw, (keywordMap.get(kw) || 0) + q.impressions);
+          }
+
+          const currentMonthStr = `${startDate.slice(0, 7)}`;
+          let items: GbpSearchKeywordRow[] = Array.from(keywordMap.entries()).map(([keyword, impressions]) => {
+            const isThreshold = impressions < 15;
+            return {
+              keyword,
+              month: currentMonthStr,
+              impressions,
+              impressionsText: isThreshold ? '< 15' : String(impressions),
+              isThreshold,
+            };
+          });
+
+          items.sort((a, b) => b.impressions - a.impressions);
+          const totalCount = items.length;
+          const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+          return { items: paginatedItems, totalCount, page, pageSize };
+        }
+
+        return { items: [], totalCount: 0, page, pageSize };
       }
 
       return { items: [], totalCount: 0, page, pageSize };

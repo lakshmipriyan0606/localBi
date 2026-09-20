@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { DrilldownView, ColumnDef } from './drilldown-view';
 import { useReportsDrilldown } from '../hooks/use-reports';
 import { useReportsQueryState } from '../hooks/use-reports-query-state';
@@ -35,18 +35,43 @@ export function SearchTermsExplorer({
     sortOrder: 'desc',
   });
 
-  const [selectedMonth, setSelectedMonth] = useState<string>('2026-08');
+  const availableMonths = useMemo(() => {
+    const months: Array<{ value: string; label: string }> = [];
+    const now = new Date();
+    for (let i = 1; i <= 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      months.push({ value: val, label });
+    }
+    return months;
+  }, []);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    return `${yr}-${mo}`;
+  });
 
   const selectedBrandId = state.brandId || initialBrandId;
   const selectedLocationId = state.locationId;
   const searchQuery = state.search;
 
+  const [yearStr, monthStr] = selectedMonth.split('-');
+  const y = parseInt(yearStr || '2026', 10);
+  const m = parseInt(monthStr || '1', 10);
+  const lastDay = new Date(y, m, 0).getDate();
+  const startDate = `${selectedMonth}-01`;
+  const endDate = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+
   const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<GbpSearchKeywordRow>({
     tenantSlug,
     brandId: selectedBrandId,
     locationId: selectedLocationId,
-    startDate: '2026-08-01',
-    endDate: '2026-08-31',
+    startDate,
+    endDate,
     dimension: 'search-keywords',
     search: searchQuery,
   });
@@ -152,9 +177,11 @@ export function SearchTermsExplorer({
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
             >
-              <option value="2026-08">August 2026</option>
-              <option value="2026-07">July 2026</option>
-              <option value="2026-06">June 2026</option>
+              {availableMonths.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
             </select>
           </div>
         }

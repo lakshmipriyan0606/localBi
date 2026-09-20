@@ -103,13 +103,14 @@ const COLOR_THEMES: Record<string, ThemeColors> = {
 export interface DashboardMetricCardProps {
   label: string;
   value: number;
-  delta: number;
+  delta?: number | undefined;
   icon: string;
   color: string;
   sparkColor?: string | undefined;
   suffix?: string | undefined;
   invertDelta?: boolean | undefined;
   seed?: number | undefined;
+  points?: number[] | undefined;
   className?: string | undefined;
 }
 
@@ -122,7 +123,8 @@ export function DashboardMetricCard({
   sparkColor,
   suffix,
   invertDelta = false,
-  seed = 1,
+  seed: _seed = 1,
+  points,
   className,
 }: DashboardMetricCardProps) {
   const Icon = ICON_MAP[icon] || Globe;
@@ -130,7 +132,8 @@ export function DashboardMetricCard({
   const spark = sparkColor || theme.sparkColor;
 
   const formattedValue = suffix ? `${value}${suffix}` : value.toLocaleString('en-US');
-  const isPositive = invertDelta ? delta < 0 : delta > 0;
+  const hasDelta = typeof delta === 'number' && !isNaN(delta);
+  const isPositive = hasDelta ? (invertDelta ? delta < 0 : delta > 0) : false;
   const ArrowIcon = isPositive ? ArrowUp : ArrowDown;
 
   return (
@@ -161,23 +164,29 @@ export function DashboardMetricCard({
           <div className="text-[21px] font-bold tracking-tight text-slate-900 leading-none tabular-nums">
             {formattedValue}
           </div>
-          <div
-            className={cn(
-              'flex items-center gap-0.5 mt-1 text-[11px] font-bold',
-              isPositive ? 'text-emerald-600' : 'text-rose-600'
-            )}
-          >
-            <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
-            <span>
-              {delta > 0 ? '+' : ''}
-              {delta}%
-            </span>
-          </div>
+          {hasDelta ? (
+            <div
+              className={cn(
+                'flex items-center gap-0.5 mt-1 text-[11px] font-bold',
+                isPositive ? 'text-emerald-600' : 'text-rose-600'
+              )}
+            >
+              <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
+              <span>
+                {delta > 0 ? '+' : ''}
+                {delta}%
+              </span>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-400 font-medium mt-1">
+              Awaiting data
+            </div>
+          )}
         </div>
 
         {/* Right side inline smooth sparkline */}
         <div className="w-20 sm:w-24 h-8 flex-shrink-0 flex items-end">
-          <DashboardSparkline color={spark} height={32} seed={seed} />
+          <DashboardSparkline color={spark} height={32} points={points} />
         </div>
       </div>
     </div>
