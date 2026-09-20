@@ -1,22 +1,28 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { redirect, notFound } from 'next/navigation';
-import { Activity, Sparkles, Link2 } from 'lucide-react';
-import { SessionCookieManager } from '@/modules/auth/cookies';
-import { ContextResolver } from '@/modules/auth/context-resolver';
-import { prisma } from '@/shared/database/client';
-import { TenantContextService } from '@/shared/database/tenant-context';
-import { Breadcrumbs } from '@/components/layout/breadcrumbs';
-import { PageHeader } from '@/components/layout/page-header';
-import { Badge } from '@/components/ui/badge';
-import { Ga4KpiGrid } from '@/features/reports/components/ga4-kpi-grid';
-import { Ga4ChannelsTable, Ga4ChannelRow } from '@/features/reports/components/ga4-channels-table';
-import { Ga4DevicesCard, Ga4DeviceRow } from '@/features/reports/components/ga4-devices-card';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect, notFound } from "next/navigation";
+import { Activity, Sparkles, Link2 } from "lucide-react";
+import { SessionCookieManager } from "@/modules/auth/cookies";
+import { ContextResolver } from "@/modules/auth/context-resolver";
+import { prisma } from "@/shared/database/client";
+import { TenantContextService } from "@/shared/database/tenant-context";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Ga4KpiGrid } from "@/features/reports/components/ga4-kpi-grid";
+import {
+  Ga4ChannelsTable,
+  Ga4ChannelRow,
+} from "@/features/reports/components/ga4-channels-table";
+import {
+  Ga4DevicesCard,
+  Ga4DeviceRow,
+} from "@/features/reports/components/ga4-devices-card";
 
 export const metadata: Metadata = {
-  title: 'Google Analytics 4 (GA4) — localBi',
-  description: 'Website visitors, sessions, engagement, and traffic sources',
+  title: "Google Analytics 4 (GA4) — localBi",
+  description: "Website visitors, sessions, engagement, and traffic sources",
 };
 
 export default async function Ga4ReportingPage({
@@ -27,18 +33,19 @@ export default async function Ga4ReportingPage({
   const { tenantSlug } = await params;
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
-  if (!token) redirect('/login');
+  if (!token) redirect("/login");
 
   let resolved = null;
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
   } catch {
-    redirect('/login');
+    redirect("/login");
   }
   if (!resolved.tenant || !resolved.authorizedContext) notFound();
 
   const { tenant } = resolved;
-  const isDemo = tenantSlug === 'abc-dental' || tenantSlug.startsWith('abc-dental');
+  const isDemo =
+    tenantSlug === "abc-dental" || tenantSlug.startsWith("abc-dental");
 
   let realKpi = {
     users: isDemo ? 12842 : 0,
@@ -56,23 +63,59 @@ export default async function Ga4ReportingPage({
 
   let realChannels: Ga4ChannelRow[] = isDemo
     ? [
-        { channel: 'Organic Search', sessions: 68420, engagementRate: 0.724, avgDuration: '2m 14s', conversions: 1840, share: '47.9%' },
-        { channel: 'Direct', sessions: 35120, engagementRate: 0.691, avgDuration: '1m 45s', conversions: 890, share: '24.6%' },
-        { channel: 'Referral (Local Directories)', sessions: 19800, engagementRate: 0.642, avgDuration: '1m 20s', conversions: 420, share: '13.9%' },
-        { channel: 'Organic Social', sessions: 11200, engagementRate: 0.583, avgDuration: '0m 58s', conversions: 180, share: '7.8%' },
-        { channel: 'Paid Search (Ads)', sessions: 8310, engagementRate: 0.615, avgDuration: '1m 05s', conversions: 90, share: '5.8%' },
+        {
+          channel: "Organic Search",
+          sessions: 68420,
+          engagementRate: 0.724,
+          avgDuration: "2m 14s",
+          conversions: 1840,
+          share: "47.9%",
+        },
+        {
+          channel: "Direct",
+          sessions: 35120,
+          engagementRate: 0.691,
+          avgDuration: "1m 45s",
+          conversions: 890,
+          share: "24.6%",
+        },
+        {
+          channel: "Referral (Local Directories)",
+          sessions: 19800,
+          engagementRate: 0.642,
+          avgDuration: "1m 20s",
+          conversions: 420,
+          share: "13.9%",
+        },
+        {
+          channel: "Organic Social",
+          sessions: 11200,
+          engagementRate: 0.583,
+          avgDuration: "0m 58s",
+          conversions: 180,
+          share: "7.8%",
+        },
+        {
+          channel: "Paid Search (Ads)",
+          sessions: 8310,
+          engagementRate: 0.615,
+          avgDuration: "1m 05s",
+          conversions: 90,
+          share: "5.8%",
+        },
       ]
     : [];
 
   let realDevices: Ga4DeviceRow[] = isDemo
     ? [
-        { device: 'Mobile', sessions: 89200, percent: '62.4%' },
-        { device: 'Desktop', sessions: 48900, percent: '34.2%' },
-        { device: 'Tablet', sessions: 4750, percent: '3.4%' },
+        { device: "Mobile", sessions: 89200, percent: "62.4%" },
+        { device: "Desktop", sessions: 48900, percent: "34.2%" },
+        { device: "Tablet", sessions: 4750, percent: "3.4%" },
       ]
     : [];
 
-  let primaryBrandName = '';
+  let primaryBrandName = "";
+  let isConnected = true;
 
   if (!isDemo) {
     const dbData = await TenantContextService.withTenantContext(
@@ -91,14 +134,18 @@ export default async function Ga4ReportingPage({
         });
 
         const gbpWebClicks = await tx.gbpDailyMetric.aggregate({
-          where: { tenantId: tenant.id, metricType: 'WEBSITE_CLICKS' },
+          where: { tenantId: tenant.id, metricType: "WEBSITE_CLICKS" },
           _sum: { value: true },
         });
 
         const deviceGroups = await tx.gscDailyDeviceMetric.groupBy({
-          by: ['device'],
+          by: ["device"],
           where: { tenantId: tenant.id },
           _sum: { clicks: true, impressions: true },
+        });
+
+        const activeConnection = await tx.integrationConnection.findFirst({
+          where: { tenantId: tenant.id, status: "ACTIVE" },
         });
 
         return {
@@ -107,16 +154,19 @@ export default async function Ga4ReportingPage({
           gscImpressions: gscTotals._sum.impressions || 0,
           gbpWebsiteClicks: Number(gbpWebClicks._sum.value || 0n),
           deviceGroups,
+          isConnected: !!activeConnection,
         };
-      }
+      },
     );
 
     primaryBrandName = dbData.brand;
+    isConnected = dbData.isConnected;
     const totalWebClicks = dbData.gscClicks + dbData.gbpWebsiteClicks;
     const hasData = totalWebClicks > 0 || dbData.gscImpressions > 0;
 
     if (hasData) {
-      const estimatedSessions = Math.round(totalWebClicks * 1.35) || totalWebClicks;
+      const estimatedSessions =
+        Math.round(totalWebClicks * 1.35) || totalWebClicks;
       const estimatedEngaged = Math.round(estimatedSessions * 0.62);
 
       realKpi = {
@@ -135,35 +185,41 @@ export default async function Ga4ReportingPage({
 
       const channelsList: Ga4ChannelRow[] = [];
       if (dbData.gscClicks > 0) {
-        const sharePct = Math.round((dbData.gscClicks / totalWebClicks) * 1000) / 10;
+        const sharePct =
+          Math.round((dbData.gscClicks / totalWebClicks) * 1000) / 10;
         channelsList.push({
-          channel: 'Organic Search (Google Search Console)',
+          channel: "Organic Search (Google Search Console)",
           sessions: dbData.gscClicks,
           share: `${sharePct}%`,
           engagementRate: 0.68,
-          avgDuration: '2m 05s',
+          avgDuration: "2m 05s",
           conversions: 0,
         });
       }
       if (dbData.gbpWebsiteClicks > 0) {
-        const sharePct = Math.round((dbData.gbpWebsiteClicks / totalWebClicks) * 1000) / 10;
+        const sharePct =
+          Math.round((dbData.gbpWebsiteClicks / totalWebClicks) * 1000) / 10;
         channelsList.push({
-          channel: 'Google Maps / Business Profile Referral',
+          channel: "Google Maps / Business Profile Referral",
           sessions: dbData.gbpWebsiteClicks,
           share: `${sharePct}%`,
           engagementRate: 0.74,
-          avgDuration: '1m 50s',
+          avgDuration: "1m 50s",
           conversions: 0,
         });
       }
       realChannels = channelsList;
 
-      const totalDevClicks = dbData.deviceGroups.reduce((acc, d) => acc + (d._sum.clicks || 0), 0);
+      const totalDevClicks = dbData.deviceGroups.reduce(
+        (acc, d) => acc + (d._sum.clicks || 0),
+        0,
+      );
       if (totalDevClicks > 0) {
         realDevices = dbData.deviceGroups.map((d) => {
           const devClicks = d._sum.clicks || 0;
           const pct = Math.round((devClicks / totalDevClicks) * 1000) / 10;
-          const devName = d.device.charAt(0).toUpperCase() + d.device.slice(1).toLowerCase();
+          const devName =
+            d.device.charAt(0).toUpperCase() + d.device.slice(1).toLowerCase();
           return {
             device: devName,
             sessions: devClicks,
@@ -172,9 +228,9 @@ export default async function Ga4ReportingPage({
         });
       } else {
         realDevices = [
-          { device: 'Mobile', sessions: 0, percent: '0%' },
-          { device: 'Desktop', sessions: 0, percent: '0%' },
-          { device: 'Tablet', sessions: 0, percent: '0%' },
+          { device: "Mobile", sessions: 0, percent: "0%" },
+          { device: "Desktop", sessions: 0, percent: "0%" },
+          { device: "Tablet", sessions: 0, percent: "0%" },
         ];
       }
     } else {
@@ -193,9 +249,9 @@ export default async function Ga4ReportingPage({
       };
       realChannels = [];
       realDevices = [
-        { device: 'Mobile', sessions: 0, percent: '0%' },
-        { device: 'Desktop', sessions: 0, percent: '0%' },
-        { device: 'Tablet', sessions: 0, percent: '0%' },
+        { device: "Mobile", sessions: 0, percent: "0%" },
+        { device: "Desktop", sessions: 0, percent: "0%" },
+        { device: "Tablet", sessions: 0, percent: "0%" },
       ];
     }
   }
@@ -204,8 +260,11 @@ export default async function Ga4ReportingPage({
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <Breadcrumbs
         items={[
-          { label: 'Overview', href: `/t/${tenant.slug}` },
-          { label: 'Website Visitors & Traffic', href: `/t/${tenant.slug}/reports/ga4` },
+          { label: "Overview", href: `/t/${tenant.slug}` },
+          {
+            label: "Website Visitors & Traffic",
+            href: `/t/${tenant.slug}/reports/ga4`,
+          },
         ]}
       />
 
@@ -235,40 +294,92 @@ export default async function Ga4ReportingPage({
             <Activity className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-purple-900">Google Analytics 4 Stream Integration</h3>
+            <h3 className="text-sm font-bold text-purple-900">
+              Google Analytics 4 Stream Integration
+            </h3>
             <p className="text-xs text-purple-700 mt-0.5 max-w-3xl leading-relaxed">
-              Google Business Profile and Google Search Console are the active first-release data sources. GA4 property streams provide unified session attribution alongside your organic search rankings.
+              Google Business Profile and Google Search Console are the active
+              first-release data sources. GA4 property streams provide unified
+              session attribution alongside your organic search rankings.
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="bg-white border-purple-200 text-purple-800 text-xs px-2.5 py-1 whitespace-nowrap">
-          {realKpi.hasRealData ? 'Live Web Attribution' : 'No Web Stream Recorded'}
+        <Badge
+          variant="outline"
+          className="bg-white border-purple-200 text-purple-800 text-xs px-2.5 py-1 whitespace-nowrap"
+        >
+          {realKpi.hasRealData
+            ? "Live Web Attribution"
+            : "No Web Stream Recorded"}
         </Badge>
       </div>
 
-      <Ga4KpiGrid
-        users={realKpi.users}
-        usersDelta={realKpi.usersDelta}
-        sessions={realKpi.sessions}
-        sessionsDelta={realKpi.sessionsDelta}
-        engagedSessions={realKpi.engagedSessions}
-        engagedSessionsDelta={realKpi.engagedSessionsDelta}
-        conversionRate={realKpi.conversionRate}
-        conversionRateDelta={realKpi.conversionRateDelta}
-        conversions={realKpi.conversions}
-        conversionsDelta={realKpi.conversionsDelta}
-        brandName={primaryBrandName}
-        hasRealData={realKpi.hasRealData}
-      />
+      {!isConnected ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-slate-200 border-dashed rounded-2xl bg-slate-50/50 mt-6">
+          <div className="w-12 h-12 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            Google Account Not Connected
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 max-w-md">
+            You need to connect your Google account to view real-time
+            performance analytics and reports.
+          </p>
+          <a
+            href={`/t/${tenant.slug}/integrations`}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
+          >
+            Connect Google Account
+          </a>
+        </div>
+      ) : (
+        <>
+          <Ga4KpiGrid
+            users={realKpi.users}
+            usersDelta={realKpi.usersDelta}
+            sessions={realKpi.sessions}
+            sessionsDelta={realKpi.sessionsDelta}
+            engagedSessions={realKpi.engagedSessions}
+            engagedSessionsDelta={realKpi.engagedSessionsDelta}
+            conversionRate={realKpi.conversionRate}
+            conversionRateDelta={realKpi.conversionRateDelta}
+            conversions={realKpi.conversions}
+            conversionsDelta={realKpi.conversionsDelta}
+            brandName={primaryBrandName}
+            hasRealData={realKpi.hasRealData}
+          />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Ga4ChannelsTable channels={realChannels} hasRealData={realKpi.hasRealData} />
-        </div>
-        <div>
-          <Ga4DevicesCard tenantSlug={tenant.slug} devices={realDevices} hasRealData={realKpi.hasRealData} />
-        </div>
-      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <Ga4ChannelsTable
+                channels={realChannels}
+                hasRealData={realKpi.hasRealData}
+              />
+            </div>
+            <div>
+              <Ga4DevicesCard
+                tenantSlug={tenant.slug}
+                devices={realDevices}
+                hasRealData={realKpi.hasRealData}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -172,6 +172,16 @@ export class SyncWorkerService {
       searchType
     );
 
+    // Fetch Countries
+    const countryRows = await GoogleApiClient.queryGscSearchAnalytics(
+      accessToken,
+      propertyUrl,
+      startDate,
+      endDate,
+      ['country'],
+      searchType
+    );
+
     // Ingest all grains inside a single PostgreSQL transaction
     await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // 1. Daily Property Totals
@@ -354,7 +364,42 @@ export class SyncWorkerService {
         totalRows++;
       }
 
-      // 5. Update SyncCursor
+      // 5. Country Metrics
+      for (const row of countryRows) {
+        const country = (row.keys?.[0] || 'ZZZ').toUpperCase();
+        if (country.length > 3) continue; // Safety check
+        const latestDate = new Date(endDate);
+
+        await tx.gscDailyCountryMetric.upsert({
+          where: {
+            uq_gsc_country_metric: {
+              tenantId,
+              propertyId,
+              date: latestDate,
+              searchType,
+              country,
+            },
+          },
+          create: {
+            tenantId,
+            propertyId,
+            date: latestDate,
+            searchType,
+            country,
+            clicks: row.clicks,
+            impressions: row.impressions,
+            sumPositionImpressions: row.position * row.impressions,
+          },
+          update: {
+            clicks: row.clicks,
+            impressions: row.impressions,
+            sumPositionImpressions: row.position * row.impressions,
+          },
+        });
+        totalRows++;
+      }
+
+      // 6. Update SyncCursor
       await tx.syncCursor.upsert({
         where: {
           uq_sync_cursor: {

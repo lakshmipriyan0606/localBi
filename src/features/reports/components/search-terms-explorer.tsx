@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { DrilldownView, ColumnDef } from './drilldown-view';
-import { useReportsDrilldown } from '../hooks/use-reports';
-import { useReportsQueryState } from '../hooks/use-reports-query-state';
-import { GbpSearchKeywordRow } from '@/modules/reports/reporting-service';
-import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, Info } from 'lucide-react';
+import { useState, useMemo } from "react";
+import { DrilldownView, ColumnDef } from "./drilldown-view";
+import { useReportsDrilldown } from "../hooks/use-reports";
+import { useReportsQueryState } from "../hooks/use-reports-query-state";
+import { GbpSearchKeywordRow } from "@/modules/reports/reporting-service";
+import { Badge } from "@/components/ui/badge";
+import { Search, Calendar, Info } from "lucide-react";
 
 export interface SearchTermsExplorerProps {
   tenantSlug: string;
@@ -14,6 +14,7 @@ export interface SearchTermsExplorerProps {
   brands: Array<{ id: string; name: string; slug: string }>;
   locations: Array<{ id: string; brandId: string; name: string; city: string }>;
   initialBrandId: string;
+  isConnected?: boolean;
 }
 
 export function SearchTermsExplorer({
@@ -22,17 +23,13 @@ export function SearchTermsExplorer({
   brands,
   locations,
   initialBrandId,
+  isConnected = true,
 }: SearchTermsExplorerProps) {
-  const {
-    state,
-    setBrandId,
-    setLocationId,
-    setSearch,
-  } = useReportsQueryState({
+  const { state, setBrandId, setLocationId, setSearch } = useReportsQueryState({
     dateRangeDays: 30,
     brandId: initialBrandId,
-    sortBy: 'impressions',
-    sortOrder: 'desc',
+    sortBy: "impressions",
+    sortOrder: "desc",
   });
 
   const availableMonths = useMemo(() => {
@@ -40,8 +37,11 @@ export function SearchTermsExplorer({
     const now = new Date();
     for (let i = 1; i <= 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
       months.push({ value: val, label });
     }
     return months;
@@ -51,7 +51,7 @@ export function SearchTermsExplorer({
     const d = new Date();
     d.setMonth(d.getMonth() - 1);
     const yr = d.getFullYear();
-    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
     return `${yr}-${mo}`;
   });
 
@@ -59,27 +59,28 @@ export function SearchTermsExplorer({
   const selectedLocationId = state.locationId;
   const searchQuery = state.search;
 
-  const [yearStr, monthStr] = selectedMonth.split('-');
-  const y = parseInt(yearStr || '2026', 10);
-  const m = parseInt(monthStr || '1', 10);
+  const [yearStr, monthStr] = selectedMonth.split("-");
+  const y = parseInt(yearStr || "2026", 10);
+  const m = parseInt(monthStr || "1", 10);
   const lastDay = new Date(y, m, 0).getDate();
   const startDate = `${selectedMonth}-01`;
-  const endDate = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+  const endDate = `${selectedMonth}-${String(lastDay).padStart(2, "0")}`;
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<GbpSearchKeywordRow>({
-    tenantSlug,
-    brandId: selectedBrandId,
-    locationId: selectedLocationId,
-    startDate,
-    endDate,
-    dimension: 'search-keywords',
-    search: searchQuery,
-  });
+  const { data, isLoading, isFetching, isError, error, refetch } =
+    useReportsDrilldown<GbpSearchKeywordRow>({
+      tenantSlug,
+      brandId: selectedBrandId,
+      locationId: selectedLocationId,
+      startDate,
+      endDate,
+      dimension: "search-keywords",
+      search: searchQuery,
+    });
 
   const columns: ColumnDef<GbpSearchKeywordRow>[] = [
     {
-      key: 'keyword',
-      header: 'Search Keyword',
+      key: "keyword",
+      header: "Search Keyword",
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-2">
@@ -89,8 +90,8 @@ export function SearchTermsExplorer({
       ),
     },
     {
-      key: 'month',
-      header: 'Reporting Period',
+      key: "month",
+      header: "Reporting Period",
       render: (row) => (
         <div className="flex items-center gap-1.5 text-slate-500 font-mono text-xs">
           <Calendar className="h-3 w-3 text-slate-400" />
@@ -99,9 +100,9 @@ export function SearchTermsExplorer({
       ),
     },
     {
-      key: 'impressionsText',
-      header: 'Monthly Impressions',
-      align: 'right',
+      key: "impressionsText",
+      header: "Monthly Impressions",
+      align: "right",
       render: (row) => (
         <div className="flex items-center justify-end gap-2">
           {row.isThreshold ? (
@@ -127,65 +128,111 @@ export function SearchTermsExplorer({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Policy Reminder Banner */}
-      <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl flex items-start gap-3">
-        <Info className="h-5 w-5 text-teal-700 flex-shrink-0 mt-0.5" />
-        <div className="text-xs text-teal-900 space-y-1">
-          <p className="font-semibold">Google Business Profile Monthly Search Keyword Rules</p>
-          <p className="leading-relaxed text-teal-800">
-            Per Google API specifications, search keywords for business profiles are aggregated monthly. When impression volume is below Google&apos;s privacy threshold, Google returns a bound (such as &ldquo;&lt; 15&rdquo;) rather than an exact count. localBi guarantees thresholds are shown honestly as bounds and are never fabricated as exact figures or artificially split into daily points.
-          </p>
-        </div>
-      </div>
-
-      <DrilldownView
-        tenantSlug={tenantSlug}
-        tenantName={tenantName}
-        breadcrumbs={[
-          { label: 'Reports', href: `/t/${tenantSlug}/reports` },
-          { label: 'Business Profile', href: `/t/${tenantSlug}/reports` },
-          { label: 'Monthly Search Terms', current: true },
-        ]}
-        title="Monthly Search Terms Explorer"
-        description="Review consumer search queries that triggered Google Business Profile impressions during each monthly reporting cycle."
-        sourceBadge="GBP"
-        brands={brands}
-        locations={locations}
-        selectedBrandId={selectedBrandId}
-        onBrandChange={setBrandId}
-        selectedLocationId={selectedLocationId}
-        onLocationChange={setLocationId}
-        dateRangeDays={30}
-        onDateRangeChange={() => {}}
-        searchQuery={searchQuery}
-        onSearchChange={setSearch}
-        searchPlaceholder="Filter search keywords..."
-        columns={columns}
-        data={data?.items}
-        isLoading={isLoading || isFetching}
-        isError={isError}
-        error={error}
-        onRetry={refetch}
-        accuracyNotice="Data sourced from Google Business Profile locations.searchkeywords.impressions.monthly API. All threshold bounds reflect Google's official privacy threshold protection."
-        retentionNote="Monthly search keyword data retained according to Google Business Profile API policies."
-        actions={
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Month:</span>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-            >
-              {availableMonths.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+    <>
+      <div className="space-y-6">
+        {/* Policy Reminder Banner */}
+        <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl flex items-start gap-3">
+          <Info className="h-5 w-5 text-teal-700 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-teal-900 space-y-1">
+            <p className="font-semibold">
+              Google Business Profile Monthly Search Keyword Rules
+            </p>
+            <p className="leading-relaxed text-teal-800">
+              Per Google API specifications, search keywords for business
+              profiles are aggregated monthly. When impression volume is below
+              Google&apos;s privacy threshold, Google returns a bound (such as
+              &ldquo;&lt; 15&rdquo;) rather than an exact count. localBi
+              guarantees thresholds are shown honestly as bounds and are never
+              fabricated as exact figures or artificially split into daily
+              points.
+            </p>
           </div>
-        }
-      />
-    </div>
+        </div>
+
+        {!isConnected ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center border border-slate-200 border-dashed rounded-2xl bg-slate-50/50 mt-6">
+            <div className="w-12 h-12 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Google Account Not Connected
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 max-w-md">
+              You need to connect your Google account to view real-time
+              performance analytics and reports.
+            </p>
+            <a
+              href={`/t/${tenantSlug}/integrations`}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
+            >
+              Connect Google Account
+            </a>
+          </div>
+        ) : (
+          <DrilldownView
+            tenantSlug={tenantSlug}
+            tenantName={tenantName}
+            breadcrumbs={[
+              { label: "Reports", href: `/t/${tenantSlug}/reports` },
+              { label: "Business Profile", href: `/t/${tenantSlug}/reports` },
+              { label: "Monthly Search Terms", current: true },
+            ]}
+            title="Monthly Search Terms Explorer"
+            description="Review consumer search queries that triggered Google Business Profile impressions during each monthly reporting cycle."
+            sourceBadge="GBP"
+            brands={brands}
+            locations={locations}
+            selectedBrandId={selectedBrandId}
+            onBrandChange={setBrandId}
+            selectedLocationId={selectedLocationId}
+            onLocationChange={setLocationId}
+            dateRangeDays={30}
+            onDateRangeChange={() => {}}
+            searchQuery={searchQuery}
+            onSearchChange={setSearch}
+            searchPlaceholder="Filter search keywords..."
+            columns={columns}
+            data={data?.items}
+            isLoading={isLoading || isFetching}
+            isError={isError}
+            error={error}
+            onRetry={refetch}
+            accuracyNotice="Data sourced from Google Business Profile locations.searchkeywords.impressions.monthly API. All threshold bounds reflect Google's official privacy threshold protection."
+            retentionNote="Monthly search keyword data retained according to Google Business Profile API policies."
+            actions={
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">
+                  Month:
+                </span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  {availableMonths.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+          />
+        )}
+      </div>
+    </>
   );
 }

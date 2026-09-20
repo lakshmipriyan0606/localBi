@@ -5,6 +5,7 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { ReportingService } from '@/modules/reports/reporting-service';
 import { handleRouteError, createValidationError } from '@/shared/errors';
+import { logger } from '@/shared/observability/logger';
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +43,8 @@ export async function GET(
     const startDate = searchParams.get('startDate') || thirtyDaysAgo.toISOString().slice(0, 10);
     const endDate = searchParams.get('endDate') || today.toISOString().slice(0, 10);
 
+    logger.info({ brandId, startDate, endDate }, 'Calling ReportingService.getPerformanceSummary');
+
     const summary = await ReportingService.getPerformanceSummary({
       tenantId: tenant.id,
       brandId,
@@ -51,8 +54,11 @@ export async function GET(
       context: authorizedContext,
     });
 
+    logger.info({ summary }, 'ReportingService returned summary');
+
     return NextResponse.json({ success: true, data: summary });
   } catch (error) {
+    logger.error({ error }, 'Error in reports summary API');
     return handleRouteError(error);
   }
 }

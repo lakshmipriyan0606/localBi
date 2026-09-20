@@ -42,7 +42,7 @@ export default async function ReportsPage({
   const { tenant, authorizedContext } = resolved;
 
   // Preload unarchived brands and locations scoped to the user's permissions inside tenant context
-  const { brands, locations } = await TenantContextService.withTenantContext(
+  const { brands, locations, isConnected } = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
     async (tx) => {
@@ -78,7 +78,11 @@ export default async function ReportsPage({
         orderBy: { name: 'asc' },
       });
 
-      return { brands: bList, locations: lList };
+      const activeConnection = await tx.integrationConnection.findFirst({
+        where: { tenantId: tenant.id, status: 'ACTIVE' }
+      });
+
+      return { brands: bList, locations: lList, isConnected: !!activeConnection };
     }
   );
 
@@ -110,6 +114,8 @@ export default async function ReportsPage({
       brands={brands}
       locations={locations}
       initialBrandId={brands[0]?.id || ''}
+      isGbpConnected={isConnected}
+      isGscConnected={isConnected}
     />
   );
 }

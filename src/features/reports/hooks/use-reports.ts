@@ -44,7 +44,7 @@ export function usePerformanceSummary(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 0,
   });
 }
 
@@ -76,7 +76,7 @@ export function usePerformanceTimeseries(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 }
 
@@ -112,7 +112,7 @@ export function usePerformanceDimensions(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 }
 
@@ -175,7 +175,7 @@ export function useReportsDrilldown<T = unknown>(filters: UseDrilldownFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId && filters.dimension),
-    staleTime: 60 * 1000,
+    staleTime: 0,
   });
 }
 

@@ -39,7 +39,7 @@ export default async function SearchTermsReportPage({
 
   const { tenant, authorizedContext } = resolved;
 
-  const { brands, locations } = await TenantContextService.withTenantContext(
+  const { brands, locations, isConnected } = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
     async (tx) => {
@@ -74,7 +74,11 @@ export default async function SearchTermsReportPage({
         orderBy: { name: 'asc' },
       });
 
-      return { brands: bList, locations: lList };
+      const activeConnection = await tx.integrationConnection.findFirst({
+        where: { tenantId: tenant.id, status: 'ACTIVE' }
+      });
+
+      return { brands: bList, locations: lList, isConnected: !!activeConnection };
     }
   );
 
@@ -86,6 +90,7 @@ export default async function SearchTermsReportPage({
         brands={brands}
         locations={locations}
         initialBrandId={brands[0]?.id || ''}
+        isConnected={isConnected}
       />
     </div>
   );

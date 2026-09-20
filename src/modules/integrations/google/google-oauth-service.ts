@@ -116,7 +116,7 @@ export class GoogleOAuthService {
       response_type: 'code',
       scope: this.REQUIRED_SCOPES.join(' '),
       access_type: 'offline',
-      prompt: 'consent', // Required to ensure Google issues a refresh token
+      prompt: 'select_account consent', // Force account picker and ensure a refresh token is issued
       state,
       include_granted_scopes: 'true',
     });

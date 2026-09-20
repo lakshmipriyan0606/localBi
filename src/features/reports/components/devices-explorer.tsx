@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { DrilldownView, ColumnDef } from './drilldown-view';
-import { useReportsDrilldown } from '../hooks/use-reports';
-import { useReportsQueryState } from '../hooks/use-reports-query-state';
-import { DeviceDimensionRow } from '@/modules/reports/reporting-service';
-import { formatNumber, formatPercent } from '@/shared/lib/formatters';
-import { Smartphone, Monitor, Tablet } from 'lucide-react';
+import { DrilldownView, ColumnDef } from "./drilldown-view";
+import { useReportsDrilldown } from "../hooks/use-reports";
+import { useReportsQueryState } from "../hooks/use-reports-query-state";
+import { DeviceDimensionRow } from "@/modules/reports/reporting-service";
+import { formatNumber, formatPercent } from "@/shared/lib/formatters";
+import { Smartphone, Monitor, Tablet } from "lucide-react";
 
 export interface DevicesExplorerProps {
   tenantSlug: string;
@@ -13,6 +13,7 @@ export interface DevicesExplorerProps {
   brands: Array<{ id: string; name: string; slug: string }>;
   locations: Array<{ id: string; brandId: string; name: string; city: string }>;
   initialBrandId: string;
+  isConnected?: boolean;
 }
 
 export function DevicesExplorer({
@@ -21,19 +22,15 @@ export function DevicesExplorer({
   brands,
   locations,
   initialBrandId,
+  isConnected = true,
 }: DevicesExplorerProps) {
-  const {
-    state,
-    setDateRangeDays,
-    setBrandId,
-    setLocationId,
-    setSearch,
-  } = useReportsQueryState({
-    dateRangeDays: 30,
-    brandId: initialBrandId,
-    sortBy: 'clicks',
-    sortOrder: 'desc',
-  });
+  const { state, setDateRangeDays, setBrandId, setLocationId, setSearch } =
+    useReportsQueryState({
+      dateRangeDays: 30,
+      brandId: initialBrandId,
+      sortBy: "clicks",
+      sortOrder: "desc",
+    });
 
   const selectedBrandId = state.brandId || initialBrandId;
   const dateRangeDays = state.dateRangeDays;
@@ -46,41 +43,47 @@ export function DevicesExplorer({
   const startDate = past.toISOString().slice(0, 10);
   const endDate = today.toISOString().slice(0, 10);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useReportsDrilldown<DeviceDimensionRow>({
-    tenantSlug,
-    brandId: selectedBrandId,
-    locationId: selectedLocationId,
-    startDate,
-    endDate,
-    dimension: 'device',
-    search: searchQuery,
-  });
+  const { data, isLoading, isFetching, isError, error, refetch } =
+    useReportsDrilldown<DeviceDimensionRow>({
+      tenantSlug,
+      brandId: selectedBrandId,
+      locationId: selectedLocationId,
+      startDate,
+      endDate,
+      dimension: "device",
+      search: searchQuery,
+    });
 
-  const totalClicks = data?.items?.reduce((acc, row) => acc + row.clicks, 0) || 1;
+  const totalClicks =
+    data?.items?.reduce((acc, row) => acc + row.clicks, 0) || 1;
 
   const columns: ColumnDef<DeviceDimensionRow>[] = [
     {
-      key: 'device',
-      header: 'Device Category',
+      key: "device",
+      header: "Device Category",
       render: (row) => {
         const dev = row.device.toUpperCase();
         return (
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              {dev === 'MOBILE' ? (
+              {dev === "MOBILE" ? (
                 <Smartphone className="h-4 w-4" />
-              ) : dev === 'DESKTOP' ? (
+              ) : dev === "DESKTOP" ? (
                 <Monitor className="h-4 w-4" />
               ) : (
                 <Tablet className="h-4 w-4" />
               )}
             </div>
             <div>
-              <p className="font-semibold text-slate-900 capitalize">{row.device.toLowerCase()}</p>
+              <p className="font-semibold text-slate-900 capitalize">
+                {row.device.toLowerCase()}
+              </p>
               <div className="w-24 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
                 <div
                   className="bg-indigo-600 h-1.5 rounded-full"
-                  style={{ width: `${Math.min(100, Math.round((row.clicks / totalClicks) * 100))}%` }}
+                  style={{
+                    width: `${Math.min(100, Math.round((row.clicks / totalClicks) * 100))}%`,
+                  }}
                 />
               </div>
             </div>
@@ -89,12 +92,14 @@ export function DevicesExplorer({
       },
     },
     {
-      key: 'clicks',
-      header: 'Clicks',
-      align: 'right',
+      key: "clicks",
+      header: "Clicks",
+      align: "right",
       render: (row) => (
         <div>
-          <span className="font-semibold text-slate-900">{formatNumber(row.clicks)}</span>
+          <span className="font-semibold text-slate-900">
+            {formatNumber(row.clicks)}
+          </span>
           <span className="text-[11px] text-slate-400 block tabular-nums">
             {formatPercent(row.clicks / totalClicks, 1)} share
           </span>
@@ -102,17 +107,17 @@ export function DevicesExplorer({
       ),
     },
     {
-      key: 'impressions',
-      header: 'Impressions',
-      align: 'right',
+      key: "impressions",
+      header: "Impressions",
+      align: "right",
       render: (row) => (
         <span className="text-slate-600">{formatNumber(row.impressions)}</span>
       ),
     },
     {
-      key: 'ctr',
-      header: 'CTR',
-      align: 'right',
+      key: "ctr",
+      header: "CTR",
+      align: "right",
       render: (row) => (
         <span className="text-slate-600">{formatPercent(row.ctr, 2)}</span>
       ),
@@ -120,36 +125,72 @@ export function DevicesExplorer({
   ];
 
   return (
-    <DrilldownView
-      tenantSlug={tenantSlug}
-      tenantName={tenantName}
-      breadcrumbs={[
-        { label: 'Reports', href: `/t/${tenantSlug}/reports` },
-        { label: 'Search Console', href: `/t/${tenantSlug}/reports` },
-        { label: 'Devices', current: true },
-      ]}
-      title="Device Platform Analytics"
-      description="Compare organic search performance across Mobile smartphones, Desktop computers, and Tablet devices."
-      sourceBadge="GSC"
-      brands={brands}
-      locations={locations}
-      selectedBrandId={selectedBrandId}
-      onBrandChange={setBrandId}
-      selectedLocationId={selectedLocationId}
-      onLocationChange={setLocationId}
-      dateRangeDays={dateRangeDays}
-      onDateRangeChange={setDateRangeDays}
-      searchQuery={searchQuery}
-      onSearchChange={setSearch}
-      searchPlaceholder="Filter devices..."
-      columns={columns}
-      data={data?.items}
-      isLoading={isLoading || isFetching}
-      isError={isError}
-      error={error}
-      onRetry={refetch}
-      accuracyNotice="Device metrics categorize user hardware reported by Google Search Console. Mobile optimization is critical for local searches where over 70% of local queries originate on mobile smartphones."
-      retentionNote="Google Search Console retains device dimension reporting for up to 16 months."
-    />
+    <>
+      {!isConnected ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center border border-slate-200 border-dashed rounded-2xl bg-slate-50/50 mt-6">
+          <div className="w-12 h-12 bg-slate-200 text-slate-500 rounded-full flex items-center justify-center mb-4">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 mb-1">
+            Google Account Not Connected
+          </h3>
+          <p className="text-sm text-slate-500 mb-6 max-w-md">
+            You need to connect your Google account to view real-time
+            performance analytics and reports.
+          </p>
+          <a
+            href={`/t/${tenantSlug}/integrations`}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
+          >
+            Connect Google Account
+          </a>
+        </div>
+      ) : (
+        <DrilldownView
+          tenantSlug={tenantSlug}
+          tenantName={tenantName}
+          breadcrumbs={[
+            { label: "Reports", href: `/t/${tenantSlug}/reports` },
+            { label: "Search Console", href: `/t/${tenantSlug}/reports` },
+            { label: "Devices", current: true },
+          ]}
+          title="Device Platform Analytics"
+          description="Compare organic search performance across Mobile smartphones, Desktop computers, and Tablet devices."
+          sourceBadge="GSC"
+          brands={brands}
+          locations={locations}
+          selectedBrandId={selectedBrandId}
+          onBrandChange={setBrandId}
+          selectedLocationId={selectedLocationId}
+          onLocationChange={setLocationId}
+          dateRangeDays={dateRangeDays}
+          onDateRangeChange={setDateRangeDays}
+          searchQuery={searchQuery}
+          onSearchChange={setSearch}
+          searchPlaceholder="Filter devices..."
+          columns={columns}
+          data={data?.items}
+          isLoading={isLoading || isFetching}
+          isError={isError}
+          error={error}
+          onRetry={refetch}
+          accuracyNotice="Device metrics categorize user hardware reported by Google Search Console. Mobile optimization is critical for local searches where over 70% of local queries originate on mobile smartphones."
+          retentionNote="Google Search Console retains device dimension reporting for up to 16 months."
+        />
+      )}
+    </>
   );
 }
