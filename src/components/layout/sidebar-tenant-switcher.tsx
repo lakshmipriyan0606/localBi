@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Building2, ChevronsUpDown, Check, Search } from 'lucide-react';
+import { Building2, ChevronsUpDown, Check, Search, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { cn } from '@/lib/cn';
 import { SafeTenantNavDto, AuthorizedTenantDto } from './sidebar-nav-config';
+import { CreateTenantDialog } from '@/features/tenancy/components/create-tenant-dialog';
+import { usePermissions } from '@/hooks/use-permissions';
 
 interface SidebarTenantSwitcherProps {
   tenant: SafeTenantNavDto;
@@ -22,6 +24,7 @@ export function SidebarTenantSwitcher({ tenant, userRole, tenants, onNavigate }:
   const [search, setSearch] = useState('');
   const [switching, setSwitching] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { isPlatformSuperAdmin } = usePermissions(userRole);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -114,6 +117,26 @@ export function SidebarTenantSwitcher({ tenant, userRole, tenants, onNavigate }:
               </button>
             ))}
           </div>
+
+          {isPlatformSuperAdmin && (
+            <div className="pt-1 mt-1 border-t border-slate-100">
+              <CreateTenantDialog
+                trigger={
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-start rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer text-indigo-700 hover:bg-indigo-50 font-bold gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create New Client
+                  </button>
+                }
+                onSuccess={() => {
+                  setOpen(false);
+                  router.refresh();
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

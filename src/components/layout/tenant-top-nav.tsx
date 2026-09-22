@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Menu, Calendar, Search, CheckCircle2 } from 'lucide-react';
 import { TopNavBrandSelector, BrandOption } from './top-nav-brand-selector';
 import { TopNavUserMenu } from './top-nav-user-menu';
+import { usePermissions } from '@/hooks/use-permissions';
+import { Action } from '@/shared/authorization/roles';
 
 export interface AuthorizedTenantDto {
   id: string;
@@ -23,6 +25,8 @@ interface TenantTopNavProps {
 }
 
 export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: TenantTopNavProps) {
+  const { can } = usePermissions(user.role);
+
   const dateRangeLabel = useMemo(() => {
     const end = new Date();
     const start = new Date();
@@ -65,7 +69,8 @@ export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: Te
           <span>Google Integrations</span>
         </Link>
 
-        <TopNavBrandSelector brands={brands} />
+        <TopNavBrandSelector brands={brands} canCreateBrand={can(Action.BRAND_CREATE)} />
+        <div className="mx-2 h-4 w-px bg-slate-200"></div>
         <TopNavUserMenu user={user} />
       </div>
     </header>

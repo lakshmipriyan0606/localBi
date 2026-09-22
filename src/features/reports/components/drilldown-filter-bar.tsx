@@ -1,6 +1,7 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, Calendar as CalendarIcon, Filter, Tag, MapPin } from 'lucide-react';
+import { NiceSelect } from '@/components/ui/nice-select';
 import { formatDateRange } from '@/shared/lib/formatters';
 
 interface DrilldownFilterBarProps {
@@ -40,38 +41,31 @@ export function DrilldownFilterBar({
     <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
       <div className="flex flex-wrap items-center gap-3">
         {/* Brand Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">Brand:</span>
-          <select
-            value={selectedBrandId}
-            onChange={(e) => onBrandChange(e.target.value)}
-            className="text-xs font-semibold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          >
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <NiceSelect
+          label="BRAND"
+          icon={<Tag className="w-3.5 h-3.5" />}
+          options={brands.map((b) => ({ id: b.id, name: b.name }))}
+          value={selectedBrandId}
+          onChange={onBrandChange}
+          className="w-auto min-w-[140px]"
+        />
 
         {/* Location Selector */}
         {brandLocations.length > 0 && onLocationChange && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Location:</span>
-            <select
-              value={selectedLocationId || ''}
-              onChange={(e) => onLocationChange(e.target.value)}
-              className="text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            >
-              <option value="">All Locations ({brandLocations.length})</option>
-              {brandLocations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name} {l.city ? `(${l.city})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <NiceSelect
+            label="LOCATION"
+            icon={<MapPin className="w-3.5 h-3.5" />}
+            options={[
+              { id: "", name: `All Locations (${brandLocations.length})` },
+              ...brandLocations.map((l) => ({
+                id: l.id,
+                name: `${l.name}${l.city ? ` (${l.city})` : ''}`
+              }))
+            ]}
+            value={selectedLocationId || ''}
+            onChange={onLocationChange}
+            className="w-auto min-w-[160px]"
+          />
         )}
 
         {/* Date Presets */}

@@ -1,6 +1,6 @@
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
-import { GoogleApiClient, DiscoveredResourceAccount } from './google/google-api-client';
+import { GoogleApiClient, DiscoveredResourceAccount, DiscoveredResourceItem } from './google/google-api-client';
 import { GoogleOAuthService } from './google/google-oauth-service';
 import { createResourceNotFoundError } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
@@ -39,10 +39,24 @@ export class ResourceDiscoveryService {
     );
 
     // 3. Discover GBP Accounts and Locations
-    const gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken, tenantSlug);
+    let gbpAccounts: DiscoveredResourceAccount[] = [];
+    try {
+      gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken, tenantSlug);
+    } catch (err: unknown) {
+      logger.warn({ err }, "Failed to discover GBP resources, continuing with GSC");
+    }
 
     // 4. Discover GSC Properties
-    const gscSites = await GoogleApiClient.discoverGscResources(accessToken, tenantSlug);
+    let gscSites: DiscoveredResourceItem[] = [];
+    try {
+      gscSites = await GoogleApiClient.discoverGscResources(accessToken, tenantSlug);
+    } catch (err: unknown) {
+      logger.warn({ err }, "Failed to discover GSC resources");
+    }
+
+    if (gbpAccounts.length === 0 && gscSites.length === 0) {
+      logger.info({ tenantId, connectionId }, "No resources discovered from either GBP or GSC");
+    }
 
     // 5. Persist into tenant data plane in a single transaction
     await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {

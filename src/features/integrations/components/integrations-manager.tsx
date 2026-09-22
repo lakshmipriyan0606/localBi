@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePermissions } from "@/hooks/use-permissions";
+import { Action } from "@/shared/authorization/roles";
 import {
   Globe,
   MapPin,
@@ -12,16 +14,17 @@ import {
   Zap,
   ArrowRight,
   ArrowLeft,
-  Plus,
   Check,
   Layers,
   Store,
   BarChart3,
+  Tag,
 } from "lucide-react";
 import { browserClient } from "@/lib/http/browser-client";
 import { notify } from "@/lib/notify";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { NiceSelect } from "@/components/ui/nice-select";
 import {
   Card,
   CardContent,
@@ -30,7 +33,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { IntegrationsDisconnectDialog } from "./integrations-disconnect-dialog";
-
+import { BrandCreateDialog } from "@/features/brands/components/brand-create-dialog";
 import { cn } from "@/lib/cn";
 
 export interface IntegrationsManagerProps {
@@ -114,20 +117,12 @@ export function IntegrationsManager({
     Record<string, string>
   >({});
 
-  // Direct Website URL connection state
-  const [manualSiteUrl, setManualSiteUrl] = useState("");
-  const [manualBrandId, setManualBrandId] = useState(
-    initialState.brands[0]?.id || "",
-  );
-  const [isAddingManualSite, setIsAddingManualSite] = useState(false);
-
-  const canManage =
-    userRole === "CLIENT_OWNER" ||
-    userRole === "CLIENT_ADMIN" ||
-    userRole === "PLATFORM_SUPER_ADMIN";
+  const { canAny } = usePermissions(userRole);
+  const canManage = canAny([Action.INTEGRATION_CONNECT, Action.INTEGRATION_MAP, Action.INTEGRATION_DISCONNECT]);
 
   const activeConnection = initialState.connections[0];
   const isAuthorized = Boolean(activeConnection);
+  const isStep1Complete = isAuthorized && initialState.brands.length > 0;
 
   // Separate discovered resources into GSC properties and GBP locations
   const gscResources = initialState.externalResources.filter(
@@ -203,15 +198,13 @@ export function IntegrationsManager({
     try {
       await browserClient.post(
         `/tenants/${tenantSlug}/integrations/google/resources`,
-        {
-          connectionId: activeConnection?.id,
-        },
+        {},
       );
-      notify.success("Google accounts and listings refreshed successfully!");
       router.refresh();
+      notify.success("Discovered websites and stores refreshed successfully.");
     } catch (err: unknown) {
       notify.error(
-        (err as Error).message || "Failed to refresh Google listings",
+        (err as Error).message || "Failed to refresh resources from Google",
       );
     } finally {
       setIsRefreshing(false);
@@ -292,29 +285,6 @@ export function IntegrationsManager({
       notify.error((err as Error).message || "Failed to disconnect");
     } finally {
       setUnmappingInProgressId(null);
-    }
-  };
-
-  // Handler: Add Website URL directly
-  const handleAddManualSite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualSiteUrl.trim()) return;
-    setIsAddingManualSite(true);
-    try {
-      await browserClient.post(
-        `/tenants/${tenantSlug}/integrations/google/resources`,
-        {
-          siteUrl: manualSiteUrl.trim(),
-          brandId: manualBrandId || initialState.brands[0]?.id,
-        },
-      );
-      setManualSiteUrl("");
-      notify.success("Website added and connected successfully!");
-      router.refresh();
-    } catch (err: unknown) {
-      notify.error((err as Error).message || "Failed to add website");
-    } finally {
-      setIsAddingManualSite(false);
     }
   };
 
@@ -663,7 +633,30 @@ export function IntegrationsManager({
           </CardHeader>
 
           <CardContent className="p-5 sm:p-6 space-y-6">
-            {activeConnection ? (
+            {initialState.brands.length === 0 ? (
+              <div className="p-8 text-center bg-gradient-to-b from-amber-50/40 via-white to-amber-50/60 border border-dashed border-amber-200 rounded-2xl">
+                <div className="max-w-2xl mx-auto p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs animate-in fade-in slide-in-from-top-2">
+                  <p className="font-bold flex items-center gap-2">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Action Required: Create a Brand First
+                  </p>
+                  <p className="mt-1 ml-7 opacity-90">
+                    You must create at least one Brand before you can connect your Google account or link your websites.
+                  </p>
+                  <div className="mt-3 ml-7">
+                    <BrandCreateDialog
+                      tenantSlug={tenantSlug}
+                      onSuccess={() => router.refresh()}
+                      triggerTitle="Create Brand Now"
+                      triggerClassName="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5"
+                      triggerIcon={<ArrowRight className="h-3.5 w-3.5 order-last" />}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : activeConnection ? (
               <div className="space-y-5">
                 {/* Verified Account Banner */}
                 <div className="p-5 bg-gradient-to-r from-emerald-50/70 via-white to-indigo-50/40 border border-emerald-200/80 rounded-2xl shadow-xs">
@@ -832,19 +825,26 @@ export function IntegrationsManager({
                   </span>
                 </div>
 
-                {!isAuthorized ? (
-                  <div className="p-5 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <p>
-                      Please complete Step 1 to connect your Google account.
+                {!isStep1Complete ? (
+                  <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs animate-in fade-in slide-in-from-top-2">
+                    <p className="font-bold flex items-center gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Action Required: Complete Step 1
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveStep(1)}
-                      variant="outline"
-                      className="text-xs"
-                    >
-                      Go to Step 1
-                    </Button>
+                    <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                      Please complete Step 1 to {initialState.brands.length === 0 ? "create a brand and " : ""}connect your Google account before linking websites.
+                    </p>
+                    <div className="mt-3 ml-7">
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveStep(1)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5"
+                      >
+                        Go to Step 1 <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3.5">
@@ -996,26 +996,19 @@ export function IntegrationsManager({
 
                               {!isMapped && (
                                 <div className="mt-3 pt-3 border-t border-amber-200/70 flex flex-col sm:flex-row sm:items-center gap-2">
-                                  <select
-                                    value={
-                                      pendingBrandSelections[res.id] ||
-                                      initialState.brands[0]?.id ||
-                                      ""
-                                    }
-                                    onChange={(e) =>
+                                  <NiceSelect
+                                    label="BRAND:"
+                                    icon={<Tag className="w-3.5 h-3.5" />}
+                                    options={initialState.brands.map((b) => ({ id: b.id, name: b.name }))}
+                                    value={pendingBrandSelections[res.id] || initialState.brands[0]?.id || ""}
+                                    onChange={(val) =>
                                       setPendingBrandSelections((prev) => ({
                                         ...prev,
-                                        [res.id]: e.target.value,
+                                        [res.id]: val,
                                       }))
                                     }
-                                    className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none flex-grow"
-                                  >
-                                    {initialState.brands.map((b) => (
-                                      <option key={b.id} value={b.id}>
-                                        Connect to: {b.name}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    placeholder="Select Brand"
+                                  />
 
                                   <Button
                                     size="sm"
@@ -1064,56 +1057,6 @@ export function IntegrationsManager({
                       </div>
                     )}
 
-                    {/* Quick Website Connect Input Form */}
-                    {canManage && (
-                      <form
-                        onSubmit={handleAddManualSite}
-                        className="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-200/70 space-y-2.5 shadow-2xs"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                            <Plus className="h-3.5 w-3.5 text-indigo-600" />
-                            Connect Another Website Directly
-                          </span>
-                          <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
-                            Direct Link
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <input
-                            type="text"
-                            value={manualSiteUrl}
-                            onChange={(e) => setManualSiteUrl(e.target.value)}
-                            placeholder="e.g. https://lakshmifood.com"
-                            className="text-xs font-medium bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none flex-grow"
-                          />
-                          <select
-                            value={
-                              manualBrandId || initialState.brands[0]?.id || ""
-                            }
-                            onChange={(e) => setManualBrandId(e.target.value)}
-                            className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none flex-shrink-0"
-                          >
-                            {initialState.brands.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </select>
-                          <Button
-                            type="submit"
-                            size="sm"
-                            disabled={
-                              isAddingManualSite || !manualSiteUrl.trim()
-                            }
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
-                          >
-                            {isAddingManualSite ? "Linking…" : "Link Website"}
-                          </Button>
-                        </div>
-                      </form>
-                    )}
                   </div>
                 )}
               </div>
@@ -1152,19 +1095,26 @@ export function IntegrationsManager({
                   </div>
                 </div>
 
-                {!isAuthorized ? (
-                  <div className="p-5 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
-                    <p>
-                      Please complete Step 1 to connect your Google account.
+                {!isStep1Complete ? (
+                  <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs animate-in fade-in slide-in-from-top-2">
+                    <p className="font-bold flex items-center gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Action Required: Complete Step 1
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveStep(1)}
-                      variant="outline"
-                      className="text-xs"
-                    >
-                      Go to Step 1
-                    </Button>
+                    <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                      Please complete Step 1 to {initialState.brands.length === 0 ? "create a brand and " : ""}connect your Google account before linking stores.
+                    </p>
+                    <div className="mt-3 ml-7">
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveStep(1)}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5"
+                      >
+                        Go to Step 1 <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ) : gbpResources.length === 0 ? (
                   /* ── REASSURING & FRIENDLY 0-LOCATIONS GUIDANCE ── */
@@ -1332,26 +1282,22 @@ export function IntegrationsManager({
 
                           {!isMapped && (
                             <div className="mt-3 pt-3 border-t border-amber-200/70 flex flex-col sm:flex-row sm:items-center gap-2">
-                              <select
-                                value={
-                                  pendingLocationSelections[res.id] ||
-                                  initialState.locations[0]?.id ||
-                                  ""
-                                }
-                                onChange={(e) =>
+                              <NiceSelect
+                                label="LOCATION:"
+                                icon={<MapPin className="w-3.5 h-3.5" />}
+                                options={initialState.locations.map((loc) => ({
+                                  id: loc.id,
+                                  name: `${loc.name} - ${loc.city}${loc.storeCode ? ` (${loc.storeCode})` : ""}`,
+                                }))}
+                                value={pendingLocationSelections[res.id] || initialState.locations[0]?.id || ""}
+                                onChange={(val) =>
                                   setPendingLocationSelections((prev) => ({
                                     ...prev,
-                                    [res.id]: e.target.value,
+                                    [res.id]: val,
                                   }))
                                 }
-                                className="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none flex-grow"
-                              >
-                                {initialState.locations.map((loc) => (
-                                  <option key={loc.id} value={loc.id}>
-                                    Connect to: {loc.name} ({loc.city})
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder="Select Location"
+                              />
 
                               <Button
                                 size="sm"
@@ -1386,21 +1332,23 @@ export function IntegrationsManager({
                 <span>Back to Step 1</span>
               </Button>
 
-              <div className="flex items-center gap-3 self-end sm:self-auto">
-                <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-                  {totalMappingsCount > 0
-                    ? `${totalMappingsCount} resource(s) connected`
-                    : "Ready to proceed"}
-                </span>
-                <Button
-                  type="button"
-                  onClick={() => setActiveStep(3)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs gap-2 px-5 py-2.5 shadow-sm cursor-pointer ring-2 ring-indigo-500/20"
-                >
-                  <span>Continue to Step 3: Sync & View Reports</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
+              {isStep1Complete && (
+                <div className="flex items-center gap-3 self-end sm:self-auto">
+                  <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+                    {totalMappingsCount > 0
+                      ? `${totalMappingsCount} resource(s) connected`
+                      : "Ready to proceed"}
+                  </span>
+                  <Button
+                    type="button"
+                    onClick={() => setActiveStep(3)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs gap-2 px-5 py-2.5 shadow-sm cursor-pointer ring-2 ring-indigo-500/20"
+                  >
+                    <span>Continue to Step 3: Sync & View Reports</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1429,47 +1377,89 @@ export function IntegrationsManager({
           </CardHeader>
 
           <CardContent className="p-5 sm:p-6 space-y-6">
-            {/* Live Sync Action Hero Banner */}
-            <div className="p-5 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-emerald-50/80 border border-indigo-200/80 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                  <h4 className="font-extrabold text-slate-900 text-sm">
-                    {totalMappingsCount > 0
-                      ? `${totalMappingsCount} Connected Account(s) Ready to Sync`
-                      : "Ready to Sync Google Data"}
-                  </h4>
-                </div>
-                <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
-                  Click below to fetch your latest Google search keywords,
-                  clicks, store calls, and directions directly into your
-                  reports.
+            {!isStep1Complete ? (
+              <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs animate-in fade-in slide-in-from-top-2">
+                <p className="font-bold flex items-center gap-2">
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Action Required: Complete Step 1
                 </p>
+                <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                  Please complete Step 1 to {initialState.brands.length === 0 ? "create a brand and " : ""}connect your Google account before syncing data.
+                </p>
+                <div className="mt-3 ml-7">
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveStep(1)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5"
+                  >
+                    Go to Step 1 <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-
-              <div className="flex items-center gap-2.5 flex-shrink-0">
-                <Button
-                  size="sm"
-                  onClick={handleTriggerSync}
-                  disabled={isSyncing || !canManage}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-5 py-2.5 gap-2 shadow-xs cursor-pointer ring-2 ring-indigo-500/20"
-                >
-                  <Zap
-                    className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
-                  />
-                  <span>
-                    {isSyncing ? "Synchronizing…" : "⚡ Sync Google Data Now"}
-                  </span>
-                </Button>
+            ) : totalMappingsCount === 0 ? (
+              <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs animate-in fade-in slide-in-from-top-2">
+                <p className="font-bold flex items-center gap-2">
+                  <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Action Required: Complete Step 2
+                </p>
+                <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                  Please complete Step 2 to link your website or storefront before syncing data.
+                </p>
+                <div className="mt-3 ml-7">
+                  <Button
+                    size="sm"
+                    onClick={() => setActiveStep(2)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5"
+                  >
+                    Go to Step 2 <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Live Sync Action Hero Banner */}
+                <div className="p-5 bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-emerald-50/80 border border-indigo-200/80 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                      <h4 className="font-extrabold text-slate-900 text-sm">
+                        {totalMappingsCount} Connected Account(s) Ready to Sync
+                      </h4>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
+                      Click below to fetch your latest Google search keywords,
+                      clicks, store calls, and directions directly into your
+                      reports.
+                    </p>
+                  </div>
 
-            {/* Direct Dashboard Launch Cards */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-indigo-600" />
-                View Your Reports & Dashboards
-              </h3>
+                  <div className="flex items-center gap-2.5 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      onClick={handleTriggerSync}
+                      disabled={isSyncing || !canManage}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs px-5 py-2.5 gap-2 shadow-xs cursor-pointer ring-2 ring-indigo-500/20"
+                    >
+                      <Zap
+                        className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
+                      />
+                      <span>
+                        {isSyncing ? "Synchronizing…" : "⚡ Sync Google Data Now"}
+                      </span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Direct Dashboard Launch Cards */}
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-indigo-600" />
+                    View Your Reports & Dashboards
+                  </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {/* 1. Google Search Console Dashboard */}
@@ -1570,6 +1560,8 @@ export function IntegrationsManager({
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
+            </>
+            )}
           </CardContent>
         </Card>
       )}

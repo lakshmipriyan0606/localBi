@@ -204,6 +204,15 @@ export class TenantService {
         },
       });
 
+      // Create a default Brand for the tenant
+      await tx.brand.create({
+        data: {
+          tenantId: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+        }
+      });
+
       logger.info({ tenantId: tenant.id, slug: tenant.slug, ownerUserId }, 'New tenant organization created');
 
       return {

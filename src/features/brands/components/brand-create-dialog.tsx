@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Loader2, AlertCircle, Tag } from 'lucide-react';
@@ -23,9 +24,22 @@ import {
 
 interface BrandCreateDialogProps {
   tenantSlug: string;
+  triggerTitle?: string;
+  triggerClassName?: string;
+  triggerVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+  triggerIcon?: React.ReactNode;
+  onSuccess?: () => void;
 }
 
-export function BrandCreateDialog({ tenantSlug }: BrandCreateDialogProps) {
+export function BrandCreateDialog({ 
+  tenantSlug, 
+  triggerTitle = "Add Brand", 
+  triggerClassName = "gap-2", 
+  triggerVariant = "default",
+  triggerIcon = <Plus className="h-4 w-4" />,
+  onSuccess 
+}: BrandCreateDialogProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const createMutation = useCreateBrandMutation(tenantSlug);
@@ -65,6 +79,8 @@ export function BrandCreateDialog({ tenantSlug }: BrandCreateDialogProps) {
       await createMutation.mutateAsync(data);
       reset();
       setOpen(false);
+      router.refresh();
+      if (onSuccess) onSuccess();
     } catch (err) {
       const normalized = normalizeApiError(err);
       if (normalized instanceof AppApiError && normalized.fieldErrors) {
@@ -82,9 +98,9 @@ export function BrandCreateDialog({ tenantSlug }: BrandCreateDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button id="create-brand-btn" className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Brand
+        <Button id="create-brand-btn" variant={triggerVariant} className={triggerClassName}>
+          {triggerIcon}
+          {triggerTitle}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

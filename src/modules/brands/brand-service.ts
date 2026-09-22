@@ -106,19 +106,32 @@ export class BrandService {
         },
       });
 
+      let brand;
       if (existing) {
-        throw createConflictError(`Brand with slug "${cleanSlug}" already exists in this organization`);
+        if (existing.isArchived) {
+          brand = await tx.brand.update({
+            where: { id: existing.id },
+            data: {
+              name: cleanName,
+              isArchived: false,
+              archivedAt: null,
+              version: { increment: 1 },
+            },
+          });
+        } else {
+          throw createConflictError(`Brand with slug "${cleanSlug}" already exists in this organization`);
+        }
+      } else {
+        brand = await tx.brand.create({
+          data: {
+            tenantId,
+            name: cleanName,
+            slug: cleanSlug,
+            version: 1,
+            isArchived: false,
+          },
+        });
       }
-
-      const brand = await tx.brand.create({
-        data: {
-          tenantId,
-          name: cleanName,
-          slug: cleanSlug,
-          version: 1,
-          isArchived: false,
-        },
-      });
 
       // If actor has RESTRICTED scope, automatically grant access to the created brand
       if (context.scopeMode === ScopeMode.RESTRICTED) {

@@ -84,7 +84,7 @@ export function ClientHero({
 
         {/* Right: Marketing quote, storefront preview & export */}
         <div className="hidden lg:flex items-center gap-5 flex-shrink-0">
-          {marketingQuote && (
+          {isDataReady && marketingQuote && (
             <div className="text-right">
               <p className="text-[11.5px] text-slate-600 italic font-medium leading-tight max-w-[180px]">
                 {marketingQuote.quote}
@@ -93,20 +93,29 @@ export function ClientHero({
           )}
 
           {/* Storefront badge miniature */}
-          <div className="h-12 px-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-center gap-1.5 text-white shadow-xs border border-slate-700">
-            <span className="text-sm">{storeBadgeIcon}</span>
-            <span className="text-[11px] font-bold tracking-tight truncate max-w-[120px]">
-              {displayBadgeName}
-            </span>
-          </div>
+          {isDataReady && (
+            <div className="h-12 px-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-center gap-1.5 text-white shadow-xs border border-slate-700">
+              <span className="text-sm">{storeBadgeIcon}</span>
+              <span className="text-[11px] font-bold tracking-tight truncate max-w-[120px]">
+                {displayBadgeName}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center gap-2.5">
-            <button className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-semibold shadow-xs transition-colors cursor-pointer">
+            <button 
+              disabled={!isDataReady}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-semibold shadow-xs transition-colors ${
+                isDataReady 
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer' 
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              }`}
+            >
               <Download className="h-3.5 w-3.5" />
               <span>Export Report</span>
             </button>
 
-            {typeof growthPercent === 'number' && growthPercent > 0 ? (
+            {isDataReady && typeof growthPercent === 'number' && growthPercent > 0 ? (
               <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
                 <div className="flex items-center justify-center gap-1">
                   <TrendingUp className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
@@ -119,9 +128,11 @@ export function ClientHero({
             ) : (
               <div className="bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-center min-w-[90px]">
                 <div className="flex items-center justify-center gap-1">
-                  <span className="text-[13px] font-bold text-slate-700">Active</span>
+                  <span className={`text-[13px] font-bold ${isDataReady ? 'text-slate-700' : 'text-slate-400'}`}>
+                    {isDataReady ? 'Active' : 'Pending'}
+                  </span>
                 </div>
-                <span className="text-[9.5px] text-slate-500 font-semibold block leading-none mt-0.5">
+                <span className={`text-[9.5px] font-semibold block leading-none mt-0.5 ${isDataReady ? 'text-slate-500' : 'text-slate-400'}`}>
                   Data Status
                 </span>
               </div>
