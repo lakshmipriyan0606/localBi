@@ -133,17 +133,8 @@ export class GoogleOAuthService {
     const clientId = config.GOOGLE_CLIENT_ID;
     const clientSecret = config.GOOGLE_CLIENT_SECRET;
 
-    // In local dev/mock test mode with mock credentials
-    if (!clientId || clientId.startsWith('mock-') || !clientSecret || clientSecret.startsWith('mock-')) {
-      logger.info({ code: code.slice(0, 6) }, 'Using mock token exchange response for development/test');
-      return {
-        accessToken: `mock_access_token_${crypto.randomBytes(16).toString('hex')}`,
-        refreshToken: `mock_refresh_token_${crypto.randomBytes(24).toString('hex')}`,
-        expiresIn: 3600,
-        sub: 'google-sub-mock-123456789',
-        email: 'agency.operator@example.com',
-        grantedScopes: this.REQUIRED_SCOPES,
-      };
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials are not configured.');
     }
 
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -220,16 +211,8 @@ export class GoogleOAuthService {
     const clientId = config.GOOGLE_CLIENT_ID;
     const clientSecret = config.GOOGLE_CLIENT_SECRET;
 
-    // In mock/development mode or if token is a mock string, return mock refreshed access token
-    if (
-      !clientId ||
-      clientId.startsWith('mock-') ||
-      !clientSecret ||
-      clientSecret.startsWith('mock-') ||
-      encryptedRefreshTokenJson.startsWith('v1:mock-') ||
-      encryptedRefreshTokenJson.startsWith('mock-')
-    ) {
-      return `mock_refreshed_access_token_${crypto.randomBytes(16).toString('hex')}`;
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials are not configured.');
     }
 
     // Decrypt refresh token
@@ -242,10 +225,6 @@ export class GoogleOAuthService {
         connectionId,
       });
     } catch (err) {
-      if (process.env.NODE_ENV !== 'production' || clientId.startsWith('mock-')) {
-        logger.warn({ connectionId, err }, 'Falling back to mock access token due to non-JSON envelope format');
-        return `mock_refreshed_access_token_${crypto.randomBytes(16).toString('hex')}`;
-      }
       throw err;
     }
 

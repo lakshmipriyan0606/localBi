@@ -112,6 +112,8 @@ export interface DashboardMetricCardProps {
   seed?: number | undefined;
   points?: number[] | undefined;
   className?: string | undefined;
+  isActive?: boolean | undefined;
+  onClick?: (() => void) | undefined;
 }
 
 export function DashboardMetricCard({
@@ -126,6 +128,8 @@ export function DashboardMetricCard({
   seed: _seed = 1,
   points,
   className,
+  isActive = false,
+  onClick,
 }: DashboardMetricCardProps) {
   const Icon = ICON_MAP[icon] || Globe;
   const theme = COLOR_THEMES[color] ?? DEFAULT_THEME;
@@ -138,37 +142,69 @@ export function DashboardMetricCard({
 
   return (
     <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
       className={cn(
-        'bg-white rounded-2xl border border-slate-200/80 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.03)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default flex flex-col justify-between h-[108px] overflow-hidden',
+        'bg-white rounded-2xl border p-3 flex flex-col justify-between h-[108px] overflow-hidden transition-all duration-200 select-none relative',
+        onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default shadow-[0_1px_3px_rgba(15,23,42,0.03)]',
+        isActive ? 'ring-2 ring-inset border-transparent' : 'border-slate-200/80',
         className
       )}
+      style={{
+        ...(isActive && onClick ? { 
+          backgroundColor: spark, 
+          color: 'white',
+          boxShadow: `0 4px 14px 0 ${spark}40`
+        } : {})
+      }}
     >
-      {/* Top row: circular icon on left, metric label next to it */}
-      <div className="flex items-center gap-2 min-w-0">
-        <div
-          className={cn(
-            'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
-            theme.iconBg
-          )}
-        >
-          <Icon className={cn('w-3.5 h-3.5', theme.iconText)} />
+      {/* Checkbox overlay when active */}
+      {onClick && (
+        <div className={cn(
+          "absolute top-3 left-3 w-4 h-4 rounded-[4px] border flex items-center justify-center transition-colors",
+          isActive 
+            ? "bg-white/20 border-white text-white" 
+            : "bg-white border-slate-300 text-transparent hover:border-slate-400 group-hover:border-slate-400"
+        )}>
+          {isActive && <CheckCircle2 className="w-3 h-3 text-white absolute inset-0 m-auto stroke-[3]" />}
         </div>
-        <span className="text-[11.5px] font-medium text-slate-600 tracking-tight leading-tight truncate">
+      )}
+
+      {/* Top row: circular icon on left, metric label next to it */}
+      <div className={cn("flex items-center gap-2 min-w-0 relative z-10", onClick ? "ml-6" : "")}>
+        {!onClick && (
+          <div
+            className={cn(
+              'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
+              theme.iconBg
+            )}
+          >
+            <Icon className={cn('w-3.5 h-3.5', theme.iconText)} />
+          </div>
+        )}
+        <span className={cn(
+          "text-[11.5px] font-medium tracking-tight leading-tight truncate",
+          isActive ? "text-white" : "text-slate-600"
+        )}>
           {label}
         </span>
       </div>
 
       {/* Bottom row: value & delta on left, sparkline on right */}
-      <div className="flex items-end justify-between gap-1 mt-1">
+      <div className="flex items-end justify-between gap-1 mt-1 relative z-10">
         <div className="flex-shrink-0">
-          <div className="text-[21px] font-bold tracking-tight text-slate-900 leading-none tabular-nums">
+          <div className={cn(
+            "text-[21px] font-bold tracking-tight leading-none tabular-nums",
+            isActive ? "text-white" : "text-slate-900"
+          )}>
             {formattedValue}
           </div>
           {hasDelta ? (
             <div
               className={cn(
                 'flex items-center gap-0.5 mt-1 text-[11px] font-bold',
-                isPositive ? 'text-emerald-600' : 'text-rose-600'
+                isActive ? 'text-white/90' : (isPositive ? 'text-emerald-600' : 'text-rose-600')
               )}
             >
               <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
@@ -178,14 +214,17 @@ export function DashboardMetricCard({
               </span>
             </div>
           ) : (
-            <div className="text-[11px] text-slate-400 font-medium mt-1">
+            <div className={cn(
+              "text-[11px] font-medium mt-1",
+              isActive ? "text-white/70" : "text-slate-400"
+            )}>
               Awaiting data
             </div>
           )}
         </div>
 
         {/* Right side inline smooth sparkline */}
-        <div className="w-20 sm:w-24 h-8 flex-shrink-0 flex items-end">
+        <div className={cn("w-20 sm:w-24 h-8 flex-shrink-0 flex items-end", isActive ? "opacity-40 brightness-0 invert" : "")}>
           <DashboardSparkline color={spark} height={32} points={points} />
         </div>
       </div>

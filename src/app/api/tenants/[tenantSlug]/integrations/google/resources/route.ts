@@ -156,8 +156,7 @@ export async function POST(
           );
 
           const gscSites = await GoogleApiClient.discoverGscResources(
-            accessToken,
-            tenantSlug,
+            accessToken
           );
 
           let hostname = "";
@@ -304,7 +303,6 @@ export async function POST(
     const result = await ResourceDiscoveryService.discoverAndSyncResources(
       tenant.id,
       connection.id,
-      tenant.slug,
     );
 
     return NextResponse.json({

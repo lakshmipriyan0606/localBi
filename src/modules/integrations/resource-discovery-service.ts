@@ -13,7 +13,6 @@ export class ResourceDiscoveryService {
   public static async discoverAndSyncResources(
     tenantId: string,
     connectionId: string,
-    tenantSlug?: string
   ) {
     // 1. Fetch connection inside tenant context
     const connection = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
@@ -41,7 +40,7 @@ export class ResourceDiscoveryService {
     // 3. Discover GBP Accounts and Locations
     let gbpAccounts: DiscoveredResourceAccount[] = [];
     try {
-      gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken, tenantSlug);
+      gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken);
     } catch (err: unknown) {
       logger.warn({ err }, "Failed to discover GBP resources, continuing with GSC");
     }
@@ -49,7 +48,7 @@ export class ResourceDiscoveryService {
     // 4. Discover GSC Properties
     let gscSites: DiscoveredResourceItem[] = [];
     try {
-      gscSites = await GoogleApiClient.discoverGscResources(accessToken, tenantSlug);
+      gscSites = await GoogleApiClient.discoverGscResources(accessToken);
     } catch (err: unknown) {
       logger.warn({ err }, "Failed to discover GSC resources");
     }

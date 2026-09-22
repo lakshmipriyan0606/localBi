@@ -876,27 +876,6 @@ export class ReportingService {
       }
 
       if (dimension === 'search-keywords') {
-        const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { slug: true } });
-        const isDemo = tenant?.slug === 'abc-dental' || tenant?.slug?.startsWith('abc-dental');
-        if (isDemo) {
-          const sampleKeywords: GbpSearchKeywordRow[] = [
-            { keyword: 'dentist near me', month: '2026-08', impressions: 340, impressionsText: '340', isThreshold: false },
-            { keyword: 'dental clinic anna nagar', month: '2026-08', impressions: 185, impressionsText: '185', isThreshold: false },
-            { keyword: 'teeth cleaning cost', month: '2026-08', impressions: 72, impressionsText: '72', isThreshold: false },
-            { keyword: 'emergency dental hospital', month: '2026-08', impressions: 45, impressionsText: '45', isThreshold: false },
-            { keyword: 'pediatric dentist salem', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-            { keyword: 'root canal specialist nearby', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-            { keyword: 'braces price list fairlands', month: '2026-08', impressions: 10, impressionsText: '< 15', isThreshold: true },
-          ];
-
-          let items = sampleKeywords;
-          if (search) {
-            items = items.filter((i) => i.keyword.toLowerCase().includes(search.toLowerCase()));
-          }
-
-          return { items, totalCount: items.length, page, pageSize };
-        }
-
         // Real Client: Query actual search queries mapped to this brand
         if (propertyIds.length > 0) {
           const queryMetrics = await tx.gscDailyQueryMetric.findMany({

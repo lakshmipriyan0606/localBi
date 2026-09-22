@@ -12,6 +12,8 @@ export interface ReportsGscSectionProps {
   dateRangeDays: number;
   startDate: string;
   endDate: string;
+  activeMetrics?: string[];
+  onToggleMetric?: (metric: string) => void;
 }
 
 function GoogleGIcon() {
@@ -43,6 +45,8 @@ export function ReportsGscSection({
   tenantSlug,
   selectedBrandId,
   dateRangeDays,
+  activeMetrics = [],
+  onToggleMetric,
 }: ReportsGscSectionProps) {
   const gsc = summary?.gsc;
   const hasGscData = Boolean(gsc && (gsc.totalClicks > 0 || gsc.totalImpressions > 0));
@@ -94,6 +98,8 @@ export function ReportsGscSection({
           color="purple"
           sparkColor="#8B5CF6"
           seed={1}
+          isActive={activeMetrics.includes('clicks')}
+          onClick={onToggleMetric ? () => onToggleMetric('clicks') : undefined}
         />
         <DashboardMetricCard
           label="Impressions"
@@ -103,6 +109,8 @@ export function ReportsGscSection({
           color="blue"
           sparkColor="#3B82F6"
           seed={2}
+          isActive={activeMetrics.includes('impressions')}
+          onClick={onToggleMetric ? () => onToggleMetric('impressions') : undefined}
         />
         <DashboardMetricCard
           label="CTR"
@@ -113,16 +121,20 @@ export function ReportsGscSection({
           color="teal"
           sparkColor="#14B8A6"
           seed={3}
+          isActive={activeMetrics.includes('ctr')}
+          onClick={onToggleMetric ? () => onToggleMetric('ctr') : undefined}
         />
         <DashboardMetricCard
           label="Average Position"
           value={position}
           delta={hasGscData ? summary?.previousPeriod?.positionGrowthPercent : undefined}
           icon="crown"
-          color="purple"
-          sparkColor="#10B981"
+          color="amber"
+          sparkColor="#F59E0B"
           invertDelta={true}
           seed={4}
+          isActive={activeMetrics.includes('position')}
+          onClick={onToggleMetric ? () => onToggleMetric('position') : undefined}
         />
       </div>
 

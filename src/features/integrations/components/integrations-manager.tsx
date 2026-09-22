@@ -890,29 +890,11 @@ export function IntegrationsManager({
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0 space-y-1">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    {isMapped &&
-                                    res.connectionAccess?.[0]?.canAccess ===
-                                      true ? (
+                                    {isMapped ? (
                                       <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
                                         ✓ Connected
                                       </span>
-                                    ) : isMapped ? (
-                                      <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 shadow-sm flex items-center gap-1">
-                                        <svg
-                                          className="w-3 h-3"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                          />
-                                        </svg>
-                                        Unverified in GSC
-                                      </span>
+
                                     ) : (
                                       <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 uppercase">
                                         ⚠️ Ready to Connect
@@ -954,45 +936,7 @@ export function IntegrationsManager({
                                 ) : null}
                               </div>
 
-                              {isMapped &&
-                                res.connectionAccess?.[0]?.canAccess !== true && (
-                                  <div className="mt-3 pt-3 border-t border-amber-200/70">
-                                    <div className="text-[11px] text-amber-900 bg-amber-100/50 p-3 rounded-lg border border-amber-200">
-                                      <p className="font-bold mb-1 flex items-center gap-1.5">
-                                        <svg
-                                          className="w-3.5 h-3.5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                          />
-                                        </svg>
-                                        Action Required: Verify in Google Search
-                                        Console
-                                      </p>
-                                      <p className="leading-relaxed opacity-90">
-                                        This website is currently unverified. To
-                                        pull real data, go to{" "}
-                                        <a
-                                          href="https://search.google.com/search-console"
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="underline font-bold hover:text-amber-950"
-                                        >
-                                          search.google.com/search-console
-                                        </a>
-                                        , click "Add Property", and verify
-                                        ownership of this domain using the same
-                                        Google account you connected in Step 1.
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
+
 
                               {!isMapped && (
                                 <div className="mt-3 pt-3 border-t border-amber-200/70 flex flex-col sm:flex-row sm:items-center gap-2">

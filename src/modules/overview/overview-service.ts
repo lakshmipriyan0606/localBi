@@ -111,200 +111,7 @@ export interface OverviewDataDto {
   };
 }
 
-// -----------------------------------------------------------------------------
-// SHOWCASE DEMO DATA FOR "ABC DENTAL" (Handled strictly on the backend)
-// -----------------------------------------------------------------------------
-const ABC_DENTAL_DEMO_DATA: Omit<OverviewDataDto, 'tenantSlug' | 'tenantName' | 'locationsCount' | 'brandsCount' | 'categoriesCount'> = {
-  isDemo: true,
-  isConnected: true,
-  isDataReady: true,
-  externalEmail: 'admin@abcdental.com',
-  mappedResourcesCount: 15,
-  brandTagline: 'Local visibility. Real patients. Measurable growth.',
-  storeBadgeName: 'ABC DENTAL',
-  storeBadgeIcon: '🦷',
-  marketingQuote: {
-    quote: '“More visibility. More patients. A healthier tomorrow.”',
-    authorOrStore: 'ABC Dental',
-  },
-  gbp: {
-    profileViews: 25814,
-    profileViewsDelta: 24.1,
-    calls: 958,
-    callsDelta: 12.3,
-    directions: 1855,
-    directionsDelta: 28.6,
-    reviews: 312,
-    reviewsDelta: 36.8,
-    photoViews: 7421,
-    photoViewsDelta: 18.9,
-    hasData: true,
-  },
-  gsc: {
-    clicks: 16304,
-    clicksDelta: 18.2,
-    impressions: 412903,
-    impressionsDelta: 27.6,
-    ctr: 3.9,
-    ctrDelta: 12.1,
-    position: 12.4,
-    positionDelta: -3.8,
-    hasData: true,
-    queries: [
-      { query: 'abc dental', clicks: 2841, impressions: 28421, ctr: '10.0%', position: 1.2 },
-      { query: 'dentist near me', clicks: 2312, impressions: 54118, ctr: '4.3%', position: 2.1 },
-      { query: 'emergency dentist denver', clicks: 1894, impressions: 18402, ctr: '10.3%', position: 1.8 },
-      { query: 'teeth whitening denver', clicks: 1420, impressions: 22104, ctr: '6.4%', position: 3.4 },
-      { query: 'dental implants denver co', clicks: 1108, impressions: 15309, ctr: '7.2%', position: 2.9 },
-    ],
-    keywordOpportunities: [
-      { keyword: 'cosmetic dentist denver', potential: 'High' },
-      { keyword: 'invisalign denver', potential: 'High' },
-      { keyword: 'family dentist denver', potential: 'Medium' },
-      { keyword: 'same day crown denver', potential: 'Medium' },
-      { keyword: 'pediatric dentist denver', potential: 'Low' },
-    ],
-    trendData: (() => {
-      const data: OverviewTrendPoint[] = [];
-      const base = new Date(2026, 7, 18);
-      for (let i = 0; i < 31; i++) {
-        const d = new Date(base);
-        d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().slice(0, 10);
-        data.push({
-          date: dateStr,
-          clicks: Math.round(400 + Math.sin(i * 0.25) * 180 + i * 12),
-          impressions: Math.round(11000 + Math.sin(i * 0.25) * 3500 + i * 250),
-        });
-      }
-      return data;
-    })(),
-  },
-  web: {
-    users: 12842,
-    usersDelta: 22.6,
-    sessions: 18421,
-    sessionsDelta: 18.9,
-    engagedSessions: 9538,
-    engagedSessionsDelta: 27.3,
-    conversionRate: 4.8,
-    conversionRateDelta: 34.1,
-    conversions: 885,
-    conversionsDelta: 28.6,
-    hasData: true,
-    locations: [
-      {
-        id: 'denver-hq',
-        name: 'Denver (HQ)',
-        region: 'us',
-        countryCode: 'US',
-        countryName: 'United States',
-        flag: '🇺🇸',
-        lat: 39.7392,
-        lng: -104.9903,
-        users: 5421,
-        conversions: 842,
-        rate: '4.9%',
-        trend: 28,
-        isHq: true,
-      },
-      {
-        id: 'lakewood',
-        name: 'Lakewood Clinic',
-        region: 'us',
-        countryCode: 'US',
-        countryName: 'United States',
-        flag: '🇺🇸',
-        lat: 39.7047,
-        lng: -105.0814,
-        users: 3218,
-        conversions: 421,
-        rate: '4.2%',
-        trend: 24,
-      },
-      {
-        id: 'aurora',
-        name: 'Aurora Health Center',
-        region: 'us',
-        countryCode: 'US',
-        countryName: 'United States',
-        flag: '🇺🇸',
-        lat: 39.7294,
-        lng: -104.8319,
-        users: 2184,
-        conversions: 298,
-        rate: '4.6%',
-        trend: 18,
-      },
-      {
-        id: 'arvada',
-        name: 'Arvada / Westminster',
-        region: 'us',
-        countryCode: 'US',
-        countryName: 'United States',
-        flag: '🇺🇸',
-        lat: 39.8028,
-        lng: -105.0875,
-        users: 1421,
-        conversions: 156,
-        rate: '3.8%',
-        trend: 12,
-      },
-      {
-        id: 'littleton',
-        name: 'Littleton Practice',
-        region: 'us',
-        countryCode: 'US',
-        countryName: 'United States',
-        flag: '🇺🇸',
-        lat: 39.6133,
-        lng: -105.0166,
-        users: 598,
-        conversions: 74,
-        rate: '3.1%',
-        trend: 8,
-      },
-      {
-        id: 'chennai-hq',
-        name: 'Chennai - Anna Nagar',
-        region: 'india',
-        countryCode: 'IN',
-        countryName: 'India',
-        flag: '🇮🇳',
-        lat: 13.085,
-        lng: 80.21,
-        users: 4120,
-        conversions: 609,
-        rate: '4.8%',
-        trend: 32,
-        isHq: true,
-      },
-      {
-        id: 'salem-fairlands',
-        name: 'Salem - Fairlands',
-        region: 'india',
-        countryCode: 'IN',
-        countryName: 'India',
-        flag: '🇮🇳',
-        lat: 11.6643,
-        lng: 78.146,
-        users: 2890,
-        conversions: 349,
-        rate: '4.4%',
-        trend: 22,
-      },
-    ],
-    rankings: [
-      { rank: 1, name: 'Denver (HQ)', region: 'US', users: 5421, conversions: 842, rate: '4.9%', trend: 28 },
-      { rank: 2, name: 'Chennai - Anna Nagar', region: 'IN', users: 4120, conversions: 609, rate: '4.8%', trend: 32 },
-      { rank: 3, name: 'Lakewood', region: 'US', users: 3218, conversions: 421, rate: '4.2%', trend: 24 },
-      { rank: 4, name: 'Salem - Fairlands', region: 'IN', users: 2890, conversions: 349, rate: '4.4%', trend: 22 },
-      { rank: 5, name: 'Aurora', region: 'US', users: 2184, conversions: 298, rate: '4.6%', trend: 18 },
-      { rank: 6, name: 'Westminster', region: 'US', users: 1421, conversions: 156, rate: '3.8%', trend: 12 },
-      { rank: 7, name: 'Littleton', region: 'US', users: 598, conversions: 74, rate: '3.1%', trend: 8 },
-    ],
-  },
-};
+
 
 export class OverviewService {
   /**
@@ -320,8 +127,6 @@ export class OverviewService {
     if (context && context.tenantId !== tenantId) {
       throw createTenantAccessDeniedError(tenantId);
     }
-
-    const isDemo = false; // Disabled mock data as requested by user
 
     // 1. Fetch real tenant profile, entities, AND connection state from Database
     const { tenant, locations, brands, connections, mappingCount } =
@@ -365,7 +170,7 @@ export class OverviewService {
         return { tenant: t, locations: locs, brands: brs, connections: conns, mappingCount: mappedCount };
       });
 
-    const tenantName = tenant?.name || (isDemo ? 'ABC Dental' : 'Organization');
+    const tenantName = tenant?.name || 'Organization';
     const locationsCount = locations.length;
     const brandsCount = brands.length;
     const categoriesCount = Math.max(locationsCount * 2, brandsCount > 0 ? 8 : 0);
@@ -374,22 +179,6 @@ export class OverviewService {
     const isConnected = connections.length > 0;
     const isDataReady = isConnected && mappingCount > 0;
     const externalEmail = connections[0]?.externalEmail ?? null;
-
-    // 2. If this is the showcase demo tenant (ABC Dental), return backend showcase data
-    if (isDemo) {
-      return {
-        ...ABC_DENTAL_DEMO_DATA,
-        isConnected: true,
-        isDataReady: true,
-        externalEmail: null,
-        mappedResourcesCount: mappingCount,
-        tenantName,
-        tenantSlug,
-        locationsCount: locationsCount || 7,
-        brandsCount: brandsCount || 2,
-        categoriesCount: categoriesCount || 12,
-      };
-    }
 
     // ---------------------------------------------------------------------------
     // 3. REAL CLIENT: Query actual PostgreSQL tables (No hardcoded dental data!)

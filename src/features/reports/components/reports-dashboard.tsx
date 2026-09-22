@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,9 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
     dateRangeDays: 30,
     brandId: initialBrandId,
   });
+
+  const [activeGscMetrics, setActiveGscMetrics] = useState<string[]>(['clicks', 'impressions']);
+
 
   const activeSource: 'gbp' | 'gsc' = state.tab === 'gsc' ? 'gsc' : 'gbp';
   const selectedBrandId = state.brandId || initialBrandId;
@@ -154,6 +157,14 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
               dateRangeDays={state.dateRangeDays}
               startDate={startDate}
               endDate={endDate}
+              activeMetrics={activeGscMetrics}
+              onToggleMetric={(metric) => {
+                setActiveGscMetrics((prev) =>
+                  prev.includes(metric)
+                    ? prev.filter((m) => m !== metric)
+                    : [...prev, metric]
+                );
+              }}
             />
           )}
           {activeSource === 'gbp' && (
@@ -166,7 +177,7 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
             />
           )}
           
-          <TrendChartPanel data={timeseries} isLoading={isTimeseriesLoading || isTimeseriesFetching} startDate={startDate} endDate={endDate} dateRangeDays={state.dateRangeDays} source={activeSource} />
+          <TrendChartPanel data={timeseries} isLoading={isTimeseriesLoading || isTimeseriesFetching} startDate={startDate} endDate={endDate} dateRangeDays={state.dateRangeDays} source={activeSource} activeGscMetrics={activeGscMetrics} />
           
           {activeSource === 'gsc' && <DimensionBreakdown queries={dimensions?.queries || []} pages={dimensions?.pages || []} devices={dimensions?.devices || []} isLoading={isDimensionsLoading || isDimensionsFetching} />}
           {activeSource === 'gbp' && <ReportsGbpQuickLinks tenantSlug={tenantSlug} selectedBrandId={selectedBrandId} dateRangeDays={state.dateRangeDays} brandLocations={brandLocations} />}
