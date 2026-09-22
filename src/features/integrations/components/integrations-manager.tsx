@@ -1474,7 +1474,7 @@ export function IntegrationsManager({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
                 {/* 1. Google Search Console Dashboard */}
                 <Link
-                  href={`/t/${tenantSlug}/reports/gsc`}
+                  href={`/client/${tenantSlug}/reports/gsc`}
                   className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-indigo-300 hover:shadow-xs transition-all group flex flex-col justify-between"
                 >
                   <div className="space-y-2">
@@ -1499,7 +1499,7 @@ export function IntegrationsManager({
 
                 {/* 2. Google Business Profile Dashboard */}
                 <Link
-                  href={`/t/${tenantSlug}/reports/gbp`}
+                  href={`/client/${tenantSlug}/reports/gbp`}
                   className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-teal-300 hover:shadow-xs transition-all group flex flex-col justify-between"
                 >
                   <div className="space-y-2">
@@ -1524,7 +1524,7 @@ export function IntegrationsManager({
 
                 {/* 3. Executive Overview Dashboard */}
                 <Link
-                  href={`/t/${tenantSlug}`}
+                  href={`/client/${tenantSlug}`}
                   className="p-4 rounded-xl border border-slate-200/80 bg-white hover:border-purple-300 hover:shadow-xs transition-all group flex flex-col justify-between"
                 >
                   <div className="space-y-2">
@@ -1563,7 +1563,7 @@ export function IntegrationsManager({
               </Button>
 
               <Link
-                href={`/t/${tenantSlug}/reports/gsc`}
+                href={`/client/${tenantSlug}/reports/gsc`}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800"
               >
                 <span>Go to Search Reports</span>

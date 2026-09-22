@@ -50,6 +50,11 @@ export interface OverviewTrendPoint {
 
 export interface OverviewDataDto {
   isDemo: boolean;
+  // Google connection state (used by overview page to show setup reminder / status badge)
+  isConnected: boolean;       // true if at least one ACTIVE integrationConnection exists
+  isDataReady: boolean;       // true if connected AND at least one resource is mapped
+  externalEmail: string | null;  // email of the connected Google account
+  mappedResourcesCount: number;  // total mapped internal resources
   tenantName: string;
   tenantSlug: string;
   locationsCount: number;
@@ -111,6 +116,10 @@ export interface OverviewDataDto {
 // -----------------------------------------------------------------------------
 const ABC_DENTAL_DEMO_DATA: Omit<OverviewDataDto, 'tenantSlug' | 'tenantName' | 'locationsCount' | 'brandsCount' | 'categoriesCount'> = {
   isDemo: true,
+  isConnected: true,
+  isDataReady: true,
+  externalEmail: 'admin@abcdental.com',
+  mappedResourcesCount: 15,
   brandTagline: 'Local visibility. Real patients. Measurable growth.',
   storeBadgeName: 'ABC DENTAL',
   storeBadgeIcon: '🦷',
@@ -314,11 +323,9 @@ export class OverviewService {
 
     const isDemo = false; // Disabled mock data as requested by user
 
-    // 1. Fetch real tenant profile and entities from Database
-    const { tenant, locations, brands } = await TenantContextService.withTenantContext(
-      prisma,
-      tenantId,
-      async (tx) => {
+    // 1. Fetch real tenant profile, entities, AND connection state from Database
+    const { tenant, locations, brands, connections, mappingCount } =
+      await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
         const t = await tx.tenant.findUnique({
           where: { id: tenantId },
           select: { id: true, name: true, slug: true },
@@ -343,19 +350,39 @@ export class OverviewService {
           orderBy: { name: 'asc' },
         });
 
-        return { tenant: t, locations: locs, brands: brs };
-      }
-    );
+        // Fetch active Google connections for this tenant
+        const conns = await tx.integrationConnection.findMany({
+          where: { tenantId, status: 'ACTIVE' },
+          select: { id: true, externalEmail: true },
+          take: 1,
+        });
+
+        // Count how many internal resources have been mapped
+        const mappedCount = await tx.internalResourceMapping.count({
+          where: { tenantId },
+        });
+
+        return { tenant: t, locations: locs, brands: brs, connections: conns, mappingCount: mappedCount };
+      });
 
     const tenantName = tenant?.name || (isDemo ? 'ABC Dental' : 'Organization');
     const locationsCount = locations.length;
     const brandsCount = brands.length;
     const categoriesCount = Math.max(locationsCount * 2, brandsCount > 0 ? 8 : 0);
 
+    // Derived connection state
+    const isConnected = connections.length > 0;
+    const isDataReady = isConnected && mappingCount > 0;
+    const externalEmail = connections[0]?.externalEmail ?? null;
+
     // 2. If this is the showcase demo tenant (ABC Dental), return backend showcase data
     if (isDemo) {
       return {
         ...ABC_DENTAL_DEMO_DATA,
+        isConnected: true,
+        isDataReady: true,
+        externalEmail: null,
+        mappedResourcesCount: mappingCount,
         tenantName,
         tenantSlug,
         locationsCount: locationsCount || 7,
@@ -519,6 +546,10 @@ export class OverviewService {
 
       return {
         isDemo: false,
+        isConnected,
+        isDataReady,
+        externalEmail,
+        mappedResourcesCount: mappingCount,
         tenantName,
         tenantSlug,
         locationsCount,

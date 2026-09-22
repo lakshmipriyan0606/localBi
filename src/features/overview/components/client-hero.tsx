@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, CheckCircle2, MapPin, Tag, Clock, Download, TrendingUp, Sparkles } from 'lucide-react';
+import { Building2, CheckCircle2, MapPin, Tag, Clock, Download, TrendingUp, Sparkles, Plug, AlertCircle } from 'lucide-react';
 
 interface ClientHeroProps {
   tenantName: string;
@@ -15,6 +15,8 @@ interface ClientHeroProps {
     authorOrStore: string;
   } | null;
   growthPercent?: number;
+  isConnected?: boolean;
+  isDataReady?: boolean;
 }
 
 export function ClientHero({
@@ -26,6 +28,8 @@ export function ClientHero({
   storeBadgeIcon = '🏢',
   marketingQuote,
   growthPercent,
+  isConnected = false,
+  isDataReady = false,
 }: ClientHeroProps) {
   const displayBadgeName = storeBadgeName || tenantName.toUpperCase().slice(0, 16);
 
@@ -48,11 +52,23 @@ export function ClientHero({
               {brandTagline}
             </p>
             <div className="flex items-center gap-2.5 mt-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
-                <CheckCircle2 className="h-3 w-3" /> Data Ready & Syncing
-              </span>
+              {/* Dynamic connection status badge */}
+              {isDataReady ? (
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
+                  <CheckCircle2 className="h-3 w-3" /> Data Ready &amp; Syncing
+                </span>
+              ) : isConnected ? (
+                <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/70 rounded-full px-2 py-0.5">
+                  <AlertCircle className="h-3 w-3" /> Integration Pending
+                </span>
+              ) : (
+                <span className="relative inline-flex items-center gap-1 text-[10.5px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200/70 rounded-full px-2 py-0.5">
+                  <span className="absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full bg-indigo-400 animate-ping opacity-60" />
+                  <Plug className="h-3 w-3" /> Connect Google
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <Clock className="h-3 w-3 text-slate-400" /> Live Data
+                <Clock className="h-3 w-3 text-slate-400" /> {isDataReady ? 'Live Data' : 'No Live Data'}
               </span>
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
                 <MapPin className="h-3 w-3 text-slate-400" /> {locationsCount} Google locations

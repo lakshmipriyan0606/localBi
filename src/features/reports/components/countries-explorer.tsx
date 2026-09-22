@@ -143,8 +143,8 @@ export function CountriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Reports", href: `/t/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/t/${tenantSlug}/reports` },
+            { label: "Reports", href: `/client/${tenantSlug}/reports` },
+            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Countries", current: true },
           ]}
           title="Geographic Search Distribution"

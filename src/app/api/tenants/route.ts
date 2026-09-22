@@ -18,7 +18,7 @@ export async function GET() {
       tenants,
     });
   } catch (error) {
-    return handleRouteError(error, 'Failed to list organizations.');
+    return handleRouteError(error, 'Failed to list clients.');
   }
 }
 
@@ -29,15 +29,15 @@ export async function POST(request: NextRequest) {
     const { user } = await ContextResolver.requireAuthenticatedUser(rawToken);
 
     const body = await request.json();
-    const { name, slug, timezone } = body;
+    const { name, slug, timezone, contactEmail, industry, website } = body;
 
-    const tenant = await TenantService.createTenant({ name, slug, timezone }, user.id);
+    const tenant = await TenantService.createTenant({ name, slug, timezone, contactEmail, industry, website }, user.id);
 
     return NextResponse.json({
       success: true,
       tenant,
     }, { status: 201 });
   } catch (error) {
-    return handleRouteError(error, 'Failed to create organization.');
+    return handleRouteError(error, 'Failed to create client.');
   }
 }

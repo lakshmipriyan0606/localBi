@@ -20,6 +20,9 @@ model Tenant {
   plan                 String              @default("STANDARD")
   status               String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_DELETION
   deletionScheduledAt  DateTime?           @map("deletion_scheduled_at")
+  contactEmail         String?             @map("contact_email")
+  industry             String?
+  website              String?
   version              Int                 @default(1)
   createdAt            DateTime            @default(now()) @map("created_at")
   updatedAt            DateTime            @updatedAt @map("updated_at")

@@ -49,8 +49,8 @@ export function SidebarTenantSwitcher({ tenant, userRole, tenants, onNavigate }:
     if (onNavigate) onNavigate();
     if (slug !== tenant.slug) {
       setSwitching(name);
-      const prefix = `/t/${tenant.slug}`;
-      const targetUrl = pathname.startsWith(prefix) ? `/t/${slug}${pathname.slice(prefix.length)}` : `/t/${slug}`;
+      const prefix = `/client/${tenant.slug}`;
+      const targetUrl = pathname.startsWith(prefix) ? `/client/${slug}${pathname.slice(prefix.length)}` : `/client/${slug}`;
       router.push(targetUrl);
     }
   };
@@ -75,7 +75,7 @@ export function SidebarTenantSwitcher({ tenant, userRole, tenants, onNavigate }:
         <div className="min-w-0 flex-1 pr-2">
           <div className="truncate text-xs font-semibold text-slate-900 group-hover:text-indigo-700">{tenant.name}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[10px] text-slate-400 font-mono">/t/{tenant.slug}</span>
+            <span className="text-[10px] text-slate-400 font-mono">/client/{tenant.slug}</span>
             <span className="text-[9px] text-slate-400 uppercase font-mono">• {tenant.plan}</span>
           </div>
         </div>
@@ -108,7 +108,7 @@ export function SidebarTenantSwitcher({ tenant, userRole, tenants, onNavigate }:
                     <Building2 className={cn('h-3.5 w-3.5 flex-shrink-0', t.slug === tenant.slug ? 'text-indigo-600' : 'text-slate-400')} />
                     <span className="truncate">{t.name}</span>
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono ml-5">/t/{t.slug}</div>
+                  <div className="text-[10px] text-slate-400 font-mono ml-5">/client/{t.slug}</div>
                 </div>
                 {t.slug === tenant.slug ? <Check className="h-4 w-4 text-indigo-600 flex-shrink-0" /> : <Badge variant="outline" className="text-[9px] py-0 px-1 text-slate-400">Switch</Badge>}
               </button>

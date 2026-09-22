@@ -57,7 +57,7 @@ export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: Te
         </div>
 
         <Link
-          href={`/t/${tenant.slug}/integrations`}
+          href={`/client/${tenant.slug}/integrations`}
           className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50/70 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
           title="Google Accounts & Integrations"
         >

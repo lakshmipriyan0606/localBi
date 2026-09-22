@@ -76,7 +76,7 @@ export function ReportsGscSection({
         </div>
 
         <Link
-          href={`/t/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+          href={`/client/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}`}
           className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap self-end sm:self-auto"
         >
           <span>View All Queries</span>
@@ -132,7 +132,7 @@ export function ReportsGscSection({
             <Sparkles className="h-4 w-4 text-indigo-600 flex-shrink-0" />
             <span>No search data found for the selected period. Your first sync may still be in progress.</span>
           </div>
-          <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-indigo-950 flex-shrink-0">
+          <Link href={`/client/${tenantSlug}/integrations`} className="font-semibold underline hover:text-indigo-950 flex-shrink-0">
             Manage Connections
           </Link>
         </div>

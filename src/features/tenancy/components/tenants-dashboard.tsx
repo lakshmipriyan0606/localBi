@@ -87,10 +87,10 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Organizations
+              Clients
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Select an authorized workspace to manage brand locations and search performance.
+              Select an authorized client workspace to manage brand locations and search performance.
             </p>
           </div>
 
@@ -103,11 +103,11 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Search organizations..."
+              placeholder="Search clients..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-10"
-              aria-label="Filter organizations"
+              aria-label="Filter clients"
             />
           </div>
         )}
@@ -116,15 +116,15 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
         {tenants.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title="No organizations found"
-            description="You do not currently belong to any active organizations. Create your first workspace to start managing local search."
+            title="No clients found"
+            description="You do not currently belong to any active clients. Create your first client workspace to start managing local search."
             action={<CreateTenantDialog />}
           />
         ) : filteredTenants.length === 0 ? (
           <EmptyState
             icon={Search}
-            title="No matching organizations"
-            description={`No workspace matching "${searchQuery}" was found. Try clearing your search filter.`}
+            title="No matching clients"
+            description={`No client matching "${searchQuery}" was found. Try clearing your search filter.`}
             action={
               <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
                 Clear filter
@@ -136,7 +136,7 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
             {filteredTenants.map((tenant) => (
               <Link
                 key={tenant.id}
-                href={`/t/${tenant.slug}`}
+                href={`/client/${tenant.slug}`}
                 className="group focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded-xl"
               >
                 <Card className="h-full transition-all duration-200 border-slate-200/90 hover:border-indigo-400 hover:shadow-md flex flex-col justify-between">
@@ -156,7 +156,7 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
                       {tenant.name}
                     </CardTitle>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">
-                      /t/{tenant.slug}
+                      /client/{tenant.slug}
                     </p>
                   </CardHeader>
 
@@ -170,7 +170,7 @@ export function TenantsDashboard({ initialTenants, user }: TenantsDashboardProps
                   </CardContent>
 
                   <CardFooter className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-indigo-600">
-                    <span>Open workspace</span>
+                    <span>Open client workspace</span>
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </CardFooter>
                 </Card>

@@ -48,7 +48,7 @@ export function LocationStatusBanner({ tenantSlug, mapping }: LocationStatusBann
       </div>
 
       <Link
-        href={`/t/${tenantSlug}/integrations`}
+        href={`/client/${tenantSlug}/integrations`}
         className="flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900 hover:underline flex-shrink-0"
       >
         <span>Manage Mapping</span>

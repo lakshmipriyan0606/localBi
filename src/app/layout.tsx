@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased selection:bg-indigo-100 selection:text-indigo-900" suppressHydrationWarning>
+      <body className="min-h-screen font-sans text-foreground antialiased selection:bg-indigo-100 selection:text-indigo-900" suppressHydrationWarning>
         <QueryProvider>
           {children}
           <ToastProvider />

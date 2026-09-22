@@ -260,10 +260,10 @@ export default async function Ga4ReportingPage({
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       <Breadcrumbs
         items={[
-          { label: "Overview", href: `/t/${tenant.slug}` },
+          { label: "Overview", href: `/client/${tenant.slug}` },
           {
             label: "Website Visitors & Traffic",
-            href: `/t/${tenant.slug}/reports/ga4`,
+            href: `/client/${tenant.slug}/reports/ga4`,
           },
         ]}
       />
@@ -279,7 +279,7 @@ export default async function Ga4ReportingPage({
         }
         actions={
           <Link
-            href={`/t/${tenant.slug}/integrations`}
+            href={`/client/${tenant.slug}/integrations`}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
           >
             <Link2 className="h-3.5 w-3.5 text-slate-500" />
@@ -339,7 +339,7 @@ export default async function Ga4ReportingPage({
             You need to connect your Google account and link a valid GA4 property to view real-time performance analytics and reports.
           </p>
           <a
-            href={`/t/${tenant.slug}/integrations`}
+            href={`/client/${tenant.slug}/integrations`}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 bg-indigo-600 text-slate-50 shadow hover:bg-indigo-600/90 h-9 px-4 py-2"
           >
             Manage Connections

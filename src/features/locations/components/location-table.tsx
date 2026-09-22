@@ -124,7 +124,7 @@ export function LocationTable({
                   </TableCell>
                   <TableCell className="font-semibold text-slate-900">
                     <Link
-                      href={`/t/${tenantSlug}/locations/${loc.id}`}
+                      href={`/client/${tenantSlug}/locations/${loc.id}`}
                       className="text-slate-900 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 group cursor-pointer"
                     >
                       <span>{loc.name}</span>

@@ -170,7 +170,7 @@ export async function POST(
           // Strip 'www.' for a more robust match if it's a domain
           const baseHostname = hostname.replace(/^www\./, "");
 
-          isVerified = gscSites.some((s) => {
+          const isVerifiedMatch = gscSites.some((s) => {
             const resId = s.externalResourceId.toLowerCase();
             return (
               resId === normalizedUrl.toLowerCase() ||
@@ -178,8 +178,29 @@ export async function POST(
               resId.includes(baseHostname.toLowerCase())
             );
           });
-        } catch (error) {
-          // If the API fails, we just default to unverified (false)
+          
+          isVerified = isVerifiedMatch;
+
+          // Write debug info to a file we can inspect
+          const fs = require('fs');
+          fs.writeFileSync('gsc-debug.log', JSON.stringify({
+            timestamp: new Date().toISOString(),
+            normalizedUrl,
+            hostname,
+            baseHostname,
+            gscSitesFound: gscSites.map(s => s.externalResourceId),
+            isVerifiedMatch
+          }, null, 2) + '\n', { flag: 'a' });
+
+        } catch (error: any) {
+          const fs = require('fs');
+          fs.writeFileSync('gsc-debug.log', JSON.stringify({
+            timestamp: new Date().toISOString(),
+            error: error.message || String(error),
+            stack: error.stack
+          }, null, 2) + '\n', { flag: 'a' });
+          
+          console.error("GSC Verification Error:", error);
           isVerified = false;
         }
       }

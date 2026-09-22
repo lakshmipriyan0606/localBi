@@ -114,7 +114,7 @@ export function LocationCreateDialog({ tenantSlug, brands }: LocationCreateDialo
                 Cancel
               </Button>
               <Button asChild>
-                <Link href={`/t/${tenantSlug}/brands`}>
+                <Link href={`/client/${tenantSlug}/brands`}>
                   Go to Brands
                 </Link>
               </Button>

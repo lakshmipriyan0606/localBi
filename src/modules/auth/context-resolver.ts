@@ -53,7 +53,7 @@ export class ContextResolver {
   }
 
   /**
-   * Resolves the full authorized tenant context for a tenant-scoped request (/t/[tenantSlug]/...).
+   * Resolves the full authorized tenant context for a tenant-scoped request (/client/[tenantSlug]/...).
    * Validates:
    * 1. Valid user session
    * 2. Active user account

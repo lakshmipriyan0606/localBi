@@ -38,7 +38,7 @@ export function IntegrationsStageReady({
           </p>
           <div className="pt-2">
             <Link
-              href={`/t/${tenantSlug}/reports`}
+              href={`/client/${tenantSlug}/reports`}
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
             >
               <span>Launch Performance Reports</span>

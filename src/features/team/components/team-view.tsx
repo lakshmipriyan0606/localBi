@@ -28,7 +28,7 @@ export function TeamView({ tenantSlug, brands }: TeamViewProps) {
         description="Manage your team members, set their roles, and control which brands or locations they can access."
         actions={
           <Button asChild variant="primary" className="gap-2" id="invite-member-btn">
-            <Link href={`/t/${tenantSlug}/invitations`}>
+            <Link href={`/client/${tenantSlug}/invitations`}>
               <UserPlus className="h-4 w-4" />
               Invite Member
             </Link>

@@ -17,7 +17,7 @@ export function OverviewKpiEmpty({
         </span>
       </div>
       <Link
-        href={`/t/${tenantSlug}/integrations`}
+        href={`/client/${tenantSlug}/integrations`}
         className="inline-flex items-center gap-1 font-semibold text-indigo-700 hover:text-indigo-900 hover:underline flex-shrink-0"
       >
         <span>Connect & Map Google Resources</span>

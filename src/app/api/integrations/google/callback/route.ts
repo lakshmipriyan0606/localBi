@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   if (errorParam) {
     logger.warn({ errorParam }, 'Google OAuth callback returned error');
-    return NextResponse.redirect(new URL(`/tenants?error=${encodeURIComponent(errorParam)}`, request.url));
+    return NextResponse.redirect(new URL(`/clients?error=${encodeURIComponent(errorParam)}`, request.url));
   }
 
   if (!code || !stateToken) {
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
       logger.error({ discErr }, 'Automatic resource discovery following OAuth failed');
     }
 
-    const destination = returnUrl || `/t/${tenant.slug}/integrations`;
+    const destination = returnUrl || `/client/${tenant.slug}/integrations`;
     const redirectUrl = new URL(destination, request.url);
     redirectUrl.searchParams.set('connected', '1');
 

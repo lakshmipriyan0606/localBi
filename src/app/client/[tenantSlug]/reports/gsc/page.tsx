@@ -10,5 +10,5 @@ export default async function GscIndexPage({
   params: Promise<{ tenantSlug: string }>;
 }) {
   const { tenantSlug } = await params;
-  redirect(`/t/${tenantSlug}/reports?tab=gsc`);
+  redirect(`/client/${tenantSlug}/reports?tab=gsc`);
 }

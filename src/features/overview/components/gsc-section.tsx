@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { Plug, ArrowRight } from 'lucide-react';
 import { DashboardSection } from './dashboard-section';
 import { DashboardMetricCard } from './dashboard-metric-card';
 import { GscAchievementCard } from './gsc-achievement-card';
@@ -11,6 +13,7 @@ import type { OverviewDataDto } from '@/modules/overview/overview-service';
 interface GscSectionProps {
   tenantSlug: string;
   data?: OverviewDataDto['gsc'] | undefined;
+  isConnected?: boolean;
 }
 
 function GoogleGIcon() {
@@ -36,7 +39,7 @@ function GoogleGIcon() {
   );
 }
 
-export function GscSection({ tenantSlug, data }: GscSectionProps) {
+export function GscSection({ tenantSlug, data, isConnected = false }: GscSectionProps) {
   const hasData = Boolean(data?.hasData);
   const gscCards = [
     {
@@ -96,40 +99,63 @@ export function GscSection({ tenantSlug, data }: GscSectionProps) {
       subtitle="Track your website's search performance on Google"
       bgClass="bg-[#F1F3FB]"
       borderClass="border-[#DCE2F6]"
-      reportHref={`/t/${tenantSlug}/reports?tab=gsc`}
+      reportHref={`/client/${tenantSlug}/reports?tab=gsc`}
       reportLabel="View Search Console Report"
     >
-      {/* Top Row: 4 KPI Cards + 1 Achievement Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
-        {gscCards.map((card) => (
-          <DashboardMetricCard
-            key={card.key}
-            label={card.label}
-            value={card.value}
-            delta={card.delta}
-            icon={card.icon}
-            color={card.color}
-            sparkColor={card.sparkColor}
-            suffix={card.suffix}
-            invertDelta={card.invertDelta}
-            seed={card.seed}
-          />
-        ))}
-        <GscAchievementCard tenantSlug={tenantSlug} />
-      </div>
+      {!isConnected ? (
+        <div className="bg-white/60 border border-dashed border-indigo-300 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3 shadow-sm">
+            <Plug className="w-6 h-6" />
+          </div>
+          <h3 className="text-[14px] font-bold text-slate-900 mb-1">
+            Connect Google Search Console
+          </h3>
+          <p className="text-[12px] text-slate-500 max-w-md mb-4">
+            Link your Google account to automatically track your website's search performance, monitor keyword rankings, and uncover new SEO opportunities.
+          </p>
+          <Link
+            href={`/client/${tenantSlug}/integrations`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-semibold shadow-sm transition-colors"
+          >
+            <span>Connect Account</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* Top Row: 4 KPI Cards + 1 Achievement Card */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
+            {gscCards.map((card) => (
+              <DashboardMetricCard
+                key={card.key}
+                label={card.label}
+                value={card.value}
+                delta={card.delta}
+                icon={card.icon}
+                color={card.color}
+                sparkColor={card.sparkColor}
+                suffix={card.suffix}
+                invertDelta={card.invertDelta}
+                seed={card.seed}
+              />
+            ))}
+            <GscAchievementCard tenantSlug={tenantSlug} />
+          </div>
 
-      {/* Analytics Row: Search Trend + Top Queries + Keyword Opportunities */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
-        <div className="lg:col-span-6 flex flex-col">
-          <GscPerformanceChart trendData={data?.trendData} />
-        </div>
-        <div className="lg:col-span-3.5 lg:col-span-4 flex flex-col">
-          <GscSearchQueriesTable tenantSlug={tenantSlug} queries={data?.queries} />
-        </div>
-        <div className="lg:col-span-2.5 lg:col-span-2 flex flex-col">
-          <GscKeywordOpportunities tenantSlug={tenantSlug} opportunities={data?.keywordOpportunities} />
-        </div>
-      </div>
+          {/* Analytics Row: Search Trend + Top Queries + Keyword Opportunities */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
+            <div className="lg:col-span-6 flex flex-col">
+              <GscPerformanceChart trendData={data?.trendData} />
+            </div>
+            <div className="lg:col-span-3.5 lg:col-span-4 flex flex-col">
+              <GscSearchQueriesTable tenantSlug={tenantSlug} queries={data?.queries} />
+            </div>
+            <div className="lg:col-span-2.5 lg:col-span-2 flex flex-col">
+              <GscKeywordOpportunities tenantSlug={tenantSlug} opportunities={data?.keywordOpportunities} />
+            </div>
+          </div>
+        </>
+      )}
     </DashboardSection>
   );
 }

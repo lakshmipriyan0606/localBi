@@ -15,10 +15,10 @@ export function OverviewQuickActions({
   membersCount,
 }: QuickActionsProps) {
   const cards = [
-    { label: 'Client Brands', count: brandsCount, sub: 'Registered brands', href: `/t/${tenantSlug}/brands`, icon: Tag, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { label: 'Storefronts', count: locationsCount, sub: 'Physical branches', href: `/t/${tenantSlug}/locations`, icon: MapPin, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { label: 'Team Members', count: membersCount, sub: 'Active collaborators', href: `/t/${tenantSlug}/team`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Settings', count: null, sub: 'Profile & security', href: `/t/${tenantSlug}/settings`, icon: Settings, color: 'text-slate-600', bg: 'bg-slate-100' },
+    { label: 'Client Brands', count: brandsCount, sub: 'Registered brands', href: `/client/${tenantSlug}/brands`, icon: Tag, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Storefronts', count: locationsCount, sub: 'Physical branches', href: `/client/${tenantSlug}/locations`, icon: MapPin, color: 'text-teal-600', bg: 'bg-teal-50' },
+    { label: 'Team Members', count: membersCount, sub: 'Active collaborators', href: `/client/${tenantSlug}/team`, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Settings', count: null, sub: 'Profile & security', href: `/client/${tenantSlug}/settings`, icon: Settings, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
 
   return (

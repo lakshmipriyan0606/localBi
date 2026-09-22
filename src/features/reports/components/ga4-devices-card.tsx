@@ -78,11 +78,11 @@ export function Ga4DevicesCard({
             Google Business Profile impressions and Google Search Console organic queries are currently active for this workspace.
           </p>
           <div className="pt-1 flex flex-col gap-2">
-            <Link href={`/t/${tenantSlug}/reports/gsc/queries`} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center justify-between group">
+            <Link href={`/client/${tenantSlug}/reports/gsc/queries`} className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 flex items-center justify-between group">
               <span>View GSC Search Queries</span>
               <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </Link>
-            <Link href={`/t/${tenantSlug}/reports/gbp/locations`} className="text-xs font-semibold text-teal-700 hover:text-teal-900 flex items-center justify-between group">
+            <Link href={`/client/${tenantSlug}/reports/gbp/locations`} className="text-xs font-semibold text-teal-700 hover:text-teal-900 flex items-center justify-between group">
               <span>View GBP Storefront Metrics</span>
               <ArrowUpRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </Link>

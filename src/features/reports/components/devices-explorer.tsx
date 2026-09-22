@@ -131,8 +131,8 @@ export function DevicesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Reports", href: `/t/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/t/${tenantSlug}/reports` },
+            { label: "Reports", href: `/client/${tenantSlug}/reports` },
+            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Devices", current: true },
           ]}
           title="Device Platform Analytics"

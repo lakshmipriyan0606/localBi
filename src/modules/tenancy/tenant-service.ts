@@ -141,14 +141,14 @@ export class TenantService {
    * Creates a new tenant organization and establishes the initial CLIENT_OWNER membership.
    */
   public static async createTenant(
-    data: { name: string; slug: string; timezone?: string },
+    data: { name: string; slug: string; timezone?: string; contactEmail?: string; industry?: string; website?: string },
     ownerUserId: string
   ): Promise<TenantDto> {
     const cleanSlug = this.validateSlug(data.slug);
     const cleanName = data.name.trim();
 
     if (!cleanName || cleanName.length < 2) {
-      throw createValidationError('Tenant name must be at least 2 characters');
+      throw createValidationError('Client name must be at least 2 characters');
     }
 
     // Check slug uniqueness
@@ -157,7 +157,7 @@ export class TenantService {
     });
 
     if (existing) {
-      throw createConflictError(`Tenant slug "${cleanSlug}" is already taken`);
+      throw createConflictError(`Client slug "${cleanSlug}" is already taken`);
     }
 
     return prisma.$transaction(async (tx) => {
@@ -166,6 +166,9 @@ export class TenantService {
           name: cleanName,
           slug: cleanSlug,
           timezone: data.timezone || 'UTC',
+          contactEmail: data.contactEmail || null,
+          industry: data.industry || null,
+          website: data.website || null,
           plan: 'STANDARD',
           status: 'ACTIVE',
           version: 1,

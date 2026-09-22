@@ -21,7 +21,7 @@ export function GscAchievementCard({ tenantSlug }: GscAchievementCardProps) {
           Your clicks are up 18.2% compared to the previous 30 days.
         </p>
         <Link
-          href={`/t/${tenantSlug}/reports?tab=gsc`}
+          href={`/client/${tenantSlug}/reports?tab=gsc`}
           className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors mt-1.5"
         >
           <span>View Opportunities</span>

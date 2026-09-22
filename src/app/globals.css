@@ -51,7 +51,7 @@
   /* ─────────────────────────────────────────────
      Canvas & Surfaces
   ───────────────────────────────────────────── */
-  --canvas:        #F5F7FB;
+  --canvas:        #eef2ff;
   --surface:       #FFFFFF;
   --surface-muted: #F1F5F9;
   --surface-hover: #F8FAFC;
@@ -134,7 +134,7 @@
 }
 
 body {
-  background-color: var(--canvas);
+  background: #ffffff !important;
   color: var(--text-primary);
   font-family: var(--font-sans), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;

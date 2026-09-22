@@ -55,7 +55,7 @@ export function AcceptInvitationForm({ token, invitation }: AcceptInvitationForm
         password: data.password,
       });
 
-      router.push('/tenants');
+      router.push('/clients');
     } catch (err) {
       const normalized = normalizeApiError(err);
       setGeneralError(normalized.message);

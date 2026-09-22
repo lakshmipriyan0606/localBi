@@ -53,7 +53,7 @@ export function OverviewReadinessBanner({
       </div>
 
       <Link
-        href={`/t/${tenantSlug}/integrations`}
+        href={`/client/${tenantSlug}/integrations`}
         className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 rounded-lg text-xs font-semibold border border-slate-200 shadow-xs flex-shrink-0 transition-colors"
       >
         <span>{isDataReady ? 'Integration Settings' : 'Continue Setup'}</span>

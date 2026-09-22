@@ -81,7 +81,7 @@ export function GscKeywordOpportunities({
       {/* Footer Link */}
       <div className="pt-3 border-t border-slate-100 mt-3 text-center">
         <Link
-          href={`/t/${tenantSlug}/reports/gsc/queries`}
+          href={`/client/${tenantSlug}/reports/gsc/queries`}
           className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
         >
           <span>View All Opportunities</span>

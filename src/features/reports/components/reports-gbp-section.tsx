@@ -53,7 +53,7 @@ export function ReportsGbpSection({
         </div>
 
         <Link
-          href={`/t/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+          href={`/client/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}`}
           className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap self-end sm:self-auto"
         >
           <span>View All Locations</span>
@@ -107,7 +107,7 @@ export function ReportsGbpSection({
             <Sparkles className="h-4 w-4 text-emerald-600 flex-shrink-0" />
             <span>Connected to Google Business Profile. Link your store locations in Connections.</span>
           </div>
-          <Link href={`/t/${tenantSlug}/integrations`} className="font-semibold underline hover:text-emerald-950 flex-shrink-0">
+          <Link href={`/client/${tenantSlug}/integrations`} className="font-semibold underline hover:text-emerald-950 flex-shrink-0">
             Manage Connections
           </Link>
         </div>

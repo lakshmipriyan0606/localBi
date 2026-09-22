@@ -58,7 +58,7 @@ export function ReportsSourceTabs({ activeSource, onSelectTab, tenantSlug }: Sou
       </button>
 
       <Link
-        href={`/t/${tenantSlug}/reports/ga4`}
+        href={`/client/${tenantSlug}/reports/ga4`}
         className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all sm:ml-auto"
       >
         <Activity className="h-4 w-4 text-purple-600" />

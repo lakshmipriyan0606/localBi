@@ -7,8 +7,8 @@ import { TenantService } from '@/modules/tenancy/tenant-service';
 import { TenantsDashboard } from '@/features/tenancy/components/tenants-dashboard';
 
 export const metadata: Metadata = {
-  title: 'Organizations — localBi',
-  description: 'Select or create an enterprise multi-tenant workspace',
+  title: 'Clients — localBi',
+  description: 'Select or create an enterprise multi-client workspace',
 };
 
 export default async function TenantsPage() {

@@ -37,7 +37,7 @@ export function Breadcrumbs({
     }
   }
 
-  const effectiveBackHref = backHref || (inferredSlug ? `/t/${inferredSlug}` : null);
+  const effectiveBackHref = backHref || (inferredSlug ? `/client/${inferredSlug}` : null);
 
   return (
     <nav
@@ -65,7 +65,7 @@ export function Breadcrumbs({
         {inferredSlug && (
           <li className="flex items-center">
             <Link
-              href={`/t/${inferredSlug}`}
+              href={`/client/${inferredSlug}`}
               className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-indigo-600 hover:bg-slate-100/80 transition-colors px-2 py-1 rounded-md"
               title="Overview"
             >

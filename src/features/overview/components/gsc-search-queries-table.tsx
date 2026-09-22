@@ -22,7 +22,7 @@ export function GscSearchQueriesTable({ tenantSlug, queries = [] }: GscSearchQue
         </div>
 
         <Link
-          href={`/t/${tenantSlug}/reports/gsc/queries`}
+          href={`/client/${tenantSlug}/reports/gsc/queries`}
           className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
         >
           <span>View All Queries</span>

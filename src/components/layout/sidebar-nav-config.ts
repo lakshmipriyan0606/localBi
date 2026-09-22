@@ -63,7 +63,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Overview',
-        href: `/t/${slug}`,
+        href: `/client/${slug}`,
         icon: LayoutDashboard,
         exact: true,
       },
@@ -76,22 +76,22 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Store Overview',
-        href: `/t/${slug}/reports?tab=gbp`,
+        href: `/client/${slug}/reports?tab=gbp`,
         icon: Store,
       },
       {
         label: 'All Store Locations',
-        href: `/t/${slug}/reports/gbp/locations`,
+        href: `/client/${slug}/reports/gbp/locations`,
         icon: Layers,
       },
       {
         label: 'Customer Search Keywords',
-        href: `/t/${slug}/reports/gbp/search-terms`,
+        href: `/client/${slug}/reports/gbp/search-terms`,
         icon: SearchCode,
       },
       {
         label: 'Manage Store Locations',
-        href: `/t/${slug}/locations`,
+        href: `/client/${slug}/locations`,
         icon: MapPin,
       },
     ],
@@ -103,27 +103,27 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Website Search Overview',
-        href: `/t/${slug}/reports?tab=gsc`,
+        href: `/client/${slug}/reports?tab=gsc`,
         icon: TrendingUp,
       },
       {
         label: 'Top Search Keywords',
-        href: `/t/${slug}/reports/gsc/queries`,
+        href: `/client/${slug}/reports/gsc/queries`,
         icon: Search,
       },
       {
         label: 'Top Website Pages',
-        href: `/t/${slug}/reports/gsc/pages`,
+        href: `/client/${slug}/reports/gsc/pages`,
         icon: FileText,
       },
       {
         label: 'Visitor Countries',
-        href: `/t/${slug}/reports/gsc/countries`,
+        href: `/client/${slug}/reports/gsc/countries`,
         icon: Globe,
       },
       {
         label: 'Visitor Devices',
-        href: `/t/${slug}/reports/gsc/devices`,
+        href: `/client/${slug}/reports/gsc/devices`,
         icon: MonitorSmartphone,
       },
     ],
@@ -135,14 +135,14 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Website Visitors & Traffic',
-        href: `/t/${slug}/reports/ga4`,
+        href: `/client/${slug}/reports/ga4`,
         icon: Activity,
         pillBadge: 'PREVIEW',
         badgeVariant: 'purple',
       },
       {
         label: 'Traffic Sources',
-        href: `/t/${slug}/reports/ga4?view=channels`,
+        href: `/client/${slug}/reports/ga4?view=channels`,
         icon: Share2,
         pillBadge: 'SOON',
         badgeVariant: 'slate',
@@ -154,7 +154,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Connect Google Accounts',
-        href: `/t/${slug}/integrations`,
+        href: `/client/${slug}/integrations`,
         icon: Link2,
       },
     ],
@@ -164,22 +164,22 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     items: [
       {
         label: 'Brands & Businesses',
-        href: `/t/${slug}/brands`,
+        href: `/client/${slug}/brands`,
         icon: Tag,
       },
       {
         label: 'Team Members',
-        href: `/t/${slug}/team`,
+        href: `/client/${slug}/team`,
         icon: Users,
       },
       {
         label: 'Invite Team Members',
-        href: `/t/${slug}/invitations`,
+        href: `/client/${slug}/invitations`,
         icon: Mail,
       },
       {
         label: 'General Settings',
-        href: `/t/${slug}/settings`,
+        href: `/client/${slug}/settings`,
         icon: Settings,
       },
     ],

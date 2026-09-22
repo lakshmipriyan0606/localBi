@@ -49,16 +49,20 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
       name: '',
       slug: '',
       timezone: 'UTC',
+      contactEmail: '',
+      industry: '',
+      website: '',
     },
     mode: 'onBlur',
   });
 
   const slugValue = watch('slug');
 
+  const { onChange: onNameChange, ...nameRegister } = register('name');
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onNameChange(e); // Let react-hook-form handle the state according to the onBlur mode
     const val = e.target.value;
-    setValue('name', val, { shouldValidate: true });
-    // Auto-generate slug if slug is empty or matches previous slug pattern
     const generated = val
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -75,7 +79,7 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
       if (onSuccess) {
         onSuccess();
       }
-      router.push(`/t/${res.data.tenant.slug}`);
+      router.push(`/client/${res.data.tenant.slug}`);
     } catch (err) {
       const normalized = normalizeApiError(err);
       if (normalized instanceof AppApiError && normalized.fieldErrors) {
@@ -94,9 +98,9 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button id="create-org-btn" className="gap-2">
+          <Button id="create-client-btn" className="gap-2">
             <Plus className="h-4 w-4" />
-            New Organization
+            New Client
           </Button>
         )}
       </DialogTrigger>
@@ -106,10 +110,10 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
               <Building2 className="h-4 w-4" />
             </div>
-            <DialogTitle>New Organization</DialogTitle>
+            <DialogTitle>New Client</DialogTitle>
           </div>
           <DialogDescription>
-            Set up a new workspace to manage your brands, store locations, and team members.
+            Set up a new client workspace to manage brands, store locations, and team members.
           </DialogDescription>
         </DialogHeader>
 
@@ -121,9 +125,9 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {/* Organization Name */}
+          {/* Client Name */}
           <div className="space-y-1.5">
-            <Label htmlFor="tenant-name">Organization Name</Label>
+            <Label htmlFor="tenant-name">Client Name</Label>
             <Input
               id="tenant-name"
               type="text"
@@ -132,7 +136,8 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
               autoFocus
               aria-invalid={errors.name ? 'true' : 'false'}
               aria-describedby={errors.name ? 'tenant-name-error' : undefined}
-              {...register('name', { onChange: handleNameChange })}
+              {...nameRegister}
+              onChange={handleNameChange}
             />
             {errors.name && (
               <p id="tenant-name-error" className="text-xs font-medium text-red-600">
@@ -159,27 +164,85 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
               </p>
             ) : (
               <p id="tenant-slug-desc" className="text-xs text-slate-500 font-mono">
-                Accessible at: /t/{slugValue || 'workspace-slug'}
+                Accessible at: /client/{slugValue || 'client-slug'}
               </p>
             )}
           </div>
 
-          {/* Reporting Timezone */}
-          <div className="space-y-1.5">
-            <Label htmlFor="tenant-tz">Reporting Timezone</Label>
-            <Input
-              id="tenant-tz"
-              type="text"
-              placeholder="UTC, America/New_York, Europe/London"
-              aria-invalid={errors.timezone ? 'true' : 'false'}
-              aria-describedby={errors.timezone ? 'tenant-tz-error' : undefined}
-              {...register('timezone')}
-            />
-            {errors.timezone && (
-              <p id="tenant-tz-error" className="text-xs font-medium text-red-600">
-                {errors.timezone.message}
-              </p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Contact Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="tenant-email">Contact Email (Optional)</Label>
+              <Input
+                id="tenant-email"
+                type="email"
+                placeholder="contact@acme.com"
+                aria-invalid={errors.contactEmail ? 'true' : 'false'}
+                aria-describedby={errors.contactEmail ? 'tenant-email-error' : undefined}
+                {...register('contactEmail')}
+              />
+              {errors.contactEmail && (
+                <p id="tenant-email-error" className="text-xs font-medium text-red-600">
+                  {errors.contactEmail.message}
+                </p>
+              )}
+            </div>
+
+            {/* Industry */}
+            <div className="space-y-1.5">
+              <Label htmlFor="tenant-industry">Industry (Optional)</Label>
+              <Input
+                id="tenant-industry"
+                type="text"
+                placeholder="e.g. Retail"
+                aria-invalid={errors.industry ? 'true' : 'false'}
+                aria-describedby={errors.industry ? 'tenant-industry-error' : undefined}
+                {...register('industry')}
+              />
+              {errors.industry && (
+                <p id="tenant-industry-error" className="text-xs font-medium text-red-600">
+                  {errors.industry.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {/* Website */}
+            <div className="space-y-1.5">
+              <Label htmlFor="tenant-website">Website (Optional)</Label>
+              <Input
+                id="tenant-website"
+                type="url"
+                placeholder="https://acme.com"
+                aria-invalid={errors.website ? 'true' : 'false'}
+                aria-describedby={errors.website ? 'tenant-website-error' : undefined}
+                {...register('website')}
+              />
+              {errors.website && (
+                <p id="tenant-website-error" className="text-xs font-medium text-red-600">
+                  {errors.website.message}
+                </p>
+              )}
+            </div>
+
+            {/* Reporting Timezone */}
+            <div className="space-y-1.5">
+              <Label htmlFor="tenant-tz">Reporting Timezone</Label>
+              <Input
+                id="tenant-tz"
+                type="text"
+                placeholder="UTC, America/New_York, Europe/London"
+                aria-invalid={errors.timezone ? 'true' : 'false'}
+                aria-describedby={errors.timezone ? 'tenant-tz-error' : undefined}
+                {...register('timezone')}
+              />
+              {errors.timezone && (
+                <p id="tenant-tz-error" className="text-xs font-medium text-red-600">
+                  {errors.timezone.message}
+                </p>
+              )}
+            </div>
           </div>
 
           <DialogFooter className="pt-2">
@@ -199,10 +262,10 @@ export function CreateTenantDialog({ trigger, onSuccess }: CreateTenantDialogPro
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating workspace...
+                  Creating client...
                 </>
               ) : (
-                'Create Organization'
+                'Create Client'
               )}
             </Button>
           </DialogFooter>

@@ -54,7 +54,7 @@ export function LocationDetailView({
     <div className="space-y-6">
       <Breadcrumbs
         items={[
-          { label: 'Locations', href: `/t/${tenantSlug}/locations` },
+          { label: 'Locations', href: `/client/${tenantSlug}/locations` },
           { label: location.name, current: true },
         ]}
         tenantSlug={tenantSlug}
@@ -85,7 +85,7 @@ export function LocationDetailView({
         }
         actions={
           <Link
-            href={`/t/${tenantSlug}/reports/gbp/locations?brandId=${location.brandId}&locationId=${location.id}`}
+            href={`/client/${tenantSlug}/reports/gbp/locations?brandId=${location.brandId}&locationId=${location.id}`}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
           >
             <BarChart2 className="h-3.5 w-3.5" />

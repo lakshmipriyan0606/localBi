@@ -14,6 +14,7 @@ interface OverviewTabsContainerProps {
   tenantSlug: string;
   initialTab?: OverviewTabId;
   overviewData?: OverviewDataDto;
+  isConnected?: boolean;
 }
 
 interface TabItem {
@@ -36,6 +37,7 @@ export function OverviewTabsContainer({
   tenantSlug,
   initialTab = 'gbp',
   overviewData,
+  isConnected = false,
 }: OverviewTabsContainerProps) {
   const searchParams = useSearchParams();
 
@@ -193,15 +195,15 @@ export function OverviewTabsContainer({
       {/* Dedicated Tab Content Display */}
       <div className="animate-in fade-in duration-200">
         {activeTab === 'gbp' && (
-          <GbpSection tenantSlug={tenantSlug} data={overviewData?.gbp} />
+          <GbpSection tenantSlug={tenantSlug} data={overviewData?.gbp} isConnected={isConnected} />
         )}
 
         {activeTab === 'gsc' && (
-          <GscSection tenantSlug={tenantSlug} data={overviewData?.gsc} />
+          <GscSection tenantSlug={tenantSlug} data={overviewData?.gsc} isConnected={isConnected} />
         )}
 
         {activeTab === 'web' && (
-          <WebAnalyticsSection tenantSlug={tenantSlug} data={overviewData?.web} />
+          <WebAnalyticsSection tenantSlug={tenantSlug} data={overviewData?.web} isConnected={isConnected} />
         )}
       </div>
     </div>

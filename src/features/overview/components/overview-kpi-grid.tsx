@@ -52,7 +52,7 @@ export function OverviewKpiGrid({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         <OverviewKpiCard
-          href={`/t/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}`}
+          href={`/client/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}`}
           badgeLabel="GSC Clicks"
           badgeClass="text-indigo-700 bg-indigo-50"
           icon={MousePointerClick}
@@ -63,7 +63,7 @@ export function OverviewKpiGrid({
           growthPercent={prev?.clicksGrowthPercent}
         />
         <OverviewKpiCard
-          href={`/t/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}&sortBy=impressions`}
+          href={`/client/${tenantSlug}/reports/gsc/queries?days=30&brandId=${primaryBrand?.id}&sortBy=impressions`}
           badgeLabel="GSC Impr."
           badgeClass="text-indigo-700 bg-indigo-50"
           icon={Eye}
@@ -74,7 +74,7 @@ export function OverviewKpiGrid({
           growthPercent={prev?.impressionsGrowthPercent}
         />
         <OverviewKpiCard
-          href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}`}
+          href={`/client/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}`}
           badgeLabel="GBP Views"
           badgeClass="text-teal-700 bg-teal-50"
           icon={Globe}
@@ -84,7 +84,7 @@ export function OverviewKpiGrid({
           subtext="Search & Maps"
         />
         <OverviewKpiCard
-          href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=callClicks`}
+          href={`/client/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=callClicks`}
           badgeLabel="GBP Calls"
           badgeClass="text-blue-700 bg-blue-50"
           icon={PhoneCall}
@@ -94,7 +94,7 @@ export function OverviewKpiGrid({
           subtext="Profile call taps"
         />
         <OverviewKpiCard
-          href={`/t/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=directionRequests`}
+          href={`/client/${tenantSlug}/reports/gbp/locations?days=30&brandId=${primaryBrand?.id}&sortBy=directionRequests`}
           badgeLabel="GBP Maps"
           badgeClass="text-emerald-700 bg-emerald-50"
           icon={Navigation}

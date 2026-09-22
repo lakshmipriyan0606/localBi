@@ -6,6 +6,8 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { OverviewService } from '@/modules/overview/overview-service';
 import { ClientHero } from '@/features/overview/components/client-hero';
 import { OverviewTabsContainer } from '@/features/overview/components/overview-tabs-container';
+import { OverviewReadinessBanner } from '@/features/overview/components/overview-readiness-banner';
+import { OverviewSetupReminder } from '@/features/overview/components/overview-setup-reminder';
 
 export const metadata: Metadata = {
   title: 'Client Overview — localBi',
@@ -51,12 +53,32 @@ export default async function WorkspaceOverviewPage({
         storeBadgeName={overviewData.storeBadgeName}
         storeBadgeIcon={overviewData.storeBadgeIcon}
         marketingQuote={overviewData.marketingQuote}
+        isConnected={overviewData.isConnected}
+        isDataReady={overviewData.isDataReady}
       />
 
-      {/* 2. Single-Page 3-Way Tab-wise Overview (Google Business Profile, Search Console, Web Analytics) */}
+      {/* 2. Setup Reminders (Only shown if setup is pending/missing) */}
+      <OverviewSetupReminder
+        tenantSlug={tenant.slug}
+        isConnected={overviewData.isConnected}
+        isDataReady={overviewData.isDataReady}
+      />
+      
+      {overviewData.isConnected && !overviewData.isDataReady && (
+        <OverviewReadinessBanner
+          tenantSlug={tenant.slug}
+          isConnected={overviewData.isConnected}
+          isDataReady={overviewData.isDataReady}
+          externalEmail={overviewData.externalEmail}
+          mappedResourcesCount={overviewData.mappedResourcesCount}
+        />
+      )}
+
+      {/* 3. Single-Page 3-Way Tab-wise Overview (Google Business Profile, Search Console, Web Analytics) */}
       <OverviewTabsContainer
         tenantSlug={tenant.slug}
         overviewData={overviewData}
+        isConnected={overviewData.isConnected}
       />
     </div>
   );

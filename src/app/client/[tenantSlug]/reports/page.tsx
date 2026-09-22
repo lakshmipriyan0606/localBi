@@ -7,8 +7,6 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { ReportsDashboard } from '@/features/reports/components/reports-dashboard';
 import { ScopeMode } from '@/shared/authorization/policy';
-import Link from 'next/link';
-import { Tag, ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Performance Reports — localBi',
@@ -42,7 +40,7 @@ export default async function ReportsPage({
   const { tenant, authorizedContext } = resolved;
 
   // Preload unarchived brands and locations scoped to the user's permissions inside tenant context
-  const { brands, locations, isConnected, isGbpConnected, isGscConnected } = await TenantContextService.withTenantContext(
+  const { brands, locations, isGbpConnected, isGscConnected } = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
     async (tx) => {
@@ -101,27 +99,6 @@ export default async function ReportsPage({
       };
     }
   );
-
-  if (brands.length === 0) {
-    return (
-      <div className="max-w-md mx-auto py-16 text-center space-y-4">
-        <div className="h-12 w-12 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto">
-          <Tag className="h-6 w-6" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">No Brands Registered Yet</h2>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          To view performance reporting, you first need to register at least one client brand under {tenant.name}.
-        </p>
-        <Link
-          href={`/t/${tenant.slug}/brands`}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-        >
-          <span>Create First Brand</span>
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <ReportsDashboard

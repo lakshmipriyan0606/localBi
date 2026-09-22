@@ -153,8 +153,8 @@ export function QueriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Reports", href: `/t/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/t/${tenantSlug}/reports` },
+            { label: "Reports", href: `/client/${tenantSlug}/reports` },
+            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Search Queries", current: true },
           ]}
           title="Search Queries Explorer"
