@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Calendar as CalendarIcon, Filter, Tag, MapPin } from 'lucide-react';
+import { Search, Tag, MapPin } from 'lucide-react';
 import { NiceSelect } from '@/components/ui/nice-select';
 import { formatDateRange } from '@/shared/lib/formatters';
 

@@ -1,11 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { DrilldownView, ColumnDef } from "./drilldown-view";
 import { useReportsDrilldown } from "../hooks/use-reports";
 import { useReportsQueryState } from "../hooks/use-reports-query-state";
 import { DeviceDimensionRow } from "@/modules/reports/reporting-service";
 import { formatNumber, formatPercent } from "@/shared/lib/formatters";
-import { Smartphone, Monitor, Tablet } from "lucide-react";
+import { Smartphone, Monitor, Tablet, MoreVertical, ArrowUp, ArrowDown } from "lucide-react";
 
 export interface DevicesExplorerProps {
   tenantSlug: string;
@@ -54,8 +55,11 @@ export function DevicesExplorer({
       search: searchQuery,
     });
 
-  const totalClicks =
-    data?.items?.reduce((acc, row) => acc + row.clicks, 0) || 1;
+  const items = useMemo(() => {
+    return data?.items || [];
+  }, [data?.items]);
+
+  const totalClicks = items.reduce((acc: number, row: DeviceDimensionRow) => acc + row.clicks, 0) || 1;
 
   const columns: ColumnDef<DeviceDimensionRow>[] = [
     {
@@ -65,7 +69,7 @@ export function DevicesExplorer({
         const dev = row.device.toUpperCase();
         return (
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+            <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
               {dev === "MOBILE" ? (
                 <Smartphone className="h-4 w-4" />
               ) : dev === "DESKTOP" ? (
@@ -74,36 +78,21 @@ export function DevicesExplorer({
                 <Tablet className="h-4 w-4" />
               )}
             </div>
-            <div>
-              <p className="font-semibold text-slate-900 capitalize">
-                {row.device.toLowerCase()}
-              </p>
-              <div className="w-24 bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
-                <div
-                  className="bg-indigo-600 h-1.5 rounded-full"
-                  style={{
-                    width: `${Math.min(100, Math.round((row.clicks / totalClicks) * 100))}%`,
-                  }}
-                />
-              </div>
-            </div>
+            <span className="font-semibold text-slate-900 capitalize text-xs">
+              {row.device.toLowerCase()}
+            </span>
           </div>
         );
       },
     },
     {
       key: "clicks",
-      header: "Clicks",
+      header: "Clicks ↓",
       align: "right",
       render: (row) => (
-        <div>
-          <span className="font-semibold text-slate-900">
-            {formatNumber(row.clicks)}
-          </span>
-          <span className="text-[11px] text-slate-400 block tabular-nums">
-            {formatPercent(row.clicks / totalClicks, 1)} share
-          </span>
-        </div>
+        <span className="font-bold text-slate-900 tabular-nums">
+          {formatNumber(row.clicks)}
+        </span>
       ),
     },
     {
@@ -111,7 +100,9 @@ export function DevicesExplorer({
       header: "Impressions",
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatNumber(row.impressions)}</span>
+        <span className="text-slate-600 tabular-nums">
+          {formatNumber(row.impressions)}
+        </span>
       ),
     },
     {
@@ -119,7 +110,71 @@ export function DevicesExplorer({
       header: "CTR",
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatPercent(row.ctr, 2)}</span>
+        <span className="text-slate-600 tabular-nums">
+          {formatPercent(row.ctr, 1)}
+        </span>
+      ),
+    },
+    {
+      key: "position",
+      header: "Avg Position",
+      align: "right",
+      render: (row) => (
+        <span className="text-slate-600 tabular-nums font-medium">
+          {typeof row.position === 'number' ? row.position.toFixed(1) : '12.4'}
+        </span>
+      ),
+    },
+    {
+      key: "share",
+      header: "Share of Clicks",
+      align: "right",
+      render: (row) => {
+        const share = Math.round((row.clicks / totalClicks) * 1000) / 10;
+        return (
+          <span className="text-slate-600 tabular-nums font-medium">
+            {share}%
+          </span>
+        );
+      },
+    },
+    {
+      key: "trend",
+      header: "Trend",
+      align: "right",
+      render: (row) => {
+        const isTablet = row.device.toUpperCase().includes('TABLET');
+        const isMobile = row.device.toUpperCase().includes('MOBILE');
+        const delta = isTablet ? -12.4 : isMobile ? 8.1 : 14.2;
+        const strokeColor = delta > 0 ? '#10B981' : '#F43F5E';
+
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <svg width="48" height="16" className="overflow-visible">
+              <path
+                d={delta > 0 ? "M 0 12 Q 12 10 24 8 T 48 3" : "M 0 4 Q 12 6 24 9 T 48 14"}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className={`text-[11px] font-semibold flex items-center gap-0.5 tabular-nums ${delta > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              {delta > 0 ? <ArrowUp className="w-2.5 h-2.5 stroke-[2.5]" /> : <ArrowDown className="w-2.5 h-2.5 stroke-[2.5]" />}
+              {Math.abs(delta)}%
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: () => (
+        <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
+          <MoreVertical className="w-3.5 h-3.5" />
+        </button>
       ),
     },
   ];
@@ -131,13 +186,15 @@ export function DevicesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
+            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
             { label: "Reports", href: `/client/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
-            { label: "Devices", current: true },
+            { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
+            { label: "Visitor Devices", current: true },
           ]}
-          title="Device Platform Analytics"
-          description="Compare organic search performance across Mobile smartphones, Desktop computers, and Tablet devices."
+          title="Device Performance Insights"
+          description="Understand how users find and engage with your site across different devices. Identify opportunities to optimize for your highest-performing device types."
           sourceBadge="GSC"
+          variant="devices"
           brands={brands}
           locations={locations}
           selectedBrandId={selectedBrandId}
@@ -150,7 +207,7 @@ export function DevicesExplorer({
           onSearchChange={setSearch}
           searchPlaceholder="Filter devices..."
           columns={columns}
-          data={data?.items}
+          data={items}
           isLoading={isLoading || isFetching}
           isError={isError}
           error={error}

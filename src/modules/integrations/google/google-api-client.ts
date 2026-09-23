@@ -59,13 +59,25 @@ interface RawGscSiteEntry {
 export class GoogleApiClient {
   /**
    * Discovers GBP accounts and locations accessible to this token.
+   *
+   * Handles three account types returned by the Google Account Management API:
+   *   - PERSONAL / LOCATION_GROUP: can list locations directly.
+   *   - ORGANIZATION (Business Manager): cannot list locations directly; must
+   *     first fetch its child location-group sub-accounts, then list locations
+   *     from each child. Silently skipping ORGANIZATION accounts is the root
+   *     cause of "No Store Locations Found" when a business is managed through
+   *     Business Manager.
+   *
+   * A synthetic wildcard account ("accounts/-") is also queried to catch any
+   * locations the user manages directly that are not returned by the accounts
+   * API. Locations are deduplicated by resource name across all sources.
    */
   public static async discoverGbpResources(
     accessToken: string,
   ): Promise<DiscoveredResourceAccount[]> {
 
     try {
-      // 1. Fetch Accounts
+      // 1. Fetch top-level accounts
       const accountsRes = await fetch(
         "https://mybusinessaccountmanagement.googleapis.com/v1/accounts",
         { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -83,22 +95,69 @@ export class GoogleApiClient {
       }
 
       const accountsData = await accountsRes.json();
-      const accounts = (accountsData.accounts || []) as Array<{
+      const topLevelAccounts = (accountsData.accounts || []) as Array<{
         name: string;
         accountName?: string;
+        type?: string; // PERSONAL, LOCATION_GROUP, ORGANIZATION, USER_GROUP
       }>;
-      
-      // Add the wildcard account to ensure we discover locations the user manages directly
-      // which may not be part of a formal location group returned by the accounts API.
-      accounts.unshift({
+
+      // 2. Expand ORGANIZATION accounts into their child location-group sub-accounts.
+      //    Business Manager accounts (type === 'ORGANIZATION') do not own locations
+      //    directly — their child LOCATION_GROUP accounts do. The old code silently
+      //    skipped these via the `continue` on a failed locations fetch, which is
+      //    why "Lakshmi food" (under a Business Manager org) was never discovered.
+      const expandedAccounts: Array<{ name: string; accountName?: string }> = [];
+
+      for (const acc of topLevelAccounts) {
+        if (acc.type === "ORGANIZATION") {
+          logger.info(
+            { account: acc.name },
+            "GBP account is ORGANIZATION (Business Manager); fetching child location groups",
+          );
+          const subRes = await fetch(
+            `https://mybusinessaccountmanagement.googleapis.com/v1/${acc.name}/accounts`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+          if (subRes.ok) {
+            const subData = await subRes.json();
+            const subAccounts = (subData.accounts || []) as Array<{
+              name: string;
+              accountName?: string;
+            }>;
+            expandedAccounts.push(...subAccounts);
+          } else {
+            // Could not fetch sub-accounts; fall back to querying the org directly
+            logger.warn(
+              { account: acc.name, status: subRes.status },
+              "Failed to fetch sub-accounts for ORGANIZATION; falling back to direct query",
+            );
+            expandedAccounts.push(acc);
+          }
+        } else {
+          expandedAccounts.push(acc);
+        }
+      }
+
+      // 3. Prepend wildcard account to capture directly managed locations that
+      //    may not appear under any formal location group.
+      expandedAccounts.unshift({
         name: "accounts/-",
         accountName: "Directly Managed Locations",
       });
 
-      const result: DiscoveredResourceAccount[] = [];
+      // Deduplicate accounts by name before querying locations
+      const seenAccountNames = new Set<string>();
+      const uniqueAccounts = expandedAccounts.filter((acc) => {
+        if (seenAccountNames.has(acc.name)) return false;
+        seenAccountNames.add(acc.name);
+        return true;
+      });
 
-      for (const acc of accounts) {
-        // 2. Fetch locations for each account
+      // 4. Fetch locations for each resolved account and deduplicate by location name
+      const result: DiscoveredResourceAccount[] = [];
+      const seenLocationNames = new Set<string>();
+
+      for (const acc of uniqueAccounts) {
         const locRes = await fetch(
           `https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title,storeCode,storefrontAddress,metadata`,
           { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -106,7 +165,7 @@ export class GoogleApiClient {
 
         if (!locRes.ok) {
           logger.warn(
-            { account: acc.name },
+            { account: acc.name, status: locRes.status },
             "Failed to list locations for account",
           );
           continue;
@@ -115,11 +174,20 @@ export class GoogleApiClient {
         const locData = await locRes.json();
         const locations = (locData.locations || []) as RawGbpLocation[];
 
+        // Filter out locations already seen from another account (deduplication)
+        const uniqueLocations = locations.filter((loc) => {
+          if (seenLocationNames.has(loc.name)) return false;
+          seenLocationNames.add(loc.name);
+          return true;
+        });
+
+        if (uniqueLocations.length === 0) continue;
+
         result.push({
           externalAccountId: acc.name,
           accountName: acc.accountName || acc.name,
           provider: "GOOGLE_BUSINESS_PROFILE",
-          resources: locations.map((loc) => {
+          resources: uniqueLocations.map((loc) => {
             const addressObj = loc.storefrontAddress || {};
             const addressLines = addressObj.addressLines || [];
             return {

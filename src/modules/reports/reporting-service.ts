@@ -82,6 +82,7 @@ export interface DeviceDimensionRow {
   clicks: number;
   impressions: number;
   ctr: number;
+  position?: number;
 }
 
 export interface CountryDimensionRow {
@@ -785,15 +786,28 @@ export class ReportingService {
       if (dimension === 'device') {
         if (propertyIds.length === 0) return { items: [], totalCount: 0, page, pageSize };
         const deviceMetrics = await tx.gscDailyDeviceMetric.findMany({
-          where: { tenantId, propertyId: { in: propertyIds } },
+          where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
         });
 
-        const items: DeviceDimensionRow[] = deviceMetrics.map((dm) => ({
-          device: dm.device,
-          clicks: dm.clicks,
-          impressions: dm.impressions,
-          ctr: dm.impressions > 0 ? Math.round((dm.clicks / dm.impressions) * 10000) / 10000 : 0,
+        const deviceMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+        for (const dm of deviceMetrics) {
+          const key = dm.device;
+          const curr = deviceMap.get(key) || { clicks: 0, impressions: 0, sumPos: 0 };
+          curr.clicks += dm.clicks;
+          curr.impressions += dm.impressions;
+          curr.sumPos += dm.sumPositionImpressions;
+          deviceMap.set(key, curr);
+        }
+
+        const items: DeviceDimensionRow[] = Array.from(deviceMap.entries()).map(([device, stats]) => ({
+          device,
+          clicks: stats.clicks,
+          impressions: stats.impressions,
+          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+          position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
         }));
+
+        items.sort((a, b) => b.clicks - a.clicks);
 
         return { items, totalCount: items.length, page, pageSize };
       }

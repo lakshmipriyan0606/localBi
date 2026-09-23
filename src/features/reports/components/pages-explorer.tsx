@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DrilldownView, ColumnDef } from "./drilldown-view";
 import { useReportsDrilldown } from "../hooks/use-reports";
 import { useReportsQueryState } from "../hooks/use-reports-query-state";
@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MoreVertical } from "lucide-react";
 
 export interface PagesExplorerProps {
   tenantSlug: string;
@@ -80,17 +80,28 @@ export function PagesExplorer({
       sortOrder,
     });
 
+  const items = useMemo(() => {
+    return data?.items || [];
+  }, [data?.items]);
+
   const columns: ColumnDef<PageDimensionRow>[] = [
+    {
+      key: "rank",
+      header: "#",
+      render: (_row, idx) => (
+        <span className="text-slate-400 font-semibold text-[11px]">{idx + 1}</span>
+      ),
+    },
     {
       key: "fullUrl",
       header: "Landing Page URL",
       sortable: true,
       render: (row) => (
-        <div className="flex items-center gap-2 max-w-[480px]">
+        <div className="flex items-center gap-1.5 max-w-[380px]">
           <button
             type="button"
             onClick={() => setSelectedPageRow(row)}
-            className="text-left font-mono text-xs text-indigo-700 hover:text-indigo-900 hover:underline truncate cursor-pointer"
+            className="text-left font-mono text-xs text-indigo-700 hover:text-indigo-900 hover:underline truncate cursor-pointer font-medium"
             title={row.fullUrl}
           >
             {row.fullUrl}
@@ -108,12 +119,31 @@ export function PagesExplorer({
       ),
     },
     {
+      key: "section",
+      header: "Section",
+      render: (row) => {
+        let path = '/';
+        try {
+          path = new URL(row.fullUrl).pathname || '/';
+        } catch {
+          path = row.fullUrl.replace(/^https?:\/\/[^/]+/, '') || '/';
+        }
+        const name = path === '/' ? 'Home' : path.replace(/^\//, '').split('/')[0] || 'Home';
+        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+        return (
+          <span className="text-slate-600 font-medium text-xs">
+            {formattedName}
+          </span>
+        );
+      },
+    },
+    {
       key: "clicks",
-      header: "Clicks",
+      header: "Clicks ↓",
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="font-semibold text-slate-900">
+        <span className="font-bold text-slate-900 tabular-nums">
           {formatNumber(row.clicks)}
         </span>
       ),
@@ -124,7 +154,7 @@ export function PagesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatNumber(row.impressions)}</span>
+        <span className="text-slate-600 tabular-nums">{formatNumber(row.impressions)}</span>
       ),
     },
     {
@@ -133,7 +163,7 @@ export function PagesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatPercent(row.ctr, 2)}</span>
+        <span className="text-slate-600 tabular-nums">{formatPercent(row.ctr, 1)}</span>
       ),
     },
     {
@@ -142,17 +172,37 @@ export function PagesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span
-          className={`font-medium ${
-            row.position <= 3
-              ? "text-emerald-700"
-              : row.position <= 10
-                ? "text-indigo-700"
-                : "text-slate-600"
-          }`}
-        >
+        <span className="text-slate-600 tabular-nums font-medium">
           {formatPosition(row.position, 1)}
         </span>
+      ),
+    },
+    {
+      key: "trend",
+      header: "Trend",
+      align: "right",
+      render: () => (
+        <div className="flex items-center justify-end">
+          <svg width="48" height="16" className="overflow-visible">
+            <path
+              d="M 0 12 Q 12 10 24 6 T 48 3"
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: () => (
+        <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
+          <MoreVertical className="w-3.5 h-3.5" />
+        </button>
       ),
     },
   ];
@@ -164,13 +214,15 @@ export function PagesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
+            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
             { label: "Reports", href: `/client/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
-            { label: "Pages", current: true },
+            { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
+            { label: "Top Website Pages", current: true },
           ]}
           title="Landing Pages Explorer"
-          description="Review Google Search traffic distributed across individual website URLs and content sections."
+          description="Review Google Search traffic across your website's top landing pages. Identify which pages are driving traffic, engagement, and opportunities for growth."
           sourceBadge="GSC"
+          variant="pages"
           brands={brands}
           locations={locations}
           selectedBrandId={selectedBrandId}
@@ -183,7 +235,7 @@ export function PagesExplorer({
           onSearchChange={setSearch}
           searchPlaceholder="Filter pages by URL path..."
           columns={columns}
-          data={data?.items}
+          data={items}
           isLoading={isLoading || isFetching}
           isError={isError}
           error={error}

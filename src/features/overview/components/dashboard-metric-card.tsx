@@ -102,8 +102,10 @@ const COLOR_THEMES: Record<string, ThemeColors> = {
 
 export interface DashboardMetricCardProps {
   label: string;
-  value: number;
+  value: number | string;
+  sublabel?: string | undefined;
   delta?: number | undefined;
+  vsLabel?: string | undefined;
   icon: string;
   color: string;
   sparkColor?: string | undefined;
@@ -119,7 +121,9 @@ export interface DashboardMetricCardProps {
 export function DashboardMetricCard({
   label,
   value,
+  sublabel,
   delta,
+  vsLabel,
   icon,
   color,
   sparkColor,
@@ -135,7 +139,12 @@ export function DashboardMetricCard({
   const theme = COLOR_THEMES[color] ?? DEFAULT_THEME;
   const spark = sparkColor || theme.sparkColor;
 
-  const formattedValue = suffix ? `${value}${suffix}` : value.toLocaleString('en-US');
+  const formattedValue =
+    typeof value === 'string'
+      ? value
+      : suffix
+      ? `${value}${suffix}`
+      : value.toLocaleString('en-US');
   const hasDelta = typeof delta === 'number' && !isNaN(delta);
   const isPositive = hasDelta ? (invertDelta ? delta < 0 : delta > 0) : false;
   const ArrowIcon = isPositive ? ArrowUp : ArrowDown;
@@ -146,7 +155,7 @@ export function DashboardMetricCard({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       className={cn(
-        'bg-white rounded-2xl border p-3 flex flex-col justify-between h-[108px] overflow-hidden transition-all duration-200 select-none relative',
+        'bg-white rounded-2xl border p-3 flex flex-col justify-between min-h-[112px] overflow-hidden transition-all duration-200 select-none relative',
         onClick ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default shadow-[0_1px_3px_rgba(15,23,42,0.03)]',
         isActive ? 'ring-2 ring-inset border-transparent' : 'border-slate-200/80',
         className
@@ -194,31 +203,56 @@ export function DashboardMetricCard({
       {/* Bottom row: value & delta on left, sparkline on right */}
       <div className="flex items-end justify-between gap-1 mt-1 relative z-10">
         <div className="flex-shrink-0">
-          <div className={cn(
-            "text-[21px] font-bold tracking-tight leading-none tabular-nums",
-            isActive ? "text-white" : "text-slate-900"
-          )}>
+          <div
+            className={cn(
+              "text-[21px] font-bold tracking-tight leading-none tabular-nums truncate max-w-[140px] sm:max-w-[160px]",
+              isActive ? "text-white" : "text-slate-900"
+            )}
+            title={typeof value === 'string' ? value : undefined}
+          >
             {formattedValue}
           </div>
           {hasDelta ? (
-            <div
-              className={cn(
-                'flex items-center gap-0.5 mt-1 text-[11px] font-bold',
-                isActive ? 'text-white/90' : (isPositive ? 'text-emerald-600' : 'text-rose-600')
-              )}
-            >
-              <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
-              <span>
-                {delta > 0 ? '+' : ''}
-                {delta}%
+            <div className="flex flex-col mt-1">
+              <div
+                className={cn(
+                  'flex items-center gap-0.5 text-[11px] font-bold leading-tight',
+                  isActive ? 'text-white/90' : (isPositive ? 'text-emerald-600' : 'text-rose-600')
+                )}
+              >
+                <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
+                <span>
+                  {delta > 0 ? '' : ''}
+                  {Math.abs(delta)}%
+                </span>
+              </div>
+              <span
+                className={cn(
+                  "text-[9.5px] font-normal leading-tight mt-0.5 whitespace-nowrap",
+                  isActive ? "text-white/70" : "text-slate-400"
+                )}
+              >
+                {vsLabel || 'vs previous 30 days'}
               </span>
             </div>
+          ) : sublabel ? (
+            <div
+              className={cn(
+                "text-[11px] font-medium mt-1 truncate max-w-[140px] sm:max-w-[160px]",
+                isActive ? "text-white/80" : "text-slate-500"
+              )}
+              title={sublabel}
+            >
+              {sublabel}
+            </div>
           ) : (
-            <div className={cn(
-              "text-[11px] font-medium mt-1",
-              isActive ? "text-white/70" : "text-slate-400"
-            )}>
-              Awaiting data
+            <div
+              className={cn(
+                "text-[11px] font-medium mt-1",
+                isActive ? "text-white/70" : "text-slate-400"
+              )}
+            >
+              Current period
             </div>
           )}
         </div>

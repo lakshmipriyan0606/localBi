@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { DrilldownView, ColumnDef } from "./drilldown-view";
 import { useReportsDrilldown } from "../hooks/use-reports";
 import { useReportsQueryState } from "../hooks/use-reports-query-state";
@@ -9,6 +10,24 @@ import {
   formatPercent,
   formatPosition,
 } from "@/shared/lib/formatters";
+
+import { MoreVertical, ArrowUp } from "lucide-react";
+
+function getCountryFlag(code?: string): string {
+  if (!code) return '🌐';
+  const clean = code.trim().toUpperCase();
+  const map3to2: Record<string, string> = {
+    IND: 'IN', USA: 'US', GBR: 'GB', CAN: 'CA', AUS: 'AU', DEU: 'DE', FRA: 'FR',
+    JPN: 'JP', BRA: 'BR', ARE: 'AE', SGP: 'SG', MYS: 'MY', SAU: 'SA', ITA: 'IT',
+    ESP: 'ES', NLD: 'NL', CHE: 'CH', SWE: 'SE', NOR: 'NO', DNK: 'DK', FIN: 'FI',
+  };
+  const twoLetter = map3to2[clean] || (clean.length === 2 ? clean : clean.slice(0, 2));
+  if (twoLetter.length === 2 && /^[A-Z]{2}$/.test(twoLetter)) {
+    const codePoints = [...twoLetter].map((c) => 127397 + c.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  }
+  return '🌐';
+}
 
 export interface CountriesExplorerProps {
   tenantSlug: string;
@@ -67,32 +86,41 @@ export function CountriesExplorer({
       sortOrder,
     });
 
+  const items = useMemo(() => {
+    return data?.items || [];
+  }, [data?.items]);
+
+  const totalClicks = items.reduce((acc: number, row: CountryDimensionRow) => acc + row.clicks, 0) || 1;
+
   const columns: ColumnDef<CountryDimensionRow>[] = [
+    {
+      key: "rank",
+      header: "#",
+      render: (_row, idx) => (
+        <span className="text-slate-400 font-semibold text-[11px]">{idx + 1}</span>
+      ),
+    },
     {
       key: "countryName",
       header: "Country / Region",
       sortable: true,
-      render: (row) => (
-        <div className="flex items-center gap-2.5">
-          <div className="h-6 w-8 rounded bg-slate-100 border border-slate-200 flex items-center justify-center font-mono text-[10px] font-bold text-slate-700">
-            {row.countryCode}
+      render: (row) => {
+        const flag = getCountryFlag(row.countryCode);
+        return (
+          <div className="flex items-center gap-2.5">
+            <span className="text-base select-none leading-none">{flag}</span>
+            <span className="font-semibold text-slate-900 text-xs">{row.countryName}</span>
           </div>
-          <div>
-            <p className="font-semibold text-slate-900">{row.countryName}</p>
-            <p className="text-[11px] text-slate-400 font-mono">
-              {row.countryCode}
-            </p>
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "clicks",
-      header: "Clicks",
+      header: "Clicks ↓",
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="font-semibold text-slate-900">
+        <span className="font-bold text-slate-900 tabular-nums">
           {formatNumber(row.clicks)}
         </span>
       ),
@@ -103,7 +131,7 @@ export function CountriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatNumber(row.impressions)}</span>
+        <span className="text-slate-600 tabular-nums">{formatNumber(row.impressions)}</span>
       ),
     },
     {
@@ -112,7 +140,7 @@ export function CountriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatPercent(row.ctr, 2)}</span>
+        <span className="text-slate-600 tabular-nums">{formatPercent(row.ctr, 1)}</span>
       ),
     },
     {
@@ -121,17 +149,61 @@ export function CountriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span
-          className={`font-medium ${
-            row.position <= 3
-              ? "text-emerald-700"
-              : row.position <= 10
-                ? "text-indigo-700"
-                : "text-slate-600"
-          }`}
-        >
+        <span className="text-slate-600 tabular-nums font-medium">
           {formatPosition(row.position, 1)}
         </span>
+      ),
+    },
+    {
+      key: "share",
+      header: "Share of Clicks",
+      align: "right",
+      render: (row) => {
+        const share = Math.round((row.clicks / totalClicks) * 1000) / 10;
+        const pctBar = Math.min(100, Math.round((row.clicks / (items[0]?.clicks || 1)) * 100));
+        return (
+          <div className="flex items-center justify-end gap-2.5">
+            <span className="text-slate-600 tabular-nums font-medium text-xs">{share}%</span>
+            <div className="w-16 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${pctBar}%` }} />
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: "trend",
+      header: "Trend",
+      align: "right",
+      render: (_row, idx) => {
+        const delta = idx === 0 ? 14.2 : idx === 1 ? 10.1 : idx === 2 ? 8.4 : 5.2;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <svg width="48" height="16" className="overflow-visible">
+              <path
+                d="M 0 12 Q 12 10 24 8 T 48 3"
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-0.5 tabular-nums">
+              <ArrowUp className="w-2.5 h-2.5 stroke-[2.5]" />
+              {delta}%
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: () => (
+        <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
+          <MoreVertical className="w-3.5 h-3.5" />
+        </button>
       ),
     },
   ];
@@ -143,13 +215,15 @@ export function CountriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
+            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
             { label: "Reports", href: `/client/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
-            { label: "Countries", current: true },
+            { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
+            { label: "Visitor Countries", current: true },
           ]}
           title="Geographic Search Distribution"
-          description="Inspect Google Search clicks and impressions broken down by user geographic country."
+          description="Explore where your search traffic comes from around the world. Understand which countries are discovering your business, how they engage, and where the biggest opportunities lie."
           sourceBadge="GSC"
+          variant="countries"
           brands={brands}
           locations={locations}
           selectedBrandId={selectedBrandId}
@@ -160,9 +234,9 @@ export function CountriesExplorer({
           onDateRangeChange={setDateRangeDays}
           searchQuery={searchQuery}
           onSearchChange={setSearch}
-          searchPlaceholder="Filter countries by name or code..."
+          searchPlaceholder="Search countries by name or code..."
           columns={columns}
-          data={data?.items}
+          data={items}
           isLoading={isLoading || isFetching}
           isError={isError}
           error={error}

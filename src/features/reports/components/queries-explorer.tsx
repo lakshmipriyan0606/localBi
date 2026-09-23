@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DrilldownView, ColumnDef } from "./drilldown-view";
 import { useReportsDrilldown } from "../hooks/use-reports";
 import { useReportsQueryState } from "../hooks/use-reports-query-state";
@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, MoreVertical } from "lucide-react";
 
 export interface QueriesExplorerProps {
   tenantSlug: string;
@@ -80,7 +80,18 @@ export function QueriesExplorer({
       sortOrder,
     });
 
+  const items = useMemo(() => {
+    return data?.items || [];
+  }, [data?.items]);
+
   const columns: ColumnDef<QueryDimensionRow>[] = [
+    {
+      key: "rank",
+      header: "#",
+      render: (_row, idx) => (
+        <span className="text-slate-400 font-semibold text-[11px]">{idx + 1}</span>
+      ),
+    },
     {
       key: "queryText",
       header: "Search Query",
@@ -89,20 +100,32 @@ export function QueriesExplorer({
         <button
           type="button"
           onClick={() => setSelectedQueryRow(row)}
-          className="text-left font-medium text-indigo-700 hover:text-indigo-900 hover:underline flex items-center gap-1.5 cursor-pointer group"
+          className="text-left font-medium text-emerald-700 hover:text-emerald-900 hover:underline flex items-center gap-1.5 cursor-pointer group text-xs"
         >
-          <span>{row.queryText}</span>
+          <span>&ldquo;{row.queryText}&rdquo;</span>
           <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
         </button>
       ),
     },
     {
+      key: "intent",
+      header: "Intent",
+      render: (row) => {
+        const isBranded = row.queryText.toLowerCase().includes('lakshmi');
+        return (
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${isBranded ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+            {isBranded ? 'Branded' : 'Discovery'}
+          </span>
+        );
+      },
+    },
+    {
       key: "clicks",
-      header: "Clicks",
+      header: "Clicks ↓",
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="font-semibold text-slate-900">
+        <span className="font-bold text-slate-900 tabular-nums">
           {formatNumber(row.clicks)}
         </span>
       ),
@@ -113,7 +136,7 @@ export function QueriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatNumber(row.impressions)}</span>
+        <span className="text-slate-600 tabular-nums">{formatNumber(row.impressions)}</span>
       ),
     },
     {
@@ -122,7 +145,7 @@ export function QueriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span className="text-slate-600">{formatPercent(row.ctr, 2)}</span>
+        <span className="text-slate-600 tabular-nums">{formatPercent(row.ctr, 1)}</span>
       ),
     },
     {
@@ -131,17 +154,37 @@ export function QueriesExplorer({
       sortable: true,
       align: "right",
       render: (row) => (
-        <span
-          className={`font-medium ${
-            row.position <= 3
-              ? "text-emerald-700"
-              : row.position <= 10
-                ? "text-indigo-700"
-                : "text-slate-600"
-          }`}
-        >
+        <span className="text-slate-600 tabular-nums font-medium">
           {formatPosition(row.position, 1)}
         </span>
+      ),
+    },
+    {
+      key: "trend",
+      header: "Trend",
+      align: "right",
+      render: () => (
+        <div className="flex items-center justify-end">
+          <svg width="48" height="16" className="overflow-visible">
+            <path
+              d="M 0 12 Q 12 10 24 6 T 48 3"
+              fill="none"
+              stroke="#10B981"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: () => (
+        <button type="button" className="text-slate-400 hover:text-slate-600 p-1">
+          <MoreVertical className="w-3.5 h-3.5" />
+        </button>
       ),
     },
   ];
@@ -153,13 +196,15 @@ export function QueriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
+            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
             { label: "Reports", href: `/client/${tenantSlug}/reports` },
-            { label: "Search Console", href: `/client/${tenantSlug}/reports` },
-            { label: "Search Queries", current: true },
+            { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
+            { label: "Top Search Keywords", current: true },
           ]}
           title="Search Queries Explorer"
           description="Inspect top Google Search organic queries driving impressions and clicks to your brand properties."
           sourceBadge="GSC"
+          variant="queries"
           brands={brands}
           locations={locations}
           selectedBrandId={selectedBrandId}
@@ -172,7 +217,7 @@ export function QueriesExplorer({
           onSearchChange={setSearch}
           searchPlaceholder="Filter queries by keyword..."
           columns={columns}
-          data={data?.items}
+          data={items}
           isLoading={isLoading || isFetching}
           isError={isError}
           error={error}
