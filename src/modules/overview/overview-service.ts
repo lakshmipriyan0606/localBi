@@ -128,15 +128,16 @@ export class OverviewService {
       throw createTenantAccessDeniedError(tenantId);
     }
 
-    // 1. Fetch real tenant profile, entities, AND connection state from Database
-    const { tenant, locations, brands, connections, mappingCount } =
-      await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-        const t = await tx.tenant.findUnique({
-          where: { id: tenantId },
-          select: { id: true, name: true, slug: true },
-        });
+    // 1. Fetch all data in a single RLS transaction (previously split across two transactions)
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // Tenant profile, entities, and connection state
+      const t = await tx.tenant.findUnique({
+        where: { id: tenantId },
+        select: { id: true, name: true, slug: true },
+      });
 
-        const locs = await tx.location.findMany({
+      const [locs, brs, conns] = await Promise.all([
+        tx.location.findMany({
           where: { tenantId, isArchived: false },
           select: {
             id: true,
@@ -147,43 +148,37 @@ export class OverviewService {
             storeCode: true,
           },
           orderBy: { name: 'asc' },
-        });
-
-        const brs = await tx.brand.findMany({
+        }),
+        tx.brand.findMany({
           where: { tenantId, isArchived: false },
           select: { id: true, name: true, slug: true },
           orderBy: { name: 'asc' },
-        });
-
-        // Fetch active Google connections for this tenant
-        const conns = await tx.integrationConnection.findMany({
+        }),
+        tx.integrationConnection.findMany({
           where: { tenantId, status: 'ACTIVE' },
           select: { id: true, externalEmail: true },
           take: 1,
-        });
+        }),
+      ]);
 
-        // Count how many internal resources have been mapped
-        const mappedCount = await tx.internalResourceMapping.count({
-          where: { tenantId },
-        });
+      const mappedCount = await tx.internalResourceMapping.count({ where: { tenantId } });
 
-        return { tenant: t, locations: locs, brands: brs, connections: conns, mappingCount: mappedCount };
-      });
+      const tenant = t;
+      const locations = locs;
+      const brands = brs;
+      const connections = conns;
+      const mappingCount = mappedCount;
 
-    const tenantName = tenant?.name || 'Organization';
-    const locationsCount = locations.length;
-    const brandsCount = brands.length;
-    const categoriesCount = Math.max(locationsCount * 2, brandsCount > 0 ? 8 : 0);
+      const tenantName = tenant?.name || 'Organization';
+      const locationsCount = locations.length;
+      const brandsCount = brands.length;
+      const categoriesCount = Math.max(locationsCount * 2, brandsCount > 0 ? 8 : 0);
 
-    // Derived connection state
-    const isConnected = connections.length > 0;
-    const isDataReady = isConnected && mappingCount > 0;
-    const externalEmail = connections[0]?.externalEmail ?? null;
+      const isConnected = connections.length > 0;
+      const isDataReady = isConnected && mappingCount > 0;
+      const externalEmail = connections[0]?.externalEmail ?? null;
 
-    // ---------------------------------------------------------------------------
-    // 3. REAL CLIENT: Query actual PostgreSQL tables (No hardcoded dental data!)
-    // ---------------------------------------------------------------------------
-    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // Analytics queries (30-day window)
       const end = new Date();
       const start = new Date();
       start.setDate(end.getDate() - 30);
@@ -297,7 +292,6 @@ export class OverviewService {
         const region: 'us' | 'india' | 'other' = isUS ? 'us' : isIN ? 'india' : 'other';
         const flag = isUS ? '🇺🇸' : isIN ? '🇮🇳' : '🌐';
 
-        // Coordinates based on city or sensible default
         const lat = isUS ? 39.7 + idx * 0.05 : isIN ? 13.0 + idx * 0.05 : 20.0 + idx * 0.5;
         const lng = isUS ? -104.9 - idx * 0.05 : isIN ? 80.2 + idx * 0.05 : 0.0 + idx * 1.0;
 
@@ -348,7 +342,7 @@ export class OverviewService {
         storeBadgeName: tenantName.toUpperCase().slice(0, 16),
         storeBadgeIcon: '🏢',
         marketingQuote: {
-          quote: `“Measurable local growth and customer reach for ${tenantName}.”`,
+          quote: `"Measurable local growth and customer reach for ${tenantName}."`,
           authorOrStore: tenantName,
         },
         gbp: {
@@ -360,7 +354,7 @@ export class OverviewService {
           directionsDelta: hasGbpData ? 0 : 0,
           reviews: 0,
           reviewsDelta: 0,
-          photoViews: gbpWebsiteClicks, // the UI might use this as a proxy for something else
+          photoViews: gbpWebsiteClicks,
           photoViewsDelta: 0,
           hasData: hasGbpData,
         },

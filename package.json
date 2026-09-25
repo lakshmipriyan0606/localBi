@@ -14,7 +14,8 @@
     "test:spikes": "vitest run spikes",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "verify": "node scripts/verify-pipeline.cjs"
+    "verify": "node scripts/verify-pipeline.cjs",
+    "worker": "tsx scripts/start-worker.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

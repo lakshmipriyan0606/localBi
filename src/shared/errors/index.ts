@@ -229,7 +229,6 @@ export function handleRouteError(
   }
 
   const actualError = error instanceof Error ? error.message : String(error);
-  const errorName = error instanceof Error ? error.name : 'UnknownError';
   const stack = error instanceof Error ? error.stack : undefined;
 
   logger.error(
@@ -266,10 +265,7 @@ export function handleRouteError(
       error: {
         code: ErrorCode.INTERNAL_SERVER_ERROR,
         message: fallbackMessage,
-        details: {
-          actualError,
-          errorType: errorName,
-        },
+        // Internal details are logged server-side only — never sent to clients
       },
     },
     { status: 500 }

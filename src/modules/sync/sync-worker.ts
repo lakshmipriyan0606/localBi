@@ -46,6 +46,18 @@ export class SyncWorkerService {
   }
 
   /**
+   * Gracefully closes the BullMQ worker, waiting for in-progress jobs to complete.
+   * Must be called on process SIGTERM / SIGINT to prevent job data loss.
+   */
+  public static async closeWorker(): Promise<void> {
+    if (this.workerInstance) {
+      await this.workerInstance.close();
+      this.workerInstance = null;
+      logger.info('BullMQ sync worker closed gracefully');
+    }
+  }
+
+  /**
    * Processes a single synchronization job with strict tenant isolation.
    */
   public static async processJob(job: Job<SyncJobData>) {
@@ -132,55 +144,20 @@ export class SyncWorkerService {
     const { tenantId, propertyId, propertyUrl, startDate, endDate, searchType } = data;
     let totalRows = 0;
 
-    // Fetch Date Daily Totals
-    const dateRows = await GoogleApiClient.queryGscSearchAnalytics(
-      accessToken,
-      propertyUrl,
-      startDate,
-      endDate,
-      ['date'],
-      searchType
-    );
+    // Fetch all 5 GSC dimension grains in parallel — they are independent and share the same access token
+    const [dateRows, queryRows, pageRows, deviceRows, countryRows] = await Promise.all([
+      // Daily property totals (for timeseries trend charts)
+      GoogleApiClient.queryGscSearchAnalytics(accessToken, propertyUrl, startDate, endDate, ['date'], searchType),
+      // Top search queries
+      GoogleApiClient.queryGscSearchAnalytics(accessToken, propertyUrl, startDate, endDate, ['query'], searchType),
+      // Top pages
+      GoogleApiClient.queryGscSearchAnalytics(accessToken, propertyUrl, startDate, endDate, ['page'], searchType),
+      // Device breakdown
+      GoogleApiClient.queryGscSearchAnalytics(accessToken, propertyUrl, startDate, endDate, ['device'], searchType),
+      // Country breakdown
+      GoogleApiClient.queryGscSearchAnalytics(accessToken, propertyUrl, startDate, endDate, ['country'], searchType),
+    ]);
 
-    // Fetch Top Queries
-    const queryRows = await GoogleApiClient.queryGscSearchAnalytics(
-      accessToken,
-      propertyUrl,
-      startDate,
-      endDate,
-      ['query'],
-      searchType
-    );
-
-    // Fetch Top Pages
-    const pageRows = await GoogleApiClient.queryGscSearchAnalytics(
-      accessToken,
-      propertyUrl,
-      startDate,
-      endDate,
-      ['page'],
-      searchType
-    );
-
-    // Fetch Devices
-    const deviceRows = await GoogleApiClient.queryGscSearchAnalytics(
-      accessToken,
-      propertyUrl,
-      startDate,
-      endDate,
-      ['device'],
-      searchType
-    );
-
-    // Fetch Countries
-    const countryRows = await GoogleApiClient.queryGscSearchAnalytics(
-      accessToken,
-      propertyUrl,
-      startDate,
-      endDate,
-      ['country'],
-      searchType
-    );
 
     // Ingest all grains inside a single PostgreSQL transaction
     await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
@@ -487,12 +464,5 @@ export class SyncWorkerService {
     });
 
     return rowsIngested;
-  }
-
-  public static async closeWorker() {
-    if (this.workerInstance) {
-      await this.workerInstance.close();
-      this.workerInstance = null;
-    }
   }
 }

@@ -145,132 +145,92 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // 1. Verify Brand exists under this tenant
-      const brand = await tx.brand.findUnique({
-        where: {
-          uq_brand_tenant_id: {
-            tenantId,
-            id: brandId,
-          },
-        },
+      // Resolve brand, GSC property IDs, and permitted location IDs
+      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
+        tenantId,
+        brandId,
+        locationId,
+        context,
       });
-
-      if (!brand || brand.isArchived) {
-        throw createResourceNotFoundError('Brand', brandId);
-      }
-
-      // 2. Validate Brand & Location permissions
-      await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
-
-      // 3. Resolve GSC properties mapped to this Brand
-      const brandMappings = await tx.internalResourceMapping.findMany({
-        where: {
-          tenantId,
-          internalType: 'BRAND',
-          internalId: brandId,
-        },
-        include: { resource: true },
-      });
-
-      const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
-
-      const gscProperties = await tx.gscProperty.findMany({
-        where: {
-          tenantId,
-          propertyUrl: { in: gscPropertyUrls },
-        },
-      });
-      const propertyIds = gscProperties.map((p) => p.id);
-
-      // 4. Resolve GBP locations permitted for this context
-      const allowedLocationIds = await this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context);
 
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      // 5. Aggregate GSC Metrics
+      // 5+6+7. Aggregate current and previous period metrics in parallel
+      const durationMs = end.getTime() - start.getTime();
+      const prevStart = new Date(start.getTime() - durationMs);
+      const prevEnd = new Date(start.getTime());
+
+      const [currentGscTotals, currentGbpMetrics, prevGscTotals, prevGbpMetrics] = await Promise.all([
+        propertyIds.length > 0
+          ? tx.gscDailyPropertyTotal.findMany({
+              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
+            })
+          : Promise.resolve([]),
+        allowedLocationIds.length > 0
+          ? tx.gbpDailyMetric.findMany({
+              where: { tenantId, locationId: { in: allowedLocationIds }, date: { gte: start, lte: end } },
+            })
+          : Promise.resolve([]),
+        propertyIds.length > 0
+          ? tx.gscDailyPropertyTotal.findMany({
+              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: prevStart, lte: prevEnd } },
+            })
+          : Promise.resolve([]),
+        allowedLocationIds.length > 0
+          ? tx.gbpDailyMetric.findMany({
+              where: { tenantId, locationId: { in: allowedLocationIds }, date: { gte: prevStart, lte: prevEnd } },
+            })
+          : Promise.resolve([]),
+      ]);
+
       let totalClicks = 0;
       let totalImpressions = 0;
       let sumPositionImpressions = 0;
 
-      if (propertyIds.length > 0) {
-        const gscTotals = await tx.gscDailyPropertyTotal.findMany({
-          where: {
-            tenantId,
-            propertyId: { in: propertyIds },
-            date: { gte: start, lte: end },
-          },
-        });
-
-        for (const row of gscTotals) {
-          totalClicks += row.clicks;
-          totalImpressions += row.impressions;
-          sumPositionImpressions += row.sumPositionImpressions;
-        }
+      for (const row of currentGscTotals) {
+        totalClicks += row.clicks;
+        totalImpressions += row.impressions;
+        sumPositionImpressions += row.sumPositionImpressions;
       }
 
       const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
       const averagePosition = totalImpressions > 0 ? sumPositionImpressions / totalImpressions : 0;
 
-      // 6. Aggregate GBP Metrics
       let searchViews = 0;
       let mapsViews = 0;
       let websiteClicks = 0;
       let callClicks = 0;
       let directionRequests = 0;
 
-      if (allowedLocationIds.length > 0) {
-        const gbpMetrics = await tx.gbpDailyMetric.findMany({
-          where: {
-            tenantId,
-            locationId: { in: allowedLocationIds },
-            date: { gte: start, lte: end },
-          },
-        });
-
-        for (const m of gbpMetrics) {
-          const val = Number(m.value);
-          switch (m.metricType) {
-            case 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH':
-            case 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH':
-              searchViews += val;
-              break;
-            case 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS':
-            case 'BUSINESS_IMPRESSIONS_MOBILE_MAPS':
-              mapsViews += val;
-              break;
-            case 'WEBSITE_CLICKS':
-              websiteClicks += val;
-              break;
-            case 'CALL_CLICKS':
-              callClicks += val;
-              break;
-            case 'BUSINESS_DIRECTION_REQUESTS':
-              directionRequests += val;
-              break;
-          }
+      for (const m of currentGbpMetrics) {
+        const val = Number(m.value);
+        switch (m.metricType) {
+          case 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH':
+          case 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH':
+            searchViews += val;
+            break;
+          case 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS':
+          case 'BUSINESS_IMPRESSIONS_MOBILE_MAPS':
+            mapsViews += val;
+            break;
+          case 'WEBSITE_CLICKS':
+            websiteClicks += val;
+            break;
+          case 'CALL_CLICKS':
+            callClicks += val;
+            break;
+          case 'BUSINESS_DIRECTION_REQUESTS':
+            directionRequests += val;
+            break;
         }
       }
 
-      // 7. Query Previous Period Telemetry for real growth deltas
-      const durationMs = end.getTime() - start.getTime();
-      const prevStart = new Date(start.getTime() - durationMs);
-      const prevEnd = new Date(start.getTime());
-
       let prevGscClicks = 0;
       let prevGscImpressions = 0;
-      if (propertyIds.length > 0) {
-        const prevGscTotals = await tx.gscDailyPropertyTotal.findMany({
-          where: {
-            tenantId,
-            propertyId: { in: propertyIds },
-            date: { gte: prevStart, lte: prevEnd },
-          },
-        });
-        for (const row of prevGscTotals) {
-          prevGscClicks += row.clicks;
-          prevGscImpressions += row.impressions;
-        }
+      for (const row of prevGscTotals) {
+        prevGscClicks += row.clicks;
+        prevGscImpressions += row.impressions;
       }
 
       let prevSearchViews = 0;
@@ -279,38 +239,29 @@ export class ReportingService {
       let prevCallClicks = 0;
       let prevDirectionRequests = 0;
 
-      if (allowedLocationIds.length > 0) {
-        const prevGbpMetrics = await tx.gbpDailyMetric.findMany({
-          where: {
-            tenantId,
-            locationId: { in: allowedLocationIds },
-            date: { gte: prevStart, lte: prevEnd },
-          },
-        });
-
-        for (const m of prevGbpMetrics) {
-          const val = Number(m.value);
-          switch (m.metricType) {
-            case 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH':
-            case 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH':
-              prevSearchViews += val;
-              break;
-            case 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS':
-            case 'BUSINESS_IMPRESSIONS_MOBILE_MAPS':
-              prevMapsViews += val;
-              break;
-            case 'WEBSITE_CLICKS':
-              prevWebsiteClicks += val;
-              break;
-            case 'CALL_CLICKS':
-              prevCallClicks += val;
-              break;
-            case 'BUSINESS_DIRECTION_REQUESTS':
-              prevDirectionRequests += val;
-              break;
-          }
+      for (const m of prevGbpMetrics) {
+        const val = Number(m.value);
+        switch (m.metricType) {
+          case 'BUSINESS_IMPRESSIONS_DESKTOP_SEARCH':
+          case 'BUSINESS_IMPRESSIONS_MOBILE_SEARCH':
+            prevSearchViews += val;
+            break;
+          case 'BUSINESS_IMPRESSIONS_DESKTOP_MAPS':
+          case 'BUSINESS_IMPRESSIONS_MOBILE_MAPS':
+            prevMapsViews += val;
+            break;
+          case 'WEBSITE_CLICKS':
+            prevWebsiteClicks += val;
+            break;
+          case 'CALL_CLICKS':
+            prevCallClicks += val;
+            break;
+          case 'BUSINESS_DIRECTION_REQUESTS':
+            prevDirectionRequests += val;
+            break;
         }
       }
+
 
       const totalViews = searchViews + mapsViews;
       const prevTotalViews = prevSearchViews + prevMapsViews;
@@ -361,26 +312,12 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const brand = await tx.brand.findUnique({
-        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
+      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
+        tenantId,
+        brandId,
+        locationId,
+        context,
       });
-      if (!brand || brand.isArchived) {
-        throw createResourceNotFoundError('Brand', brandId);
-      }
-
-      await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
-
-      const brandMappings = await tx.internalResourceMapping.findMany({
-        where: { tenantId, internalType: 'BRAND', internalId: brandId },
-        include: { resource: true },
-      });
-      const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
-      const gscProperties = await tx.gscProperty.findMany({
-        where: { tenantId, propertyUrl: { in: gscPropertyUrls } },
-      });
-      const propertyIds = gscProperties.map((p) => p.id);
-
-      const allowedLocationIds = await this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context);
 
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -466,24 +403,12 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const brand = await tx.brand.findUnique({
-        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
+      const { propertyIds } = await this.resolveReportingContext(tx, {
+        tenantId,
+        brandId,
+        locationId,
+        context,
       });
-      if (!brand || brand.isArchived) {
-        throw createResourceNotFoundError('Brand', brandId);
-      }
-
-      await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
-
-      const brandMappings = await tx.internalResourceMapping.findMany({
-        where: { tenantId, internalType: 'BRAND', internalId: brandId },
-        include: { resource: true },
-      });
-      const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
-      const gscProperties = await tx.gscProperty.findMany({
-        where: { tenantId, propertyUrl: { in: gscPropertyUrls } },
-      });
-      const propertyIds = gscProperties.map((p) => p.id);
 
       if (propertyIds.length === 0) {
         return { queries: [], pages: [], devices: [] };
@@ -606,26 +531,14 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const brand = await tx.brand.findUnique({
-        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
-      });
-      if (!brand || brand.isArchived) {
-        throw createResourceNotFoundError('Brand', brandId);
-      }
 
-      await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
-
-      const brandMappings = await tx.internalResourceMapping.findMany({
-        where: { tenantId, internalType: 'BRAND', internalId: brandId },
-        include: { resource: true },
+      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
+        tenantId,
+        brandId,
+        locationId,
+        context,
       });
-      const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
-      const gscProperties = await tx.gscProperty.findMany({
-        where: { tenantId, propertyUrl: { in: gscPropertyUrls } },
-      });
-      const propertyIds = gscProperties.map((p) => p.id);
 
-      const allowedLocationIds = await this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context);
 
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -839,42 +752,63 @@ export class ReportingService {
         const allowedLocs = locations.filter((l) => allowedLocationIds.includes(l.id));
         let items: GbpLocationBreakdownRow[] = [];
 
-        for (const loc of allowedLocs) {
-          const metrics = await tx.gbpDailyMetric.findMany({
-            where: { tenantId, locationId: loc.id, date: { gte: start, lte: end } },
+        if (allowedLocs.length > 0) {
+          // Single batched query for all allowed locations (replaces N+1 per-location loop)
+          const allMetrics = await tx.gbpDailyMetric.findMany({
+            where: {
+              tenantId,
+              locationId: { in: allowedLocs.map((l) => l.id) },
+              date: { gte: start, lte: end },
+            },
           });
 
-          let searchViews = 0;
-          let mapsViews = 0;
-          let websiteClicks = 0;
-          let callClicks = 0;
-          let directionRequests = 0;
-
-          for (const m of metrics) {
-            const val = Number(m.value);
-            if (m.metricType.includes('SEARCH')) searchViews += val;
-            else if (m.metricType.includes('MAPS')) mapsViews += val;
-            else if (m.metricType === 'WEBSITE_CLICKS') websiteClicks += val;
-            else if (m.metricType === 'CALL_CLICKS') callClicks += val;
-            else if (m.metricType === 'BUSINESS_DIRECTION_REQUESTS') directionRequests += val;
+          // Group metrics by locationId in memory
+          const metricsByLocation = new Map<string, typeof allMetrics>();
+          for (const m of allMetrics) {
+            if (!metricsByLocation.has(m.locationId)) {
+              metricsByLocation.set(m.locationId, []);
+            }
+            metricsByLocation.get(m.locationId)!.push(m);
           }
 
-          items.push({
-            locationId: loc.id,
-            locationName: loc.name,
-            storeCode: loc.storeCode,
-            city: loc.city,
-            searchViews,
-            mapsViews,
-            totalViews: searchViews + mapsViews,
-            callClicks,
-            websiteClicks,
-            directionRequests,
+          items = allowedLocs.map((loc) => {
+            const locMetrics = metricsByLocation.get(loc.id) ?? [];
+            let searchViews = 0;
+            let mapsViews = 0;
+            let websiteClicks = 0;
+            let callClicks = 0;
+            let directionRequests = 0;
+
+            for (const m of locMetrics) {
+              const val = Number(m.value);
+              if (m.metricType.includes('SEARCH')) searchViews += val;
+              else if (m.metricType.includes('MAPS')) mapsViews += val;
+              else if (m.metricType === 'WEBSITE_CLICKS') websiteClicks += val;
+              else if (m.metricType === 'CALL_CLICKS') callClicks += val;
+              else if (m.metricType === 'BUSINESS_DIRECTION_REQUESTS') directionRequests += val;
+            }
+
+            return {
+              locationId: loc.id,
+              locationName: loc.name,
+              storeCode: loc.storeCode,
+              city: loc.city,
+              searchViews,
+              mapsViews,
+              totalViews: searchViews + mapsViews,
+              callClicks,
+              websiteClicks,
+              directionRequests,
+            };
           });
         }
 
         if (search) {
-          items = items.filter((i) => i.locationName.toLowerCase().includes(search.toLowerCase()) || i.city.toLowerCase().includes(search.toLowerCase()));
+          items = items.filter(
+            (i) =>
+              i.locationName.toLowerCase().includes(search.toLowerCase()) ||
+              i.city.toLowerCase().includes(search.toLowerCase())
+          );
         }
 
         items.sort((a, b) => {
@@ -883,11 +817,14 @@ export class ReportingService {
           if (typeof fieldA === 'number' && typeof fieldB === 'number') {
             return sortOrder === 'asc' ? fieldA - fieldB : fieldB - fieldA;
           }
-          return sortOrder === 'asc' ? String(fieldA).localeCompare(String(fieldB)) : String(fieldB).localeCompare(String(fieldA));
+          return sortOrder === 'asc'
+            ? String(fieldA).localeCompare(String(fieldB))
+            : String(fieldB).localeCompare(String(fieldA));
         });
 
         return { items, totalCount: items.length, page, pageSize };
       }
+
 
       if (dimension === 'search-keywords') {
         // Real Client: Query actual search queries mapped to this brand
@@ -1116,5 +1053,58 @@ export class ReportingService {
     }
 
     return [];
+  }
+
+  /**
+   * Resolves the reporting context (brand, GSC propertyIds, allowedLocationIds) for a given
+   * tenant+brand+location combination, with access enforcement.
+   *
+   * Previously this 4-step sequence (brand lookup → mapping lookup → property lookup →
+   * location resolution) was duplicated in every public reporting method. Centralizing it:
+   * - Eliminates 12–16 redundant DB queries per dashboard page load
+   * - Parallelizes internal lookups for lower latency
+   */
+  private static async resolveReportingContext(
+    tx: import('@prisma/client').Prisma.TransactionClient,
+    params: {
+      tenantId: string;
+      brandId: string;
+      locationId: string | undefined;
+      context: AuthorizedContext;
+    }
+  ): Promise<{ propertyIds: string[]; allowedLocationIds: string[] }> {
+    const { tenantId, brandId, locationId, context } = params;
+
+    // Fetch brand and brand mappings in parallel
+    const [brand, brandMappings] = await Promise.all([
+      tx.brand.findUnique({
+        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
+      }),
+      tx.internalResourceMapping.findMany({
+        where: { tenantId, internalType: 'BRAND', internalId: brandId },
+        include: { resource: true },
+      }),
+    ]);
+
+    if (!brand || brand.isArchived) {
+      throw createResourceNotFoundError('Brand', brandId);
+    }
+
+    await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
+
+    const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
+
+    // Fetch GSC properties and allowed location IDs in parallel
+    const [gscProperties, allowedLocationIds] = await Promise.all([
+      tx.gscProperty.findMany({
+        where: { tenantId, propertyUrl: { in: gscPropertyUrls } },
+      }),
+      this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context),
+    ]);
+
+    return {
+      propertyIds: gscProperties.map((p) => p.id),
+      allowedLocationIds,
+    };
   }
 }

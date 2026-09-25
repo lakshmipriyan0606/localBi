@@ -229,7 +229,7 @@ export class SessionService {
   }
 
   /**
-   * Revokes a session by session ID.
+   * Revokes a single session by session ID (single device logout from other device view).
    */
   public static async revokeSessionById(sessionId: string, tx?: Prisma.TransactionClient): Promise<boolean> {
     const db = tx ?? prisma;
@@ -248,6 +248,34 @@ export class SessionService {
       return false;
     }
   }
+
+  /**
+   * Revokes a session by ID with strict user ownership enforcement.
+   * Prevents IDOR: only revokes if the session belongs to the specified userId.
+   */
+  public static async revokeSessionByIdForUser(
+    sessionId: string,
+    userId: string,
+    tx?: Prisma.TransactionClient
+  ): Promise<boolean> {
+    const db = tx ?? prisma;
+    try {
+      const result = await db.userSession.updateMany({
+        where: {
+          id: sessionId,
+          userId, // Ownership enforcement: session must belong to the authenticated user
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      });
+      return result.count > 0;
+    } catch {
+      return false;
+    }
+  }
+
 
   /**
    * Revokes all active sessions for a user (all-device signout, password reset, suspension).

@@ -52,7 +52,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await SessionService.revokeSessionById(sessionId);
+    await SessionService.revokeSessionByIdForUser(sessionId, user.id);
 
     return NextResponse.json({ success: true, message: 'Session revoked.' });
   } catch (error) {
