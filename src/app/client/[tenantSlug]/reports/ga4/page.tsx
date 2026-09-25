@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { Activity, Sparkles, Link2 } from "lucide-react";
+import {
+  Sparkles,
+  Link2,
+} from "lucide-react";
 import { SessionCookieManager } from "@/modules/auth/cookies";
 import { ContextResolver } from "@/modules/auth/context-resolver";
 import { prisma } from "@/shared/database/client";
@@ -10,19 +13,18 @@ import { TenantContextService } from "@/shared/database/tenant-context";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Ga4KpiGrid } from "@/features/reports/components/ga4-kpi-grid";
-import {
-  Ga4ChannelsTable,
-  Ga4ChannelRow,
-} from "@/features/reports/components/ga4-channels-table";
-import {
-  Ga4DevicesCard,
-  Ga4DeviceRow,
-} from "@/features/reports/components/ga4-devices-card";
+import { Ga4TabbedView } from "@/features/reports/components/ga4-tabbed-view";
+import { Ga4ChannelRow } from "@/features/reports/components/ga4-channels-table";
+import { Ga4DeviceRow } from "@/features/reports/components/ga4-devices-card";
+import { Ga4TrendPoint } from "@/features/reports/components/ga4-trend-chart";
+import { Ga4PageRow } from "@/features/reports/components/ga4-pages-table";
+import { Ga4QueryRow } from "@/features/reports/components/ga4-queries-table";
+import { Ga4CountryRow } from "@/features/reports/components/ga4-countries-card";
+import { Ga4StreamDetails } from "@/features/reports/components/ga4-stream-details";
 
 export const metadata: Metadata = {
   title: "Google Analytics 4 (GA4) — localBi",
-  description: "Website visitors, sessions, engagement, and traffic sources",
+  description: "Website visitors, sessions, engagement, queries, pages, and traffic sources",
 };
 
 export default async function Ga4ReportingPage({
@@ -38,10 +40,14 @@ export default async function Ga4ReportingPage({
   let resolved = null;
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
-  } catch {
+  } catch (err: any) {
+    console.error("GA4 RESOLVE CONTEXT ERROR:", err?.message || err);
     redirect("/login");
   }
-  if (!resolved.tenant || !resolved.authorizedContext) notFound();
+  if (!resolved.tenant || !resolved.authorizedContext) {
+    console.error("GA4 RESOLVED NULL TENANT OR AUTH:", resolved);
+    notFound();
+  }
 
   const { tenant } = resolved;
   const isDemo =
@@ -114,8 +120,124 @@ export default async function Ga4ReportingPage({
       ]
     : [];
 
+  let realPages: Ga4PageRow[] = isDemo
+    ? [
+        {
+          url: "https://abcdental.com/",
+          sessions: 28450,
+          impressions: 124000,
+          ctr: 22.9,
+          position: 2.1,
+          share: "42.5%",
+        },
+        {
+          url: "https://abcdental.com/services/teeth-whitening",
+          sessions: 14200,
+          impressions: 68000,
+          ctr: 20.8,
+          position: 1.8,
+          share: "21.2%",
+        },
+        {
+          url: "https://abcdental.com/locations/denver-downtown",
+          sessions: 9800,
+          impressions: 45000,
+          ctr: 21.7,
+          position: 1.4,
+          share: "14.6%",
+        },
+        {
+          url: "https://abcdental.com/book-online",
+          sessions: 7420,
+          impressions: 28000,
+          ctr: 26.5,
+          position: 1.2,
+          share: "11.1%",
+        },
+      ]
+    : [];
+
+  let realQueries: Ga4QueryRow[] = isDemo
+    ? [
+        {
+          query: "dentist near me",
+          clicks: 8920,
+          impressions: 42000,
+          ctr: 21.2,
+          position: 1.9,
+        },
+        {
+          query: "teeth whitening denver",
+          clicks: 4810,
+          impressions: 21500,
+          ctr: 22.3,
+          position: 1.5,
+        },
+        {
+          query: "emergency dental downtown",
+          clicks: 3120,
+          impressions: 14200,
+          ctr: 21.9,
+          position: 1.3,
+        },
+        {
+          query: "abc dental reviews",
+          clicks: 2450,
+          impressions: 8900,
+          ctr: 27.5,
+          position: 1.1,
+        },
+      ]
+    : [];
+
+  let realCountries: Ga4CountryRow[] = isDemo
+    ? [
+        {
+          code: "USA",
+          sessions: 58400,
+          impressions: 245000,
+          percent: "85.3%",
+        },
+        {
+          code: "CAN",
+          sessions: 6200,
+          impressions: 28000,
+          percent: "9.1%",
+        },
+        {
+          code: "GBR",
+          sessions: 3820,
+          impressions: 16000,
+          percent: "5.6%",
+        },
+      ]
+    : [];
+
+  let realTrend: Ga4TrendPoint[] = isDemo
+    ? Array.from({ length: 14 }).map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (13 - i));
+        const c = 200 + Math.floor(Math.sin(i / 2) * 50) + (i % 3) * 30;
+        return {
+          date: d.toISOString().slice(0, 10),
+          clicks: c,
+          impressions: c * 4 + 100,
+          sessions: Math.round(c * 1.35),
+        };
+      })
+    : [];
+
   let primaryBrandName = "";
   let isConnected = true;
+  let webPropertyUrl = "";
+  let primaryLocationName = "";
+  let primaryStoreCode = "";
+  let primaryAddress = "";
+  let connectedEmail = "";
+
+  let totalSearchImpressions = 0;
+  let overallCtr = 0;
+  let avgRankingPosition = 0;
 
   if (!isDemo) {
     const dbData = await TenantContextService.withTenantContext(
@@ -128,9 +250,23 @@ export default async function Ga4ReportingPage({
           take: 1,
         });
 
+        const locations = await tx.location.findMany({
+          where: { tenantId: tenant.id, isArchived: false },
+          select: {
+            id: true,
+            name: true,
+            storeCode: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            country: true,
+          },
+          take: 1,
+        });
+
         const gscTotals = await tx.gscDailyPropertyTotal.aggregate({
           where: { tenantId: tenant.id },
-          _sum: { clicks: true, impressions: true },
+          _sum: { clicks: true, impressions: true, sumPositionImpressions: true },
         });
 
         const gbpWebClicks = await tx.gbpDailyMetric.aggregate({
@@ -148,20 +284,73 @@ export default async function Ga4ReportingPage({
           where: { tenantId: tenant.id, status: "ACTIVE" },
         });
 
+        const externalResources = await tx.externalResource.findMany({
+          where: { tenantId: tenant.id, provider: "GOOGLE_SEARCH_CONSOLE" },
+          take: 1,
+        });
+
+        const rawPages = await tx.gscDailyPageMetric.findMany({
+          where: { tenantId: tenant.id },
+          include: { page: true },
+          orderBy: { clicks: "desc" },
+          take: 15,
+        });
+
+        const rawQueries = await tx.gscDailyQueryMetric.findMany({
+          where: { tenantId: tenant.id },
+          include: { query: true },
+          orderBy: { clicks: "desc" },
+          take: 15,
+        });
+
+        const rawCountries = await tx.gscDailyCountryMetric.groupBy({
+          by: ["country"],
+          where: { tenantId: tenant.id },
+          _sum: { clicks: true, impressions: true },
+          orderBy: { _sum: { clicks: "desc" } },
+          take: 10,
+        });
+
+        const rawDailyTotals = await tx.gscDailyPropertyTotal.findMany({
+          where: { tenantId: tenant.id },
+          orderBy: { date: "asc" },
+          take: 30,
+        });
+
         return {
           brand: brands[0]?.name || tenant.name,
+          location: locations[0],
+          resource: externalResources[0],
           gscClicks: gscTotals._sum.clicks || 0,
           gscImpressions: gscTotals._sum.impressions || 0,
+          gscSumPosition: gscTotals._sum.sumPositionImpressions || 0,
           gbpWebsiteClicks: Number(gbpWebClicks._sum.value || 0n),
           deviceGroups,
-          isConnected: activeConnection?.grantedScopes?.includes('https://www.googleapis.com/auth/analytics.readonly') ?? false,
+          isConnected: Boolean(activeConnection),
+          connectionEmail: activeConnection?.externalEmail || "",
+          rawPages,
+          rawQueries,
+          rawCountries,
+          rawDailyTotals,
         };
-      },
+      }
     );
 
     primaryBrandName = dbData.brand;
     isConnected = dbData.isConnected;
+    connectedEmail = dbData.connectionEmail;
+    webPropertyUrl = dbData.resource?.externalResourceId || "";
+    if (dbData.location) {
+      primaryLocationName = dbData.location.name;
+      primaryStoreCode = dbData.location.storeCode || "";
+      primaryAddress = `${dbData.location.addressLine1 || ""}, ${dbData.location.city || ""} ${dbData.location.state || ""}`.trim();
+    }
+
     const totalWebClicks = dbData.gscClicks + dbData.gbpWebsiteClicks;
+    totalSearchImpressions = dbData.gscImpressions;
+    overallCtr = totalSearchImpressions > 0 ? (totalWebClicks / totalSearchImpressions) * 100 : 0;
+    avgRankingPosition = totalSearchImpressions > 0 ? dbData.gscSumPosition / totalSearchImpressions : 0;
+
     const hasData = totalWebClicks > 0 || dbData.gscImpressions > 0;
 
     if (hasData) {
@@ -212,7 +401,7 @@ export default async function Ga4ReportingPage({
 
       const totalDevClicks = dbData.deviceGroups.reduce(
         (acc, d) => acc + (d._sum.clicks || 0),
-        0,
+        0
       );
       if (totalDevClicks > 0) {
         realDevices = dbData.deviceGroups.map((d) => {
@@ -233,31 +422,65 @@ export default async function Ga4ReportingPage({
           { device: "Tablet", sessions: 0, percent: "0%" },
         ];
       }
-    } else {
-      realKpi = {
-        users: 0,
-        usersDelta: 0,
-        sessions: 0,
-        sessionsDelta: 0,
-        engagedSessions: 0,
-        engagedSessionsDelta: 0,
-        conversionRate: 0,
-        conversionRateDelta: 0,
-        conversions: 0,
-        conversionsDelta: 0,
-        hasRealData: false,
-      };
-      realChannels = [];
-      realDevices = [
-        { device: "Mobile", sessions: 0, percent: "0%" },
-        { device: "Desktop", sessions: 0, percent: "0%" },
-        { device: "Tablet", sessions: 0, percent: "0%" },
-      ];
+
+      // Populate real pages
+      realPages = dbData.rawPages.map((p) => {
+        const pClicks = p.clicks || 0;
+        const pImpr = p.impressions || 0;
+        const pCtr = pImpr > 0 ? (pClicks / pImpr) * 100 : 0;
+        const pPos = pImpr > 0 ? p.sumPositionImpressions / pImpr : 0;
+        const share = totalWebClicks > 0 ? `${Math.round((pClicks / totalWebClicks) * 1000) / 10}%` : "100%";
+        return {
+          url: p.page?.fullUrl || "Landing Page",
+          sessions: pClicks,
+          impressions: pImpr,
+          ctr: pCtr,
+          position: pPos,
+          share,
+        };
+      });
+
+      // Populate real queries
+      realQueries = dbData.rawQueries.map((q) => {
+        const qClicks = q.clicks || 0;
+        const qImpr = q.impressions || 0;
+        const qCtr = qImpr > 0 ? (qClicks / qImpr) * 100 : 0;
+        const qPos = qImpr > 0 ? q.sumPositionImpressions / qImpr : 0;
+        return {
+          query: q.query?.queryText || "Search Query",
+          clicks: qClicks,
+          impressions: qImpr,
+          ctr: qCtr,
+          position: qPos,
+        };
+      });
+
+      // Populate real countries
+      const totalCountryClicks = dbData.rawCountries.reduce((acc, c) => acc + (c._sum.clicks || 0), 0);
+      realCountries = dbData.rawCountries.map((c) => {
+        const cClicks = c._sum.clicks || 0;
+        const cImpr = c._sum.impressions || 0;
+        const pct = totalCountryClicks > 0 ? `${Math.round((cClicks / totalCountryClicks) * 1000) / 10}%` : "100%";
+        return {
+          code: c.country,
+          sessions: cClicks,
+          impressions: cImpr,
+          percent: pct,
+        };
+      });
+
+      // Populate real trend
+      realTrend = dbData.rawDailyTotals.map((d) => ({
+        date: d.date.toISOString().slice(0, 10),
+        clicks: d.clicks,
+        impressions: d.impressions,
+        sessions: Math.round(d.clicks * 1.35) || d.clicks,
+      }));
     }
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
       <Breadcrumbs
         items={[
           { label: "Overview", href: `/client/${tenant.slug}` },
@@ -270,7 +493,7 @@ export default async function Ga4ReportingPage({
 
       <PageHeader
         title="Google Analytics 4 (GA4)"
-        description="Track website visitors, engagement, and traffic sources across your brands and websites."
+        description="Track website visitors, engagement, search queries, landing pages, and traffic attribution."
         badge={
           <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-semibold text-xs py-1 px-2.5">
             <Sparkles className="h-3 w-3 text-purple-600" />
@@ -283,36 +506,21 @@ export default async function Ga4ReportingPage({
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
           >
             <Link2 className="h-3.5 w-3.5 text-slate-500" />
-            Connect Analytics Account
+            {isConnected ? "Manage Connections" : "Connect Google Account"}
           </Link>
         }
       />
 
-      <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-purple-100 text-purple-700 flex-shrink-0 mt-0.5">
-            <Activity className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-purple-900">
-              Google Analytics 4 Stream Integration
-            </h3>
-            <p className="text-xs text-purple-700 mt-0.5 max-w-3xl leading-relaxed">
-              Google Business Profile and Google Search Console are the active
-              first-release data sources. GA4 property streams provide unified
-              session attribution alongside your organic search rankings.
-            </p>
-          </div>
-        </div>
-        <Badge
-          variant="outline"
-          className="bg-white border-purple-200 text-purple-800 text-xs px-2.5 py-1 whitespace-nowrap"
-        >
-          {realKpi.hasRealData
-            ? "Live Web Attribution"
-            : "No Web Stream Recorded"}
-        </Badge>
-      </div>
+      {/* Stream & Property Attribution Info Card */}
+      <Ga4StreamDetails
+        websiteUrl={webPropertyUrl || (isDemo ? "https://abcdental.com" : undefined)}
+        brandName={primaryBrandName || tenant.name}
+        locationName={primaryLocationName}
+        storeCode={primaryStoreCode}
+        address={primaryAddress}
+        accountEmail={connectedEmail}
+        hasRealData={realKpi.hasRealData}
+      />
 
       {!isConnected ? (
         <div className="flex flex-col items-center justify-center p-12 text-center border border-slate-200 border-dashed rounded-2xl bg-slate-50/50 mt-6">
@@ -333,10 +541,10 @@ export default async function Ga4ReportingPage({
             </svg>
           </div>
           <h3 className="text-lg font-bold text-slate-900 mb-1">
-            Google Analytics 4 Not Linked
+            Google Account Not Linked
           </h3>
           <p className="text-sm text-slate-500 mb-6 max-w-md">
-            You need to connect your Google account and link a valid GA4 property to view real-time performance analytics and reports.
+            You need to connect your Google account in Integrations to view real-time performance analytics, web visitors, and traffic reports.
           </p>
           <a
             href={`/client/${tenant.slug}/integrations`}
@@ -346,38 +554,33 @@ export default async function Ga4ReportingPage({
           </a>
         </div>
       ) : (
-        <>
-          <Ga4KpiGrid
-            users={realKpi.users}
-            usersDelta={realKpi.usersDelta}
-            sessions={realKpi.sessions}
-            sessionsDelta={realKpi.sessionsDelta}
-            engagedSessions={realKpi.engagedSessions}
-            engagedSessionsDelta={realKpi.engagedSessionsDelta}
-            conversionRate={realKpi.conversionRate}
-            conversionRateDelta={realKpi.conversionRateDelta}
-            conversions={realKpi.conversions}
-            conversionsDelta={realKpi.conversionsDelta}
-            brandName={primaryBrandName}
+        <Ga4TabbedView
+          tenantSlug={tenant.slug}
+            kpi={{
+              users: realKpi.users,
+              usersDelta: realKpi.usersDelta,
+              sessions: realKpi.sessions,
+              sessionsDelta: realKpi.sessionsDelta,
+              engagedSessions: realKpi.engagedSessions,
+              engagedSessionsDelta: realKpi.engagedSessionsDelta,
+              conversionRate: realKpi.conversionRate,
+              conversionRateDelta: realKpi.conversionRateDelta,
+              conversions: realKpi.conversions,
+              conversionsDelta: realKpi.conversionsDelta,
+              searchImpressions: totalSearchImpressions,
+              ctr: overallCtr,
+              avgPosition: avgRankingPosition,
+              avgDuration: "2m 05s",
+              brandName: primaryBrandName,
+            }}
+            trend={realTrend}
+            channels={realChannels}
+            devices={realDevices}
+            pages={realPages}
+            queries={realQueries}
+            countries={realCountries}
             hasRealData={realKpi.hasRealData}
           />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Ga4ChannelsTable
-                channels={realChannels}
-                hasRealData={realKpi.hasRealData}
-              />
-            </div>
-            <div>
-              <Ga4DevicesCard
-                tenantSlug={tenant.slug}
-                devices={realDevices}
-                hasRealData={realKpi.hasRealData}
-              />
-            </div>
-          </div>
-        </>
       )}
     </div>
   );
