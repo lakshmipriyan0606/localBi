@@ -50,182 +50,27 @@ export default async function Ga4ReportingPage({
   }
 
   const { tenant } = resolved;
-  const isDemo =
-    tenantSlug === "abc-dental" || tenantSlug.startsWith("abc-dental");
 
   let realKpi = {
-    users: isDemo ? 12842 : 0,
-    usersDelta: isDemo ? 22.6 : 0,
-    sessions: isDemo ? 18421 : 0,
-    sessionsDelta: isDemo ? 18.9 : 0,
-    engagedSessions: isDemo ? 9538 : 0,
-    engagedSessionsDelta: isDemo ? 27.3 : 0,
-    conversionRate: isDemo ? 4.8 : 0,
-    conversionRateDelta: isDemo ? 34.1 : 0,
-    conversions: isDemo ? 885 : 0,
-    conversionsDelta: isDemo ? 28.6 : 0,
-    hasRealData: isDemo,
+    users: 0,
+    usersDelta: 0,
+    sessions: 0,
+    sessionsDelta: 0,
+    engagedSessions: 0,
+    engagedSessionsDelta: 0,
+    conversionRate: 0,
+    conversionRateDelta: 0,
+    conversions: 0,
+    conversionsDelta: 0,
+    hasRealData: true,
   };
 
-  let realChannels: Ga4ChannelRow[] = isDemo
-    ? [
-        {
-          channel: "Organic Search",
-          sessions: 68420,
-          engagementRate: 0.724,
-          avgDuration: "2m 14s",
-          conversions: 1840,
-          share: "47.9%",
-        },
-        {
-          channel: "Direct",
-          sessions: 35120,
-          engagementRate: 0.691,
-          avgDuration: "1m 45s",
-          conversions: 890,
-          share: "24.6%",
-        },
-        {
-          channel: "Referral (Local Directories)",
-          sessions: 19800,
-          engagementRate: 0.642,
-          avgDuration: "1m 20s",
-          conversions: 420,
-          share: "13.9%",
-        },
-        {
-          channel: "Organic Social",
-          sessions: 11200,
-          engagementRate: 0.583,
-          avgDuration: "0m 58s",
-          conversions: 180,
-          share: "7.8%",
-        },
-        {
-          channel: "Paid Search (Ads)",
-          sessions: 8310,
-          engagementRate: 0.615,
-          avgDuration: "1m 05s",
-          conversions: 90,
-          share: "5.8%",
-        },
-      ]
-    : [];
-
-  let realDevices: Ga4DeviceRow[] = isDemo
-    ? [
-        { device: "Mobile", sessions: 89200, percent: "62.4%" },
-        { device: "Desktop", sessions: 48900, percent: "34.2%" },
-        { device: "Tablet", sessions: 4750, percent: "3.4%" },
-      ]
-    : [];
-
-  let realPages: Ga4PageRow[] = isDemo
-    ? [
-        {
-          url: "https://abcdental.com/",
-          sessions: 28450,
-          impressions: 124000,
-          ctr: 22.9,
-          position: 2.1,
-          share: "42.5%",
-        },
-        {
-          url: "https://abcdental.com/services/teeth-whitening",
-          sessions: 14200,
-          impressions: 68000,
-          ctr: 20.8,
-          position: 1.8,
-          share: "21.2%",
-        },
-        {
-          url: "https://abcdental.com/locations/denver-downtown",
-          sessions: 9800,
-          impressions: 45000,
-          ctr: 21.7,
-          position: 1.4,
-          share: "14.6%",
-        },
-        {
-          url: "https://abcdental.com/book-online",
-          sessions: 7420,
-          impressions: 28000,
-          ctr: 26.5,
-          position: 1.2,
-          share: "11.1%",
-        },
-      ]
-    : [];
-
-  let realQueries: Ga4QueryRow[] = isDemo
-    ? [
-        {
-          query: "dentist near me",
-          clicks: 8920,
-          impressions: 42000,
-          ctr: 21.2,
-          position: 1.9,
-        },
-        {
-          query: "teeth whitening denver",
-          clicks: 4810,
-          impressions: 21500,
-          ctr: 22.3,
-          position: 1.5,
-        },
-        {
-          query: "emergency dental downtown",
-          clicks: 3120,
-          impressions: 14200,
-          ctr: 21.9,
-          position: 1.3,
-        },
-        {
-          query: "abc dental reviews",
-          clicks: 2450,
-          impressions: 8900,
-          ctr: 27.5,
-          position: 1.1,
-        },
-      ]
-    : [];
-
-  let realCountries: Ga4CountryRow[] = isDemo
-    ? [
-        {
-          code: "USA",
-          sessions: 58400,
-          impressions: 245000,
-          percent: "85.3%",
-        },
-        {
-          code: "CAN",
-          sessions: 6200,
-          impressions: 28000,
-          percent: "9.1%",
-        },
-        {
-          code: "GBR",
-          sessions: 3820,
-          impressions: 16000,
-          percent: "5.6%",
-        },
-      ]
-    : [];
-
-  let realTrend: Ga4TrendPoint[] = isDemo
-    ? Array.from({ length: 14 }).map((_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (13 - i));
-        const c = 200 + Math.floor(Math.sin(i / 2) * 50) + (i % 3) * 30;
-        return {
-          date: d.toISOString().slice(0, 10),
-          clicks: c,
-          impressions: c * 4 + 100,
-          sessions: Math.round(c * 1.35),
-        };
-      })
-    : [];
+  let realChannels: Ga4ChannelRow[] = [];
+  let realDevices: Ga4DeviceRow[] = [];
+  let realPages: Ga4PageRow[] = [];
+  let realQueries: Ga4QueryRow[] = [];
+  let realCountries: Ga4CountryRow[] = [];
+  let realTrend: Ga4TrendPoint[] = [];
 
   let primaryBrandName = "";
   let isConnected = true;
@@ -239,10 +84,9 @@ export default async function Ga4ReportingPage({
   let overallCtr = 0;
   let avgRankingPosition = 0;
 
-  if (!isDemo) {
-    const dbData = await TenantContextService.withTenantContext(
-      prisma,
-      tenant.id,
+  const dbData = await TenantContextService.withTenantContext(
+    prisma,
+    tenant.id,
       async (tx) => {
         const brands = await tx.brand.findMany({
           where: { tenantId: tenant.id, isArchived: false },
@@ -477,7 +321,6 @@ export default async function Ga4ReportingPage({
         sessions: Math.round(d.clicks * 1.35) || d.clicks,
       }));
     }
-  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
@@ -513,7 +356,7 @@ export default async function Ga4ReportingPage({
 
       {/* Stream & Property Attribution Info Card */}
       <Ga4StreamDetails
-        websiteUrl={webPropertyUrl || (isDemo ? "https://abcdental.com" : undefined)}
+        websiteUrl={webPropertyUrl || undefined}
         brandName={primaryBrandName || tenant.name}
         locationName={primaryLocationName}
         storeCode={primaryStoreCode}

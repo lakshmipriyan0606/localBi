@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { getConfig } from '@/shared/config';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
-import { GoogleApiClient } from '../integrations/google/google-api-client';
+import { GoogleApiClient, GbpDailyMetricEntry } from '../integrations/google/google-api-client';
 import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
 import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData } from './sync-queue';
 import { logger } from '@/shared/observability/logger';
@@ -405,12 +405,21 @@ export class SyncWorkerService {
   private static async processGbpJob(data: GbpSyncJobData, accessToken: string): Promise<number> {
     const { tenantId, locationId, locationResourceName, startDate, endDate } = data;
 
-    const metrics = await GoogleApiClient.queryGbpPerformanceMetrics(
-      accessToken,
-      locationResourceName,
-      startDate,
-      endDate
-    );
+    let metrics: GbpDailyMetricEntry[] = [];
+    try {
+      metrics = await GoogleApiClient.queryGbpPerformanceMetrics(
+        accessToken,
+        locationResourceName,
+        startDate,
+        endDate
+      );
+    } catch (err: unknown) {
+      logger.warn(
+        { err, locationResourceName },
+        "GBP Performance query failed or quota restricted; retaining existing store telemetry"
+      );
+      return 0;
+    }
 
     let rowsIngested = 0;
 

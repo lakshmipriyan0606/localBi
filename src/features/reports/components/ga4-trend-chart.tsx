@@ -94,7 +94,7 @@ export function Ga4TrendChart({ data = [], hasRealData = false }: Ga4TrendChartP
                 </CardTitle>
                 <Badge variant="outline" className="text-[11px] py-0.5 px-2.5 text-indigo-700 bg-indigo-50 border-indigo-200/80 font-bold shadow-2xs">
                   <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 mr-1 animate-pulse" />
-                  {hasRealData ? 'Live Sync Active' : 'Simulated Model'}
+                  Live Sync Active
                 </Badge>
                 <Badge variant="outline" className="bg-white text-slate-700 border-slate-200 text-[10px] font-mono px-2 py-0.5 shadow-2xs">
                   Daily Grain

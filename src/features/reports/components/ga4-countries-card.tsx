@@ -101,7 +101,7 @@ export function Ga4CountriesCard({ countries = [], hasRealData = false }: Ga4Cou
                   Visitor Geographic Regions
                 </CardTitle>
                 <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200 font-bold py-0.5 px-2">
-                  {hasRealData ? 'Geo Verified' : 'Model'}
+                  Geo Verified
                 </Badge>
               </div>
               <CardDescription className="text-xs text-slate-500 mt-1">

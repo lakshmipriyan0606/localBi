@@ -300,6 +300,125 @@ export async function POST(
       });
     }
 
+    // Support manual store registration for Google Business Profile
+    if (body.action === "ADD_MANUAL_LOCATION" || body.storeName) {
+      const storeName = String(body.storeName || "").trim() || "Lakshmi food";
+      const locationId = body.locationId as string | undefined;
+
+      const resource = await TenantContextService.withTenantContext(
+        prisma,
+        tenant.id,
+        async (tx) => {
+          // Upsert GBP external account
+          const gbpAccount = await tx.externalAccount.upsert({
+            where: {
+              uq_external_account_provider_id: {
+                tenantId: tenant.id,
+                provider: "GOOGLE_BUSINESS_PROFILE",
+                externalAccountId: "gbp_account_default",
+              },
+            },
+            create: {
+              tenantId: tenant.id,
+              connectionId: connection.id,
+              provider: "GOOGLE_BUSINESS_PROFILE",
+              externalAccountId: "gbp_account_default",
+              accountName: "Google Business Profile",
+            },
+            update: {
+              connectionId: connection.id,
+            },
+          });
+
+          const slugified = storeName
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "-")
+            .replace(/-+/g, "-");
+          const externalResourceId = `locations/${slugified}`;
+
+          // Upsert ExternalResource
+          const extRes = await tx.externalResource.upsert({
+            where: {
+              uq_external_resource_provider_id: {
+                tenantId: tenant.id,
+                provider: "GOOGLE_BUSINESS_PROFILE",
+                externalResourceId,
+              },
+            },
+            create: {
+              tenantId: tenant.id,
+              accountId: gbpAccount.id,
+              provider: "GOOGLE_BUSINESS_PROFILE",
+              externalResourceId,
+              resourceType: "LOCATION",
+              resourceName: storeName,
+            },
+            update: {
+              accountId: gbpAccount.id,
+              resourceName: storeName,
+            },
+          });
+
+          // Grant access
+          await tx.connectionResourceAccess.upsert({
+            where: {
+              uq_connection_resource_access: {
+                tenantId: tenant.id,
+                connectionId: connection.id,
+                resourceId: extRes.id,
+              },
+            },
+            create: {
+              tenantId: tenant.id,
+              connectionId: connection.id,
+              resourceId: extRes.id,
+              canAccess: true,
+              lastVerifiedAt: new Date(),
+            },
+            update: {
+              canAccess: true,
+              lastVerifiedAt: new Date(),
+            },
+          });
+
+          return extRes;
+        },
+      );
+
+      // If locationId provided (or find existing location for this tenant), map it!
+      let mappingResult = null;
+      let targetLocationId = locationId;
+      if (!targetLocationId) {
+        const firstLoc = await TenantContextService.withTenantContext(
+          prisma,
+          tenant.id,
+          async (tx) => {
+            return tx.location.findFirst({
+              where: { tenantId: tenant.id, isArchived: false },
+            });
+          },
+        );
+        targetLocationId = firstLoc?.id;
+      }
+
+      if (targetLocationId) {
+        mappingResult = await ResourceMappingService.mapGbpLocation(
+          tenant.id,
+          targetLocationId,
+          resource.id,
+          authorizedContext,
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          resource,
+          mapping: mappingResult,
+        },
+      });
+    }
+
     const result = await ResourceDiscoveryService.discoverAndSyncResources(
       tenant.id,
       connection.id,

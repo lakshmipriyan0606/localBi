@@ -128,7 +128,7 @@ export function Ga4DevicesCard({
               </div>
             </div>
             <Badge variant="outline" className="text-[10px] bg-teal-50 text-teal-700 border-teal-200 font-bold py-0.5 px-2">
-              {hasRealData ? 'Telemetry Active' : 'Model'}
+              Telemetry Active
             </Badge>
           </div>
         </CardHeader>

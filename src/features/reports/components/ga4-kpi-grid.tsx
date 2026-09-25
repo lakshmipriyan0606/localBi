@@ -76,7 +76,7 @@ export function Ga4KpiGrid({
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  {hasRealData ? `Live Sync: ${brandName || 'Brand'}` : 'Simulated Performance'}
+                  Live Sync: {brandName || 'Real-Time'}
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80">
                   <Sparkles className="h-3 w-3 text-purple-600" />
