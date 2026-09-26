@@ -20,6 +20,8 @@ import {
 export type PuckComponentProps = {
   // ── 1. NAVIGATION CATEGORY ─────────────────────────────────────────────────
   Header: {
+    backgroundColor?: string;
+    textColor?: string;
     brandName: string;
     tagline: string;
     link1: string;
@@ -29,6 +31,8 @@ export type PuckComponentProps = {
     whatsappNumber: string;
   };
   Footer: {
+    backgroundColor?: string;
+    textColor?: string;
     brandName: string;
     tagline: string;
     address: string;
@@ -37,6 +41,8 @@ export type PuckComponentProps = {
     copyright: string;
   };
   AnnouncementBar: {
+    backgroundColor?: string;
+    textColor?: string;
     badgeText: string;
     message: string;
     ctaText: string;
@@ -45,6 +51,8 @@ export type PuckComponentProps = {
 
   // ── 2. INTRODUCTION CATEGORY ───────────────────────────────────────────────
   Hero: {
+    backgroundColor?: string;
+    textColor?: string;
     badge: string;
     heading: string;
     description: string;
@@ -58,6 +66,8 @@ export type PuckComponentProps = {
 
   // ── 3. CONTENT CATEGORY ───────────────────────────────────────────────────
   Bento: {
+    backgroundColor?: string;
+    textColor?: string;
     badge: string;
     heading: string;
     description: string;
@@ -74,6 +84,8 @@ export type PuckComponentProps = {
     whatsappNumber: string;
   };
   ArticleCard: {
+    backgroundColor?: string;
+    textColor?: string;
     category: string;
     title: string;
     description: string;
@@ -83,6 +95,8 @@ export type PuckComponentProps = {
     whatsappNumber: string;
   };
   FeatureCards: {
+    backgroundColor?: string;
+    textColor?: string;
     heading: string;
     subheading: string;
     feat1Title: string;
@@ -95,6 +109,8 @@ export type PuckComponentProps = {
     feat4Desc: string;
   };
   CardGrid: {
+    backgroundColor?: string;
+    textColor?: string;
     heading: string;
     subheading: string;
     item1Name: string;
@@ -114,6 +130,8 @@ export type PuckComponentProps = {
 
   // ── 4. REVIEWS & TRUST CATEGORY ───────────────────────────────────────────
   GoogleReviews: {
+    backgroundColor?: string;
+    textColor?: string;
     heading: string;
     overallRating: number;
     totalReviews: number;
@@ -127,6 +145,8 @@ export type PuckComponentProps = {
 
   // ── 5. CONVERSION & LOCATION CATEGORY ──────────────────────────────────────
   WhatsAppCTA: {
+    backgroundColor?: string;
+    textColor?: string;
     headline: string;
     subheading: string;
     buttonLabel: string;
@@ -134,6 +154,8 @@ export type PuckComponentProps = {
     prefilledMessage: string;
   };
   LocationMapCard: {
+    backgroundColor?: string;
+    textColor?: string;
     storeName: string;
     address: string;
     hours: string;
@@ -157,11 +179,169 @@ export type PuckComponentProps = {
   DoctorSpecialistGrid: any;
 };
 
-// ═════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════
+// COLOR UTILITIES & PRESETS
+// ═════════════════════════════════════════════════════════════════════════
+
+export function isColorDark(hexColor?: string): boolean {
+  if (!hexColor) return false;
+  const hex = hexColor.replace('#', '').trim();
+  if (hex.length !== 6 && hex.length !== 3) return false;
+  const fullHex =
+    hex.length === 3
+      ? hex.split('').map((c) => c + c).join('')
+      : hex;
+  const r = parseInt(fullHex.substring(0, 2), 16);
+  const g = parseInt(fullHex.substring(2, 4), 16);
+  const b = parseInt(fullHex.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 128;
+}
+
+const BG_PRESETS = [
+  { label: 'White', value: '#ffffff' },
+  { label: 'Slate 50', value: '#f8fafc' },
+  { label: 'Warm Cream', value: '#fefce8' },
+  { label: 'Soft Mint', value: '#f0fdf4' },
+  { label: 'Soft Indigo', value: '#eef2ff' },
+  { label: 'Dark Navy', value: '#0f172a' },
+  { label: 'Dark Zinc', value: '#18181b' },
+];
+
+const TEXT_PRESETS = [
+  { label: 'Dark Charcoal', value: '#0f172a' },
+  { label: 'Muted Slate', value: '#475569' },
+  { label: 'Pure White', value: '#ffffff' },
+  { label: 'Brand Indigo', value: '#4f46e5' },
+  { label: 'Rich Emerald', value: '#059669' },
+  { label: 'Warm Amber', value: '#d97706' },
+];
+
+function ColorFieldControl({
+  value,
+  onChange,
+  presets,
+  defaultColor,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  presets: { label: string; value: string }[];
+  defaultColor: string;
+}) {
+  const currentColor = value || defaultColor;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <input
+          type="color"
+          value={currentColor}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            border: '1px solid #cbd5e1',
+            cursor: 'pointer',
+            padding: '2px',
+            backgroundColor: '#ffffff',
+          }}
+        />
+        <input
+          type="text"
+          value={value || ''}
+          placeholder={defaultColor}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            borderRadius: '8px',
+            border: '1px solid #cbd5e1',
+            backgroundColor: '#ffffff',
+            color: '#0f172a',
+          }}
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            style={{
+              fontSize: '10px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              cursor: 'pointer',
+              color: '#64748b',
+            }}
+            title="Reset to default"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        {presets.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            title={p.label}
+            onClick={() => onChange(p.value)}
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              backgroundColor: p.value,
+              border: p.value === '#ffffff' ? '1px solid #cbd5e1' : '1px solid rgba(0,0,0,0.15)',
+              cursor: 'pointer',
+              transform: currentColor === p.value ? 'scale(1.2)' : 'scale(1)',
+              boxShadow: currentColor === p.value ? '0 0 0 2px #6366f1' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const backgroundColorField = {
+  type: 'custom' as const,
+  label: '🎨 Background Color',
+  render: ({ value, onChange }: { value: string | undefined; onChange: (v: string | undefined) => void }) => (
+    <ColorFieldControl
+      value={value || ''}
+      onChange={(v) => onChange(v || undefined)}
+      presets={BG_PRESETS}
+      defaultColor="#ffffff"
+    />
+  ),
+};
+
+const textColorField = {
+  type: 'custom' as const,
+  label: '✏️ Text Color',
+  render: ({ value, onChange }: { value: string | undefined; onChange: (v: string | undefined) => void }) => (
+    <ColorFieldControl
+      value={value || ''}
+      onChange={(v) => onChange(v || undefined)}
+      presets={TEXT_PRESETS}
+      defaultColor="#0f172a"
+    />
+  ),
+};
+
+// ═════════════════════════════════════════════════════════════════════════
 // DEDICATED REACT PRESENTATIONAL COMPONENTS (Pure Light Enterprise UI)
-// ═════════════════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════════════
 
 export function HeaderComponent({
+  backgroundColor,
+  textColor,
   brandName,
   tagline,
   link1,
@@ -170,24 +350,32 @@ export function HeaderComponent({
   ctaText,
   whatsappNumber,
 }: PuckComponentProps['Header']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#94a3b8' : '#64748b');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+
   return (
-    <header className="rounded-2xl bg-white border border-slate-200 px-5 sm:px-8 py-4 my-3 shadow-xs flex flex-wrap items-center justify-between gap-4 text-slate-900">
+    <header
+      className="rounded-2xl border px-5 sm:px-8 py-4 my-3 shadow-xs flex flex-wrap items-center justify-between gap-4 transition-colors"
+      style={{ backgroundColor: backgroundColor || '#ffffff', borderColor }}
+    >
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-black text-lg border border-amber-200">
           <Utensils className="w-5 h-5" />
         </div>
         <div>
-          <div className="font-extrabold text-base tracking-tight text-slate-900 leading-tight">
+          <div className="font-extrabold text-base tracking-tight leading-tight" style={{ color: headingColor }}>
             {brandName}
           </div>
-          <div className="text-[11px] text-slate-500">{tagline}</div>
+          <div className="text-[11px]" style={{ color: bodyColor }}>{tagline}</div>
         </div>
       </div>
 
-      <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
-        <span className="hover:text-indigo-600 cursor-pointer">{link1}</span>
-        <span className="hover:text-indigo-600 cursor-pointer">{link2}</span>
-        <span className="hover:text-indigo-600 cursor-pointer">{link3}</span>
+      <nav className="hidden md:flex items-center gap-6 text-xs font-semibold" style={{ color: bodyColor }}>
+        <span className="hover:opacity-80 cursor-pointer">{link1}</span>
+        <span className="hover:opacity-80 cursor-pointer">{link2}</span>
+        <span className="hover:opacity-80 cursor-pointer">{link3}</span>
       </nav>
 
       <a
@@ -204,6 +392,8 @@ export function HeaderComponent({
 }
 
 export function FooterComponent({
+  backgroundColor,
+  textColor,
   brandName,
   tagline,
   address,
@@ -211,41 +401,52 @@ export function FooterComponent({
   hours,
   copyright,
 }: PuckComponentProps['Footer']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#94a3b8' : '#64748b');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+
   return (
-    <footer className="rounded-3xl bg-white border border-slate-200 p-8 sm:p-10 my-8 shadow-xs text-slate-900 space-y-6">
+    <footer
+      className="rounded-3xl border p-8 sm:p-10 my-8 shadow-xs space-y-6 transition-colors"
+      style={{ backgroundColor: backgroundColor || '#ffffff', borderColor }}
+    >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
               <Utensils className="w-4 h-4" />
             </div>
-            <h3 className="font-extrabold text-base text-slate-900">{brandName}</h3>
+            <h3 className="font-extrabold text-base" style={{ color: headingColor }}>{brandName}</h3>
           </div>
-          <p className="text-xs text-slate-500 leading-relaxed">{tagline}</p>
+          <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{tagline}</p>
         </div>
 
         <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Store Hours & Phone</h4>
-          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+          <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: isDark ? '#94a3b8' : '#94a3b8' }}>Store Hours & Phone</h4>
+          <div className="flex items-center gap-2 text-xs font-medium" style={{ color: bodyColor }}>
             <Clock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>{hours}</span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+          <div className="flex items-center gap-2 text-xs font-medium" style={{ color: bodyColor }}>
             <Phone className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>{phone}</span>
           </div>
         </div>
 
         <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Store Location</h4>
-          <div className="flex items-start gap-2 text-xs text-slate-600 leading-relaxed font-medium">
+          <h4 className="text-xs font-bold uppercase tracking-wider" style={{ color: isDark ? '#94a3b8' : '#94a3b8' }}>Store Location</h4>
+          <div className="flex items-start gap-2 text-xs leading-relaxed font-medium" style={{ color: bodyColor }}>
             <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
             <span>{address}</span>
           </div>
         </div>
       </div>
 
-      <div className="pt-6 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+      <div
+        className="pt-6 border-t flex flex-wrap items-center justify-between gap-4 text-xs"
+        style={{ borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9', color: bodyColor }}
+      >
         <div>{copyright}</div>
         <div className="flex items-center gap-1.5 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
           <ShieldCheck className="w-3.5 h-3.5" />
@@ -257,18 +458,27 @@ export function FooterComponent({
 }
 
 export function AnnouncementBarComponent({
+  backgroundColor,
+  textColor,
   badgeText,
   message,
   ctaText,
   whatsappNumber,
 }: PuckComponentProps['AnnouncementBar']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#1e293b');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#fed7aa';
+
   return (
-    <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs font-semibold my-3 shadow-2xs">
+    <div
+      className="p-3.5 rounded-2xl border flex flex-wrap items-center justify-between gap-3 text-xs font-semibold my-3 shadow-2xs transition-colors"
+      style={{ backgroundColor: backgroundColor || '#fffbeb', borderColor }}
+    >
       <div className="flex items-center gap-2.5">
         <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-[10px] tracking-wider uppercase">
           {badgeText}
         </span>
-        <span className="text-slate-800 font-medium">{message}</span>
+        <span className="font-medium" style={{ color: headingColor }}>{message}</span>
       </div>
       <a
         href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi, I would like to claim the offer: ${message}`)}`}
@@ -284,6 +494,8 @@ export function AnnouncementBarComponent({
 }
 
 export function HeroComponent({
+  backgroundColor,
+  textColor,
   badge,
   heading,
   description,
@@ -294,17 +506,28 @@ export function HeroComponent({
   hours,
   address,
 }: PuckComponentProps['Hero']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+
   return (
-    <section className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 my-6 shadow-xs text-slate-900 space-y-5">
+    <section
+      className="relative rounded-3xl border p-8 sm:p-12 my-6 shadow-xs space-y-5 transition-colors"
+      style={{ backgroundColor: backgroundColor || '#ffffff', borderColor }}
+    >
       <div className="max-w-2xl space-y-4">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
           <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
           <span>{badge}</span>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
+        <h1
+          className="text-3xl sm:text-5xl font-black tracking-tight leading-tight"
+          style={{ color: headingColor }}
+        >
           {heading}
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+        <p className="text-sm sm:text-base leading-relaxed font-normal" style={{ color: bodyColor }}>
           {description}
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -320,19 +543,25 @@ export function HeroComponent({
           {phone && (
             <a
               href={`tel:${phone}`}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm transition-colors"
+              className={`inline-flex items-center gap-2 px-4 py-3 rounded-xl border font-semibold text-xs sm:text-sm transition-colors ${
+                isDark ? 'border-slate-700 bg-slate-800/80 text-slate-100 hover:bg-slate-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+              }`}
             >
-              <Phone className="w-4 h-4 text-indigo-600" />
+              <Phone className="w-4 h-4 text-indigo-500" />
               {secondaryCtaText || 'Call Store'}
             </a>
           )}
-          <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-3.5 py-3 rounded-xl border border-slate-200 font-medium">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
+          <div
+            className={`flex items-center gap-1.5 text-xs px-3.5 py-3 rounded-xl border font-medium ${
+              isDark ? 'bg-slate-800/80 border-slate-700 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-600'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
             {hours}
           </div>
         </div>
-        <div className="pt-2 text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-          <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+        <div className="pt-2 text-xs flex items-center gap-1.5 font-medium" style={{ color: bodyColor }}>
+          <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
           <span>{address}</span>
         </div>
       </div>
@@ -341,6 +570,8 @@ export function HeroComponent({
 }
 
 export function BentoComponent({
+  backgroundColor,
+  textColor,
   badge,
   heading,
   description,
@@ -356,6 +587,10 @@ export function BentoComponent({
   card3BtnText,
   whatsappNumber,
 }: PuckComponentProps['Bento']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+
   return (
     <section className="my-8 space-y-6">
       <div className="space-y-2">
@@ -363,17 +598,20 @@ export function BentoComponent({
           <Sparkles className="w-3.5 h-3.5" />
           {badge}
         </span>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: headingColor }}>
           {heading}
         </h2>
-        <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
+        <p className="text-xs sm:text-sm max-w-2xl leading-relaxed" style={{ color: bodyColor }}>
           {description}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Bento Card 1: Large Featured Card */}
-        <div className="lg:col-span-2 p-8 rounded-3xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between space-y-6 hover:shadow-md transition-shadow">
+        <div
+          className="lg:col-span-2 p-8 rounded-3xl border shadow-xs flex flex-col justify-between space-y-6 hover:shadow-md transition-shadow"
+          style={{ backgroundColor: backgroundColor || '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0' }}
+        >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
@@ -383,8 +621,8 @@ export function BentoComponent({
                 {card1Tag}
               </span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900">{card1Title}</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{card1Desc}</p>
+            <h3 className="text-xl sm:text-2xl font-bold" style={{ color: headingColor }}>{card1Title}</h3>
+            <p className="text-xs sm:text-sm leading-relaxed" style={{ color: bodyColor }}>{card1Desc}</p>
           </div>
 
           <div>
@@ -403,24 +641,30 @@ export function BentoComponent({
         {/* Right Column Bento Stack */}
         <div className="space-y-5 flex flex-col justify-between">
           {/* Bento Card 2: Stat & Feature */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-2 hover:shadow-md transition-shadow">
+          <div
+            className="p-6 rounded-3xl border shadow-xs space-y-2 hover:shadow-md transition-shadow"
+            style={{ backgroundColor: backgroundColor || '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0' }}
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
-                Beverage
+                Specialty
               </span>
               <span className="text-lg font-black text-emerald-700 font-mono">{card2Stat}</span>
             </div>
-            <h4 className="font-bold text-base text-slate-900">{card2Title}</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">{card2Desc}</p>
+            <h4 className="font-bold text-base" style={{ color: headingColor }}>{card2Title}</h4>
+            <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{card2Desc}</p>
           </div>
 
           {/* Bento Card 3: Action Card */}
-          <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3 hover:shadow-md transition-shadow">
+          <div
+            className="p-6 rounded-3xl border shadow-xs space-y-3 hover:shadow-md transition-shadow"
+            style={{ backgroundColor: backgroundColor || '#ffffff', borderColor: isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0' }}
+          >
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center">
               <Award className="w-4 h-4" />
             </div>
-            <h4 className="font-bold text-base text-slate-900">{card3Title}</h4>
-            <p className="text-xs text-slate-500 leading-relaxed">{card3Desc}</p>
+            <h4 className="font-bold text-base" style={{ color: headingColor }}>{card3Title}</h4>
+            <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{card3Desc}</p>
             <div>
               <a
                 href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi, I would like to inquire about: ${card3Title}`)}`}
@@ -440,6 +684,8 @@ export function BentoComponent({
 }
 
 export function ArticleCardComponent({
+  backgroundColor,
+  textColor,
   category,
   title,
   description,
@@ -448,26 +694,48 @@ export function ArticleCardComponent({
   ctaText,
   whatsappNumber,
 }: PuckComponentProps['ArticleCard']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+
   return (
-    <article className="rounded-3xl bg-white border border-slate-200 p-8 sm:p-10 my-6 shadow-xs text-slate-900 space-y-5">
+    <article
+      className="rounded-3xl border p-8 sm:p-10 my-6 shadow-xs space-y-5 transition-colors"
+      style={{ backgroundColor: backgroundColor || '#ffffff', borderColor }}
+    >
       <div className="space-y-3">
         <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-wider">
           {category}
         </span>
-        <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-snug">
+        <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-snug" style={{ color: headingColor }}>
           {title}
         </h3>
-        <p className="text-sm text-slate-600 leading-relaxed font-normal">
+        <p className="text-sm leading-relaxed font-normal" style={{ color: bodyColor }}>
           {description}
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div
+          className="flex items-center gap-2 text-xs font-semibold p-3 rounded-xl border"
+          style={{
+            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f8fafc',
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+            color: headingColor,
+          }}
+        >
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{highlight1}</span>
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <div
+          className="flex items-center gap-2 text-xs font-semibold p-3 rounded-xl border"
+          style={{
+            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#f8fafc',
+            borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+            color: headingColor,
+          }}
+        >
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{highlight2}</span>
         </div>
@@ -489,6 +757,8 @@ export function ArticleCardComponent({
 }
 
 export function FeatureCardsComponent({
+  backgroundColor,
+  textColor,
   heading,
   subheading,
   feat1Title,
@@ -500,44 +770,50 @@ export function FeatureCardsComponent({
   feat4Title,
   feat4Desc,
 }: PuckComponentProps['FeatureCards']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#64748b');
+  const cardBg = backgroundColor || '#ffffff';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0';
+
   return (
     <section className="my-8 space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{heading}</h2>
-        <p className="text-xs sm:text-sm text-slate-500">{subheading}</p>
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: headingColor }}>{heading}</h2>
+        <p className="text-xs sm:text-sm" style={{ color: bodyColor }}>{subheading}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
             <Flame className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-slate-900">{feat1Title}</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">{feat1Desc}</p>
+          <h3 className="font-bold text-sm" style={{ color: headingColor }}>{feat1Title}</h3>
+          <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{feat1Desc}</p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center font-bold">
             <Clock className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-slate-900">{feat2Title}</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">{feat2Desc}</p>
+          <h3 className="font-bold text-sm" style={{ color: headingColor }}>{feat2Title}</h3>
+          <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{feat2Desc}</p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
             <ShieldCheck className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-slate-900">{feat3Title}</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">{feat3Desc}</p>
+          <h3 className="font-bold text-sm" style={{ color: headingColor }}>{feat3Title}</h3>
+          <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{feat3Desc}</p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold">
             <Award className="w-5 h-5" />
           </div>
-          <h3 className="font-bold text-sm text-slate-900">{feat4Title}</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">{feat4Desc}</p>
+          <h3 className="font-bold text-sm" style={{ color: headingColor }}>{feat4Title}</h3>
+          <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{feat4Desc}</p>
         </div>
       </div>
     </section>
@@ -545,6 +821,8 @@ export function FeatureCardsComponent({
 }
 
 export function CardGridComponent({
+  backgroundColor,
+  textColor,
   heading,
   subheading,
   item1Name,
@@ -561,31 +839,40 @@ export function CardGridComponent({
   item3Desc,
   whatsappNumber,
 }: PuckComponentProps['CardGrid']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#64748b');
+  const cardBg = backgroundColor || '#ffffff';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0';
+
   return (
     <section className="my-8 space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2" style={{ color: headingColor }}>
           <ShoppingBag className="w-5 h-5 text-indigo-600" />
           {heading}
         </h2>
-        <p className="text-xs sm:text-sm text-slate-500">{subheading}</p>
+        <p className="text-xs sm:text-sm" style={{ color: bodyColor }}>{subheading}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+        <div
+          className="p-6 rounded-2xl border shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+          style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+        >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
                   {item1Category}
                 </span>
-                <h3 className="text-base font-bold text-slate-900 mt-1">{item1Name}</h3>
+                <h3 className="text-base font-bold mt-1" style={{ color: headingColor }}>{item1Name}</h3>
               </div>
               <span className="text-sm font-extrabold text-emerald-700 font-mono bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shrink-0">
                 ₹{item1Price}
               </span>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">{item1Desc}</p>
+            <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{item1Desc}</p>
           </div>
           <div className="pt-3 border-t border-slate-100 flex justify-end">
             <a
@@ -600,20 +887,23 @@ export function CardGridComponent({
           </div>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+        <div
+          className="p-6 rounded-2xl border shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+          style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+        >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
                   {item2Category}
                 </span>
-                <h3 className="text-base font-bold text-slate-900 mt-1">{item2Name}</h3>
+                <h3 className="text-base font-bold mt-1" style={{ color: headingColor }}>{item2Name}</h3>
               </div>
               <span className="text-sm font-extrabold text-emerald-700 font-mono bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shrink-0">
                 ₹{item2Price}
               </span>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">{item2Desc}</p>
+            <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{item2Desc}</p>
           </div>
           <div className="pt-3 border-t border-slate-100 flex justify-end">
             <a
@@ -628,20 +918,23 @@ export function CardGridComponent({
           </div>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md transition-all flex flex-col justify-between space-y-4">
+        <div
+          className="p-6 rounded-2xl border shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+          style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+        >
           <div className="space-y-2">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
                   {item3Category}
                 </span>
-                <h3 className="text-base font-bold text-slate-900 mt-1">{item3Name}</h3>
+                <h3 className="text-base font-bold mt-1" style={{ color: headingColor }}>{item3Name}</h3>
               </div>
               <span className="text-sm font-extrabold text-emerald-700 font-mono bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shrink-0">
                 ₹{item3Price}
               </span>
             </div>
-            <p className="text-xs text-slate-500 leading-relaxed">{item3Desc}</p>
+            <p className="text-xs leading-relaxed" style={{ color: bodyColor }}>{item3Desc}</p>
           </div>
           <div className="pt-3 border-t border-slate-100 flex justify-end">
             <a
@@ -661,6 +954,8 @@ export function CardGridComponent({
 }
 
 export function GoogleReviewsComponent({
+  backgroundColor,
+  textColor,
   heading,
   overallRating,
   totalReviews,
@@ -671,12 +966,18 @@ export function GoogleReviewsComponent({
   review2Text,
   review2Stars,
 }: PuckComponentProps['GoogleReviews']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+  const cardBg = backgroundColor || '#ffffff';
+  const cardBorder = isDark ? 'rgba(255,255,255,0.15)' : '#e2e8f0';
+
   return (
     <section className="my-8 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">{heading}</h2>
-          <p className="text-xs text-slate-500">Verified reviews directly from Google Business Profile</p>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: headingColor }}>{heading}</h2>
+          <p className="text-xs" style={{ color: bodyColor }}>Verified reviews directly from Google Business Profile</p>
         </div>
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold shadow-2xs">
           <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
@@ -685,10 +986,10 @@ export function GoogleReviewsComponent({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-bold text-slate-900">{review1Author}</div>
+              <div className="text-sm font-bold" style={{ color: headingColor }}>{review1Author}</div>
               <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Verified Patron
               </div>
@@ -699,13 +1000,13 @@ export function GoogleReviewsComponent({
               ))}
             </div>
           </div>
-          <p className="text-xs text-slate-600 leading-relaxed italic">"{review1Text}"</p>
+          <p className="text-xs leading-relaxed italic" style={{ color: bodyColor }}>"{review1Text}"</p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+        <div className="p-6 rounded-2xl border shadow-xs space-y-3" style={{ backgroundColor: cardBg, borderColor: cardBorder }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-bold text-slate-900">{review2Author}</div>
+              <div className="text-sm font-bold" style={{ color: headingColor }}>{review2Author}</div>
               <div className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Verified Diner
               </div>
@@ -716,7 +1017,7 @@ export function GoogleReviewsComponent({
               ))}
             </div>
           </div>
-          <p className="text-xs text-slate-600 leading-relaxed italic">"{review2Text}"</p>
+          <p className="text-xs leading-relaxed italic" style={{ color: bodyColor }}>"{review2Text}"</p>
         </div>
       </div>
     </section>
@@ -724,19 +1025,29 @@ export function GoogleReviewsComponent({
 }
 
 export function WhatsAppCTAComponent({
+  backgroundColor,
+  textColor,
   headline,
   subheading,
   buttonLabel,
   whatsappNumber,
   prefilledMessage,
 }: PuckComponentProps['WhatsAppCTA']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#a7f3d0';
+
   return (
-    <section className="my-8 p-8 sm:p-10 rounded-3xl bg-emerald-50/70 border border-emerald-200 text-slate-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xs">
+    <section
+      className="my-8 p-8 sm:p-10 rounded-3xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-xs transition-colors"
+      style={{ backgroundColor: backgroundColor || '#f0fdf4', borderColor }}
+    >
       <div className="space-y-2 max-w-xl">
-        <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+        <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-snug" style={{ color: headingColor }}>
           {headline}
         </h3>
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: bodyColor }}>
           {subheading}
         </p>
       </div>
@@ -754,18 +1065,28 @@ export function WhatsAppCTAComponent({
 }
 
 export function LocationMapCardComponent({
+  backgroundColor,
+  textColor,
   storeName,
   address,
   hours,
   phone,
   googleMapsUrl,
 }: PuckComponentProps['LocationMapCard']) {
+  const isDark = isColorDark(backgroundColor);
+  const headingColor = textColor || (isDark ? '#ffffff' : '#0f172a');
+  const bodyColor = textColor ? `${textColor}cc` : (isDark ? '#cbd5e1' : '#475569');
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0';
+
   return (
-    <section className="my-8 p-8 rounded-3xl bg-white border border-slate-200 shadow-xs text-slate-900 space-y-4">
+    <section
+      className="my-8 p-8 rounded-3xl border shadow-xs space-y-4 transition-colors"
+      style={{ backgroundColor: backgroundColor || '#ffffff', borderColor }}
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-lg sm:text-xl font-bold text-slate-900">{storeName}</h3>
-          <div className="text-xs text-slate-600 flex items-center gap-1.5 font-medium">
+          <h3 className="text-lg sm:text-xl font-bold" style={{ color: headingColor }}>{storeName}</h3>
+          <div className="text-xs flex items-center gap-1.5 font-medium" style={{ color: bodyColor }}>
             <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>{address}</span>
           </div>
@@ -781,7 +1102,10 @@ export function LocationMapCardComponent({
         </a>
       </div>
 
-      <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-6 text-xs text-slate-500">
+      <div
+        className="pt-3 border-t flex flex-wrap items-center gap-6 text-xs"
+        style={{ borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#f1f5f9', color: bodyColor }}
+      >
         <div className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-slate-400" />
           <span>Timings: {hours}</span>
@@ -840,6 +1164,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     Header: {
       label: 'Header',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         brandName: { type: 'text', label: 'Store / Brand Name' },
         tagline: { type: 'text', label: 'Tagline' },
         link1: { type: 'text', label: 'Link 1 Label' },
@@ -849,6 +1175,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         whatsappNumber: { type: 'text', label: 'WhatsApp Number' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         brandName: 'Lakshmi Food & Pure Ghee Delights',
         tagline: 'Authentic South Indian Taste',
         link1: 'Home',
@@ -863,6 +1191,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     Footer: {
       label: 'Footer',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         brandName: { type: 'text', label: 'Store Name' },
         tagline: { type: 'textarea', label: 'Brand Tagline & Mission' },
         address: { type: 'text', label: 'Store Address' },
@@ -871,6 +1201,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         copyright: { type: 'text', label: 'Copyright Notice' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         brandName: 'Lakshmi Food & Pure Ghee Delights',
         tagline: 'Serving authentic South Indian delicacies crafted with pure ingredients, traditional recipes, and warm hospitality since 2012.',
         address: '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040',
@@ -884,12 +1216,16 @@ export const puckConfig: Config<PuckComponentProps> = {
     AnnouncementBar: {
       label: 'AnnouncementBar',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         badgeText: { type: 'text', label: 'Badge Text' },
         message: { type: 'text', label: 'Announcement Message' },
         ctaText: { type: 'text', label: 'Action Button Text' },
         whatsappNumber: { type: 'text', label: 'WhatsApp Number' },
       },
       defaultProps: {
+        backgroundColor: '#fffbeb',
+        textColor: '#1e293b',
         badgeText: 'FESTIVE OFFER',
         message: 'Order 3 or more Sweet / Podi boxes and get complimentary Filter Coffee Powder!',
         ctaText: 'Claim on WhatsApp',
@@ -901,6 +1237,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     Hero: {
       label: 'Hero',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         badge: { type: 'text', label: 'Trust Badge' },
         heading: { type: 'text', label: 'Main Headline' },
         description: { type: 'textarea', label: 'Description & Tagline' },
@@ -912,6 +1250,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         address: { type: 'text', label: 'Store Address' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         badge: '⭐ 4.9 Star Rating · 1,480+ Google Reviews',
         heading: 'Lakshmi Food & Pure Ghee Delights',
         description: 'Authentic Traditional South Indian Flavors Crafted with Heritage & Pure Ingredients in Anna Nagar, Chennai.',
@@ -928,6 +1268,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     Bento: {
       label: 'Bento',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         badge: { type: 'text', label: 'Badge Label' },
         heading: { type: 'text', label: 'Heading' },
         description: { type: 'textarea', label: 'Description' },
@@ -944,6 +1286,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         whatsappNumber: { type: 'text', label: 'WhatsApp Number' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         badge: 'Signature Specialties',
         heading: 'Freshly Crafted with Pure Ghee & Heritage Recipes',
         description: 'Every morning we slow-craft traditional South Indian recipes with unadulterated ingredients, farm-churned pure A2 ghee, and freshly stone-ground spices.',
@@ -965,6 +1309,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     ArticleCard: {
       label: 'ArticleCard',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         category: { type: 'text', label: 'Category / Tag' },
         title: { type: 'text', label: 'Article / Story Title' },
         description: { type: 'textarea', label: 'Narrative Story' },
@@ -974,6 +1320,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         whatsappNumber: { type: 'text', label: 'WhatsApp Number' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         category: 'Our Heritage & Tradition',
         title: 'The Story of Lakshmi Food: 14 Years of Pure Taste',
         description: 'In an era of commercial shortcuts and artificial enhancers, we remain devoted to traditional slow-cooking methods. From roasting whole spices in-house to sourcing farm-fresh milk and pure ghee, every dish honors generations of culinary wisdom.',
@@ -988,6 +1336,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     FeatureCards: {
       label: 'FeatureCards',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         heading: { type: 'text', label: 'Section Heading' },
         subheading: { type: 'textarea', label: 'Subheading' },
         feat1Title: { type: 'text', label: 'Feature 1 Title' },
@@ -1000,6 +1350,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         feat4Desc: { type: 'textarea', label: 'Feature 4 Description' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'Why Customers Love Us',
         subheading: 'Consistently delivering authentic purity, hygienic preparation, and swift local service.',
         feat1Title: 'Pure Traditional Recipes',
@@ -1017,6 +1369,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     CardGrid: {
       label: 'CardGrid',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         heading: { type: 'text', label: 'Section Heading' },
         subheading: { type: 'textarea', label: 'Subheading' },
         item1Name: { type: 'text', label: 'Item 1 Name' },
@@ -1034,6 +1388,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         whatsappNumber: { type: 'text', label: 'WhatsApp Order Number' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'Today’s Fresh Specialties & Menu',
         subheading: 'Prepared hot with pure ingredients upon order. Tap to order directly on WhatsApp.',
         item1Name: 'Ghee Podi Crispy Roast Dosa',
@@ -1056,6 +1412,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     GoogleReviews: {
       label: 'GoogleReviews',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         heading: { type: 'text', label: 'Section Heading' },
         overallRating: { type: 'number', label: 'Overall Rating' },
         totalReviews: { type: 'number', label: 'Total Review Count' },
@@ -1067,6 +1425,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         review2Stars: { type: 'number', label: 'Review 2 Stars' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'What Verified Google Foodies Say',
         overallRating: 4.9,
         totalReviews: 1480,
@@ -1083,6 +1443,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     WhatsAppCTA: {
       label: 'WhatsAppCTA',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         headline: { type: 'text', label: 'Headline' },
         subheading: { type: 'textarea', label: 'Subheading' },
         buttonLabel: { type: 'text', label: 'Button Label' },
@@ -1090,6 +1452,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         prefilledMessage: { type: 'text', label: 'Prefilled Message' },
       },
       defaultProps: {
+        backgroundColor: '#f0fdf4',
+        textColor: '#0f172a',
         headline: 'Craving Authentic South Indian Food?',
         subheading: 'Order directly from our kitchen on WhatsApp for instant priority delivery & catering inquiries.',
         buttonLabel: 'Chat & Order on WhatsApp',
@@ -1102,6 +1466,8 @@ export const puckConfig: Config<PuckComponentProps> = {
     LocationMapCard: {
       label: 'LocationMapCard',
       fields: {
+        backgroundColor: backgroundColorField,
+        textColor: textColorField,
         storeName: { type: 'text', label: 'Store Name' },
         address: { type: 'text', label: 'Full Address' },
         hours: { type: 'text', label: 'Opening Hours' },
@@ -1109,6 +1475,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         googleMapsUrl: { type: 'text', label: 'Google Maps Link' },
       },
       defaultProps: {
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         storeName: 'Lakshmi Food - Anna Nagar Flagship',
         address: '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040',
         hours: '7:00 AM - 10:30 PM (Mon - Sun)',
@@ -1124,6 +1492,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <HeroComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badge={`⭐ ${props.googleRating || 4.9} Star Rating · ${(props.reviewCount || 1480).toLocaleString()}+ Google Reviews`}
           heading={props.brandName || 'Lakshmi Food & Pure Ghee Delights'}
           description={props.tagline || 'Authentic Traditional South Indian Flavors Crafted with Heritage & Pure Ingredients'}
@@ -1142,6 +1512,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <HeroComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badge={`⭐ ${props.googleRating || 4.9} Star Rating · ${(props.reviewCount || 1480).toLocaleString()}+ Google Reviews`}
           heading={props.restaurantName || props.brandName || 'Lakshmi Food & Pure Ghee Delights'}
           description={props.tagline || 'Authentic Traditional South Indian Flavors Crafted with Heritage'}
@@ -1160,6 +1532,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <HeroComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badge={props.saleBadge || '✨ SPECIAL OFFER'}
           heading={props.headline || 'Exclusive Collections'}
           description={props.subheading || 'Discover authentic premium products at our showroom.'}
@@ -1178,6 +1552,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <HeroComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badge={props.hallmarkBadge || '100% BIS 916 Hallmarked Gold'}
           heading={props.brandName || 'Sri Swarna Mahal Jewellers'}
           description={props.tagline || 'Exquisite Temple & Bridal Collections'}
@@ -1196,6 +1572,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <HeroComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badge={props.accreditationBadge || 'NABH Accredited Center'}
           heading={props.hospitalName || 'Apollo Speciality Clinic'}
           description={props.tagline || 'World-Class Healthcare & Diagnostics'}
@@ -1214,6 +1592,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <FeatureCardsComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           heading={props.heading || 'Senior Specialist Doctors Available'}
           subheading={props.subheading || 'Book consultation slots directly on WhatsApp.'}
           feat1Title={props.doctor1Name || 'Dr. R. Aravind, MD'}
@@ -1233,6 +1613,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <AnnouncementBarComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           badgeText="BULLION RATES"
           message={`22K: ${props.rate22k || '₹6,880/g'} | 24K: ${props.rate24k || '₹7,505/g'} | Silver: ${props.silverRate || '₹98.50/g'}`}
           ctaText="Inquire Bullion"
@@ -1246,6 +1628,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <CardGridComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           heading={props.heading || 'Today’s Fresh Specialties & Menu'}
           subheading={props.subheading || 'Prepared hot with pure ingredients upon order.'}
           item1Name={props.item1Name || 'Special Dosa'}
@@ -1270,6 +1654,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <CardGridComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           heading={props.heading || 'Today’s Fresh Specialties & Menu'}
           subheading={props.subheading || 'Prepared hot with pure ingredients upon order.'}
           item1Name={props.item1Name || 'Special Dosa'}
@@ -1306,6 +1692,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <WhatsAppCTAComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           headline="Questions or Immediate Orders?"
           subheading="Reach out directly on WhatsApp for fast kitchen support."
           buttonLabel={props.buttonLabel || 'Chat on WhatsApp'}
@@ -1320,6 +1708,8 @@ export const puckConfig: Config<PuckComponentProps> = {
       fields: {},
       render: (props: any) => (
         <ArticleCardComponent
+          backgroundColor={props.backgroundColor}
+          textColor={props.textColor}
           category="Our Heritage"
           title={props.heading || 'Our Story & Tradition'}
           description={props.storyText || props.tagline || 'Authentic traditional South Indian cooking with pure ingredients.'}
@@ -1343,6 +1733,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'AnnouncementBar',
       props: {
         id: 'ann-food-1',
+        backgroundColor: '#fffbeb',
+        textColor: '#1e293b',
         badgeText: 'FESTIVE OFFER',
         message: 'Order 3 or more Sweet / Podi boxes and receive complimentary Kumbakonam Coffee Powder!',
         ctaText: 'Claim on WhatsApp',
@@ -1353,6 +1745,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'Hero',
       props: {
         id: 'hero-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         badge: '⭐ 4.9 Star Rating · 1,480+ Google Reviews',
         heading: 'Lakshmi Food & Pure Ghee Delights',
         description: 'Authentic Traditional South Indian Flavors Crafted with Heritage & Pure Ingredients in Anna Nagar, Chennai.',
@@ -1368,6 +1762,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'Bento',
       props: {
         id: 'bento-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         badge: 'Signature Specialties',
         heading: 'Freshly Crafted with Pure Ghee & Heritage Recipes',
         description: 'Every morning we slow-craft traditional South Indian recipes with unadulterated ingredients, farm-churned pure A2 ghee, and freshly stone-ground spices.',
@@ -1388,6 +1784,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'CardGrid',
       props: {
         id: 'grid-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'Today’s Fresh Specialties & Menu',
         subheading: 'Prepared hot with pure ingredients upon order. Tap to order directly on WhatsApp.',
         item1Name: 'Ghee Podi Crispy Roast Dosa',
@@ -1409,6 +1807,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'FeatureCards',
       props: {
         id: 'features-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'Why Customers Love Us',
         subheading: 'Consistently delivering authentic purity, hygienic preparation, and swift local service.',
         feat1Title: 'Pure Traditional Recipes',
@@ -1425,6 +1825,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'GoogleReviews',
       props: {
         id: 'reviews-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         heading: 'What Verified Google Foodies Say',
         overallRating: 4.9,
         totalReviews: 1480,
@@ -1440,6 +1842,8 @@ export const DEFAULT_FOOD_LAYOUT: Data<PuckComponentProps> = {
       type: 'LocationMapCard',
       props: {
         id: 'map-food-1',
+        backgroundColor: '#ffffff',
+        textColor: '#0f172a',
         storeName: 'Lakshmi Food - Anna Nagar Flagship',
         address: '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040',
         hours: '7:00 AM - 10:30 PM (Mon - Sun)',
