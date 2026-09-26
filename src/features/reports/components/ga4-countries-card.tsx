@@ -50,7 +50,7 @@ function getCountryInfo(code: string): { name: string; flag: string; region: str
   return { name: upper || 'Global Market', flag: '🌐', region: 'International', hex: '#10B981' };
 }
 
-export function Ga4CountriesCard({ countries = [], hasRealData = false }: Ga4CountriesCardProps) {
+export function Ga4CountriesCard({ countries = [], hasRealData: _hasRealData = false }: Ga4CountriesCardProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

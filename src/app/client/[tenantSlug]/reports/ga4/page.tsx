@@ -335,22 +335,30 @@ export default async function Ga4ReportingPage({
       />
 
       <PageHeader
-        title="Google Analytics 4 (GA4)"
-        description="Track website visitors, engagement, search queries, landing pages, and traffic attribution."
+        title="Main Website Analytics (GA4)"
+        description="Track total website traffic, sessions, engagement, queries, and acquisition channels for your primary corporate domain."
         badge={
           <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-semibold text-xs py-1 px-2.5">
             <Sparkles className="h-3 w-3 text-purple-600" />
-            Live Website Analytics
+            Main Corporate Domain
           </Badge>
         }
         actions={
-          <Link
-            href={`/client/${tenant.slug}/integrations`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
-          >
-            <Link2 className="h-3.5 w-3.5 text-slate-500" />
-            {isConnected ? "Manage Connections" : "Connect Google Account"}
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/client/${tenant.slug}/visitors`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors shadow-xs"
+            >
+              <span>View Microsite Traffic & Leads</span>
+            </Link>
+            <Link
+              href={`/client/${tenant.slug}/integrations`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
+            >
+              <Link2 className="h-3.5 w-3.5 text-slate-500" />
+              {isConnected ? "Manage Connections" : "Connect Google Account"}
+            </Link>
+          </div>
         }
       />
 

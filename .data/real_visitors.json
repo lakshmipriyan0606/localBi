@@ -1,0 +1,84 @@
+[
+  {
+    "id": "vis-1790409038460-392",
+    "tenantSlug": "lakshmi-food",
+    "deviceFingerprint": "fp_5b7694de67d2ab",
+    "identifiedUser": null,
+    "isIdentified": false,
+    "intentLevel": "HIGH",
+    "pageViews": [
+      {
+        "url": "/site/lakshmi-food/about",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:50:38.462Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food/menu",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:50:43.943Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food/menu",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:50:50.833Z",
+        "dwellTimeSeconds": 7
+      },
+      {
+        "url": "/site/lakshmi-food/about",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:50:51.896Z",
+        "dwellTimeSeconds": 14
+      }
+    ],
+    "deviceInfo": {
+      "platform": "Windows 11 / 10",
+      "browser": "Google Chrome 153",
+      "screenResolution": "1600x900",
+      "timezone": "Asia/Calcutta"
+    },
+    "trafficSource": {
+      "referrer": "",
+      "channel": "Direct"
+    },
+    "conversions": [],
+    "firstSeenAt": "2026-09-26T07:50:38.462Z",
+    "lastSeenAt": "2026-09-26T07:50:51.896Z"
+  },
+  {
+    "id": "vis-1790409457977-375",
+    "tenantSlug": "lakshmi-food",
+    "deviceFingerprint": "fp_5b7694de9ac19d",
+    "identifiedUser": null,
+    "isIdentified": false,
+    "intentLevel": "MEDIUM",
+    "pageViews": [
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:57:37.978Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-26T07:59:59.692Z",
+        "dwellTimeSeconds": 141
+      }
+    ],
+    "deviceInfo": {
+      "platform": "Windows 11 / 10",
+      "browser": "Google Chrome 153",
+      "screenResolution": "1600x900",
+      "timezone": "Asia/Calcutta"
+    },
+    "trafficSource": {
+      "referrer": "",
+      "channel": "Direct"
+    },
+    "conversions": [],
+    "firstSeenAt": "2026-09-26T07:57:37.978Z",
+    "lastSeenAt": "2026-09-26T08:00:01.206Z"
+  }
+]

@@ -31,16 +31,12 @@ export function Ga4StreamDetails({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-white via-indigo-50/20 to-slate-50 p-5 sm:p-6 shadow-sm transition-all duration-300 hover:border-slate-300">
-      {/* Subtle ambient gradient lights */}
-      <div className="pointer-events-none absolute -top-24 -left-24 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -right-24 h-56 w-56 rounded-full bg-purple-500/10 blur-3xl" />
-
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition-all duration-200 hover:border-slate-300">
       <div className="relative z-10 space-y-4">
         {/* Top status bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-200/80">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-500/20">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
               <Activity className="h-5 w-5 text-white" />
               <span className="absolute -top-1 -right-1 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
@@ -56,8 +52,8 @@ export function Ga4StreamDetails({
                   <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                   {hasRealData ? 'Stream Verified & Active' : 'Attribution Ready'}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 border border-purple-200/80 px-2 py-0.5 text-[10px] font-semibold text-purple-700">
-                  <Sparkles className="h-2.5 w-2.5 text-purple-600" />
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                  <Sparkles className="h-2.5 w-2.5 text-indigo-600" />
                   Enterprise Tier
                 </span>
               </div>

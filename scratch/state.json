@@ -1,34 +1,110 @@
 {
   "connections": [
     {
-      "id": "conn_4fe205170ad752fdf6c756b6",
+      "id": "conn_cb812189b6ac55afbb705062",
       "provider": "GOOGLE",
       "externalEmail": "lakshmipriyan0606@gmail.com",
-      "createdAt": "2026-09-20T05:49:37.628Z",
-      "lastUsedAt": "2026-09-20T14:51:56.667Z"
+      "createdAt": "2026-09-22T14:18:19.765Z",
+      "lastUsedAt": "2026-09-23T15:40:56.392Z"
     }
   ],
-  "externalResources": [],
-  "internalMappings": [],
+  "externalResources": [
+    {
+      "id": "cmucsb1q9000cub9sru4brbjw",
+      "tenantId": "cmucqibzt0000ubj02iu7yob7",
+      "accountId": "cmucsb1pw000aub9s80cghlu0",
+      "provider": "GOOGLE_SEARCH_CONSOLE",
+      "externalResourceId": "https://lakshmipriyan-portfolio.vercel.app/",
+      "resourceType": "PROPERTY",
+      "resourceName": "https://lakshmipriyan-portfolio.vercel.app/",
+      "createdAt": "2026-09-22T14:43:39.009Z",
+      "account": {
+        "accountName": "Google Search Console",
+        "provider": "GOOGLE_SEARCH_CONSOLE"
+      },
+      "connectionAccess": [
+        {
+          "canAccess": true
+        }
+      ]
+    },
+    {
+      "id": "cmuh9jz7j0003ubjs86bq7gpi",
+      "tenantId": "cmucqibzt0000ubj02iu7yob7",
+      "accountId": "cmuh9jz6t0001ubjsascxz3n9",
+      "provider": "GOOGLE_BUSINESS_PROFILE",
+      "externalResourceId": "locations/lakshmi-food-chennai",
+      "resourceType": "LOCATION",
+      "resourceName": "Lakshmi food - Chennai",
+      "createdAt": "2026-09-25T17:57:33.823Z",
+      "account": {
+        "accountName": "Google Business Profile",
+        "provider": "GOOGLE_BUSINESS_PROFILE"
+      },
+      "connectionAccess": [
+        {
+          "canAccess": true
+        }
+      ]
+    }
+  ],
+  "internalMappings": [
+    {
+      "id": "cmucvuy1t002iub9so0aig12e",
+      "tenantId": "cmucqibzt0000ubj02iu7yob7",
+      "resourceId": "cmucsb1q9000cub9sru4brbjw",
+      "internalType": "BRAND",
+      "internalId": "cmucsfjj10001ubm0x4g8bkr2",
+      "createdAt": "2026-09-22T16:23:06.208Z",
+      "resource": {
+        "id": "cmucsb1q9000cub9sru4brbjw",
+        "tenantId": "cmucqibzt0000ubj02iu7yob7",
+        "accountId": "cmucsb1pw000aub9s80cghlu0",
+        "provider": "GOOGLE_SEARCH_CONSOLE",
+        "externalResourceId": "https://lakshmipriyan-portfolio.vercel.app/",
+        "resourceType": "PROPERTY",
+        "resourceName": "https://lakshmipriyan-portfolio.vercel.app/",
+        "createdAt": "2026-09-22T14:43:39.009Z"
+      }
+    },
+    {
+      "id": "cmuh9jz7y0007ubjsa8tw5pde",
+      "tenantId": "cmucqibzt0000ubj02iu7yob7",
+      "resourceId": "cmuh9jz7j0003ubjs86bq7gpi",
+      "internalType": "LOCATION",
+      "internalId": "cmucxfde1002oub9scn5rj2we",
+      "createdAt": "2026-09-25T17:57:33.839Z",
+      "resource": {
+        "id": "cmuh9jz7j0003ubjs86bq7gpi",
+        "tenantId": "cmucqibzt0000ubj02iu7yob7",
+        "accountId": "cmuh9jz6t0001ubjsascxz3n9",
+        "provider": "GOOGLE_BUSINESS_PROFILE",
+        "externalResourceId": "locations/lakshmi-food-chennai",
+        "resourceType": "LOCATION",
+        "resourceName": "Lakshmi food - Chennai",
+        "createdAt": "2026-09-25T17:57:33.823Z"
+      }
+    }
+  ],
   "brands": [
     {
-      "id": "cmu9eqki30001ubj4kulafgt4",
-      "name": "Lakshmi Food",
+      "id": "cmucsfjj10001ubm0x4g8bkr2",
+      "name": "Lakshmi food",
       "slug": "lakshmi-food"
     }
   ],
   "locations": [
     {
-      "id": "cmu9eqkit0003ubj4ydojjz8d",
-      "brandId": "cmu9eqki30001ubj4kulafgt4",
-      "name": "Lakshmi Food - Main Storefront",
-      "storeCode": "LF-01",
-      "addressLine1": "Chennai Main Storefront",
+      "id": "cmucxfde1002oub9scn5rj2we",
+      "brandId": "cmucsfjj10001ubm0x4g8bkr2",
+      "name": "Chennai",
+      "storeCode": "LF-001",
+      "addressLine1": "Khan St, Thiruvenkatapuram, Choolaimedu, Chennai, Tamil Nadu",
       "city": "Chennai",
-      "state": "Tamil Nadu",
-      "postalCode": "600001",
+      "state": "TN",
+      "postalCode": "600094",
       "country": "IN",
-      "timezone": "Asia/Kolkata"
+      "timezone": "America/New_York"
     }
   ]
 }

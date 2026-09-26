@@ -34,7 +34,7 @@ export interface Ga4TrendChartProps {
   hasRealData?: boolean;
 }
 
-export function Ga4TrendChart({ data = [], hasRealData = false }: Ga4TrendChartProps) {
+export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: Ga4TrendChartProps) {
   const [mounted, setMounted] = useState(false);
   const [activeMetric, setActiveMetric] = useState<'all' | 'sessions' | 'clicks' | 'impressions'>('all');
 

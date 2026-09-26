@@ -75,7 +75,7 @@ const DEVICE_META: Record<string, DeviceStyle> = {
 export function Ga4DevicesCard({
   tenantSlug,
   devices = [],
-  hasRealData = false,
+  hasRealData: _hasRealData = false,
 }: Ga4DevicesCardProps) {
   const [mounted, setMounted] = useState(false);
 

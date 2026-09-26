@@ -131,46 +131,18 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
         const isGroupActive = group.items.some((item) => isItemActive(item, pathname, currentSp));
         const isOpen = Boolean(openGroups[groupKey]);
 
-        const isGbp = group.sourceBadge === 'GBP';
-        const isGsc = group.sourceBadge === 'GSC';
-        const isGa4 = group.sourceBadge === 'GA4';
-
-        // High-contrast headline styling for both open and collapsed states
+        // Unified, consistent header styling across all sections (no rainbow color shifts)
         let headerBg = 'bg-slate-50/60 hover:bg-slate-100 border-slate-200/60 text-slate-700';
         let headerText = 'text-slate-700 font-bold';
         let dotStyle = 'bg-slate-400';
-        let connectorColor = 'border-slate-200';
+        const connectorColor = 'border-slate-200';
 
         if (isGroupActive) {
-          if (isGbp) {
-            headerBg = isOpen
-              ? 'bg-emerald-50 hover:bg-emerald-100/70 border-emerald-300 text-emerald-950 shadow-xs ring-1 ring-emerald-400/20'
-              : 'bg-emerald-50/60 hover:bg-emerald-100/80 border-emerald-200 text-emerald-900 shadow-2xs';
-            headerText = 'text-emerald-950 font-extrabold';
-            dotStyle = 'bg-emerald-500';
-            connectorColor = 'border-emerald-300';
-          } else if (isGsc) {
-            headerBg = isOpen
-              ? 'bg-indigo-50 hover:bg-indigo-100/70 border-indigo-300 text-indigo-950 shadow-xs ring-1 ring-indigo-400/20'
-              : 'bg-indigo-50/60 hover:bg-indigo-100/80 border-indigo-200 text-indigo-900 shadow-2xs';
-            headerText = 'text-indigo-950 font-extrabold';
-            dotStyle = 'bg-indigo-600';
-            connectorColor = 'border-indigo-300';
-          } else if (isGa4) {
-            headerBg = isOpen
-              ? 'bg-purple-50 hover:bg-purple-100/70 border-purple-300 text-purple-950 shadow-xs ring-1 ring-purple-400/20'
-              : 'bg-purple-50/60 hover:bg-purple-100/80 border-purple-200 text-purple-900 shadow-2xs';
-            headerText = 'text-purple-950 font-extrabold';
-            dotStyle = 'bg-purple-600';
-            connectorColor = 'border-purple-300';
-          } else {
-            headerBg = isOpen
-              ? 'bg-slate-100 hover:bg-slate-200/70 border-slate-300 text-slate-900 shadow-xs ring-1 ring-slate-400/20'
-              : 'bg-slate-100/70 hover:bg-slate-200/60 border-slate-200 text-slate-900 shadow-2xs';
-            headerText = 'text-slate-900 font-extrabold';
-            dotStyle = 'bg-slate-700';
-            connectorColor = 'border-slate-300';
-          }
+          headerBg = isOpen
+            ? 'bg-slate-100 hover:bg-slate-200/70 border-slate-300 text-slate-950 shadow-xs ring-1 ring-slate-400/20'
+            : 'bg-slate-100/80 hover:bg-slate-200/60 border-slate-200 text-slate-900 shadow-2xs';
+          headerText = 'text-slate-950 font-extrabold';
+          dotStyle = 'bg-indigo-600';
         } else if (isOpen) {
           headerBg = 'bg-slate-100/90 hover:bg-slate-200/70 border-slate-200/90 text-slate-900 shadow-2xs';
           headerText = 'text-slate-900 font-bold';
@@ -198,7 +170,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                 )}
               >
                 {/* Left: Indicator Dot + Section Title */}
-                <div className="flex items-center gap-2 min-w-0 pr-1">
+                <div className="flex items-center gap-2 min-w-0 pr-1 flex-1">
                   {isGroupActive ? (
                     <span className="relative flex h-2 w-2 flex-shrink-0">
                       <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', dotStyle)} />
@@ -209,7 +181,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                   )}
                   <span
                     className={cn(
-                      'text-[11.5px] tracking-tight transition-colors whitespace-nowrap overflow-hidden text-ellipsis',
+                      'text-[12px] tracking-tight transition-colors truncate',
                       headerText
                     )}
                   >
@@ -217,30 +189,18 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                   </span>
                 </div>
 
-                {/* Right: Badge + Active Pill + Rotating Chevron */}
+                {/* Right: Badge + Rotating Chevron */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {group.sourceBadge && (
                     <span
                       className={cn(
                         'text-[9px] font-extrabold tracking-wider px-1.5 py-0.5 rounded border font-mono transition-all',
                         isGroupActive
-                          ? isGbp
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
-                            : isGsc
-                            ? 'bg-indigo-100 text-indigo-800 border-indigo-300 shadow-2xs'
-                            : isGa4
-                            ? 'bg-purple-100 text-purple-800 border-purple-300 shadow-2xs'
-                            : 'bg-slate-200 text-slate-800 border-slate-300 shadow-2xs'
+                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-2xs'
                           : group.badgeColor || 'bg-white text-slate-500 border-slate-200 shadow-2xs'
                       )}
                     >
                       {group.sourceBadge}
-                    </span>
-                  )}
-
-                  {!isOpen && isGroupActive && (
-                    <span className="text-[8.5px] font-extrabold text-white bg-indigo-600 px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-2xs">
-                      Active
                     </span>
                   )}
 
@@ -283,13 +243,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                         className={cn(
                           'group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-all duration-100 select-none cursor-pointer',
                           isActive
-                            ? isGbp
-                              ? 'bg-emerald-600 text-white font-bold shadow-xs'
-                              : isGsc
-                              ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                              : isGa4
-                              ? 'bg-purple-600 text-white font-bold shadow-xs'
-                              : 'bg-indigo-600 text-white font-bold shadow-xs'
+                            ? 'bg-indigo-600 text-white font-bold shadow-xs'
                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         )}
                         aria-current={isActive ? 'page' : undefined}

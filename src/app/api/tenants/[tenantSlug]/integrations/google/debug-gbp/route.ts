@@ -61,8 +61,8 @@ export async function GET(
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
     const accountsRaw = await accountsRes.json();
-    debugLog.accountsApiStatus = accountsRes.status;
-    debugLog.accountsApiResponse = accountsRaw;
+    debugLog['accountsApiStatus'] = accountsRes.status;
+    debugLog['accountsApiResponse'] = accountsRaw;
 
     const accounts = (accountsRaw.accounts || []) as Array<{
       name: string;
@@ -76,8 +76,8 @@ export async function GET(
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
     const wildcardRaw = await wildcardRes.json();
-    debugLog.wildcardLocationsApiStatus = wildcardRes.status;
-    debugLog.wildcardLocationsApiResponse = wildcardRaw;
+    debugLog['wildcardLocationsApiStatus'] = wildcardRes.status;
+    debugLog['wildcardLocationsApiResponse'] = wildcardRaw;
 
     // Step 3: Per-account location fetch + org sub-account expansion
     const perAccountResults: Record<string, unknown>[] = [];
@@ -95,8 +95,8 @@ export async function GET(
           { headers: { Authorization: `Bearer ${accessToken}` } },
         );
         const subRaw = await subRes.json();
-        entry.subAccountsStatus = subRes.status;
-        entry.subAccountsResponse = subRaw;
+        entry['subAccountsStatus'] = subRes.status;
+        entry['subAccountsResponse'] = subRaw;
 
         // Fetch locations for each sub-account
         const subAccounts = (subRaw.accounts || []) as Array<{ name: string }>;
@@ -113,7 +113,7 @@ export async function GET(
             response: subLocRaw,
           });
         }
-        entry.subLocationResults = subLocationResults;
+        entry['subLocationResults'] = subLocationResults;
       } else {
         // Fetch locations directly
         const locRes = await fetch(
@@ -121,14 +121,14 @@ export async function GET(
           { headers: { Authorization: `Bearer ${accessToken}` } },
         );
         const locRaw = await locRes.json();
-        entry.locationsStatus = locRes.status;
-        entry.locationsResponse = locRaw;
+        entry['locationsStatus'] = locRes.status;
+        entry['locationsResponse'] = locRaw;
       }
 
       perAccountResults.push(entry);
     }
 
-    debugLog.perAccountResults = perAccountResults;
+    debugLog['perAccountResults'] = perAccountResults;
 
     return NextResponse.json({ debug: debugLog }, { status: 200 });
   } catch (error) {

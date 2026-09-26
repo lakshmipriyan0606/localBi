@@ -15,6 +15,7 @@ import {
   Users,
   Mail,
   Settings,
+  Fingerprint,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -133,11 +134,26 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
     items: [
       {
-        label: 'Website Visitors & Traffic',
+        label: 'Main Website Traffic',
         href: `/client/${slug}/reports/ga4`,
         icon: Activity,
-        pillBadge: 'PREVIEW',
-        badgeVariant: 'purple',
+      },
+    ],
+  },
+  {
+    heading: 'Storefront Microsites',
+    sourceBadge: 'SITES',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    items: [
+      {
+        label: 'Subdomain Sites & Builder',
+        href: `/client/${slug}/microsites`,
+        icon: Globe,
+      },
+      {
+        label: 'Microsite Analytics & Leads',
+        href: `/client/${slug}/visitors`,
+        icon: Fingerprint,
       },
     ],
   },

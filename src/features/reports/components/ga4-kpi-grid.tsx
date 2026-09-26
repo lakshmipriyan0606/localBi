@@ -51,19 +51,17 @@ export function Ga4KpiGrid({
   avgPosition = 0,
   avgDuration = '2m 05s',
   brandName,
-  hasRealData = false,
+  hasRealData: _hasRealData = false,
 }: Ga4KpiGridProps) {
   const engagementRate = sessions > 0 ? Math.round((engagedSessions / sessions) * 100) : 68;
 
   return (
     <section className="space-y-4">
       {/* Executive Command Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-r from-white via-indigo-50/20 to-slate-50 p-4 sm:p-5 shadow-xs transition-all duration-300">
-        <div className="pointer-events-none absolute -top-16 -right-16 h-36 w-36 rounded-full bg-indigo-500/10 blur-2xl" />
-
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs transition-all duration-200">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md shadow-indigo-500/20 text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 shadow-xs text-white">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
@@ -78,8 +76,8 @@ export function Ga4KpiGrid({
                   </span>
                   Live Sync: {brandName || 'Real-Time'}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80">
-                  <Sparkles className="h-3 w-3 text-purple-600" />
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  <Sparkles className="h-3 w-3 text-indigo-600" />
                   Enterprise Tier
                 </span>
               </div>
@@ -101,10 +99,9 @@ export function Ga4KpiGrid({
       {/* Primary KPI Command Grid - 5 Visual Trend Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* 1. Total Visitors */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:shadow-xl hover:border-blue-400 hover:-translate-y-1 transition-all duration-300">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-gradient-to-bl from-blue-100/50 to-transparent rounded-bl-full pointer-events-none transition-transform group-hover:scale-110" />
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:border-blue-400 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/25 group-hover:scale-110 transition-transform">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs group-hover:scale-105 transition-transform">
               <Users className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full shadow-2xs">
@@ -131,10 +128,9 @@ export function Ga4KpiGrid({
         </div>
 
         {/* 2. Total Sessions */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:shadow-xl hover:border-indigo-400 hover:-translate-y-1 transition-all duration-300">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-gradient-to-bl from-indigo-100/50 to-transparent rounded-bl-full pointer-events-none transition-transform group-hover:scale-110" />
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:border-indigo-400 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/25 group-hover:scale-110 transition-transform">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs group-hover:scale-105 transition-transform">
               <MousePointerClick className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/80 px-2 py-0.5 rounded-full shadow-2xs">
@@ -161,10 +157,9 @@ export function Ga4KpiGrid({
         </div>
 
         {/* 3. Engaged Sessions */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:shadow-xl hover:border-teal-400 hover:-translate-y-1 transition-all duration-300">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-gradient-to-bl from-teal-100/50 to-transparent rounded-bl-full pointer-events-none transition-transform group-hover:scale-110" />
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:border-teal-400 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-md shadow-teal-500/25 group-hover:scale-110 transition-transform">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-xs group-hover:scale-105 transition-transform">
               <Activity className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-full shadow-2xs">
@@ -191,10 +186,9 @@ export function Ga4KpiGrid({
         </div>
 
         {/* 4. Conversion Rate */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:shadow-xl hover:border-purple-400 hover:-translate-y-1 transition-all duration-300">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-gradient-to-bl from-purple-100/50 to-transparent rounded-bl-full pointer-events-none transition-transform group-hover:scale-110" />
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:border-purple-400 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-md shadow-purple-500/25 group-hover:scale-110 transition-transform">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-white shadow-xs group-hover:scale-105 transition-transform">
               <Target className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200/80 px-2 py-0.5 rounded-full shadow-2xs">
@@ -220,10 +214,9 @@ export function Ga4KpiGrid({
         </div>
 
         {/* 5. Search Ranking & Position */}
-        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:shadow-xl hover:border-amber-400 hover:-translate-y-1 transition-all duration-300">
-          <div className="absolute top-0 right-0 h-24 w-24 bg-gradient-to-bl from-amber-100/50 to-transparent rounded-bl-full pointer-events-none transition-transform group-hover:scale-110" />
+        <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs hover:border-amber-400 hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between relative z-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25 group-hover:scale-110 transition-transform">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs group-hover:scale-105 transition-transform">
               <Trophy className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shadow-2xs">
@@ -249,9 +242,9 @@ export function Ga4KpiGrid({
         </div>
       </div>
 
-      {/* Secondary Performance Intelligence Strip - 4 High-Tech Cards */}
+      {/* Secondary Performance Intelligence Strip - 4 Clean Solid Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="group rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-sky-50/30 p-3.5 flex items-center gap-3.5 shadow-xs hover:border-sky-300 hover:shadow-md transition-all duration-200">
+        <div className="group rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3.5 shadow-xs hover:border-sky-300 hover:shadow-sm transition-all duration-200">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600 group-hover:scale-105 transition-transform shadow-xs">
             <Eye className="h-5 w-5" />
           </div>
@@ -261,7 +254,7 @@ export function Ga4KpiGrid({
           </div>
         </div>
 
-        <div className="group rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-emerald-50/30 p-3.5 flex items-center gap-3.5 shadow-xs hover:border-emerald-300 hover:shadow-md transition-all duration-200">
+        <div className="group rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3.5 shadow-xs hover:border-emerald-300 hover:shadow-sm transition-all duration-200">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 group-hover:scale-105 transition-transform shadow-xs">
             <MousePointerClick className="h-5 w-5" />
           </div>
@@ -271,7 +264,7 @@ export function Ga4KpiGrid({
           </div>
         </div>
 
-        <div className="group rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-purple-50/30 p-3.5 flex items-center gap-3.5 shadow-xs hover:border-purple-300 hover:shadow-md transition-all duration-200">
+        <div className="group rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3.5 shadow-xs hover:border-purple-300 hover:shadow-sm transition-all duration-200">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 group-hover:scale-105 transition-transform shadow-xs">
             <Clock className="h-5 w-5" />
           </div>
@@ -281,7 +274,7 @@ export function Ga4KpiGrid({
           </div>
         </div>
 
-        <div className="group rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white to-teal-50/30 p-3.5 flex items-center gap-3.5 shadow-xs hover:border-teal-300 hover:shadow-md transition-all duration-200">
+        <div className="group rounded-2xl border border-slate-200 bg-white p-3.5 flex items-center gap-3.5 shadow-xs hover:border-teal-300 hover:shadow-sm transition-all duration-200">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-600 group-hover:scale-105 transition-transform shadow-xs">
             <ShieldCheck className="h-5 w-5" />
           </div>
