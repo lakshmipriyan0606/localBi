@@ -1,0 +1,729 @@
+[
+  {
+    "tenantSlug": "lakshmi-food",
+    "propertyName": "Lakshmi Priyan - Portfolio",
+    "propertyId": "properties/460392819",
+    "dateRange": "Aug 30 - Sep 26, 2026",
+    "activeUsers": 14,
+    "newUsers": 15,
+    "eventCount": 127,
+    "keyEvents": 0,
+    "sessions": 22,
+    "avgEngagementTimeSeconds": 6,
+    "bounceRate": 83.3,
+    "engagementRate": 16.7,
+    "channels": [
+      {
+        "channel": "Direct",
+        "newUsers": 11,
+        "sessions": 16,
+        "percentage": 73.3
+      },
+      {
+        "channel": "Organic Search",
+        "newUsers": 3,
+        "sessions": 4,
+        "percentage": 20
+      },
+      {
+        "channel": "Organic Social",
+        "newUsers": 1,
+        "sessions": 2,
+        "percentage": 6.7
+      }
+    ],
+    "devices": [
+      {
+        "device": "Desktop",
+        "percentage": 69,
+        "sessions": 15
+      },
+      {
+        "device": "Mobile",
+        "percentage": 31,
+        "sessions": 7
+      }
+    ],
+    "pages": [
+      {
+        "pageTitle": "Lakshmi Priyan - Portfolio",
+        "url": "/site/lakshmi-food",
+        "views": 34,
+        "activeUsers": 14,
+        "eventCount": 127,
+        "bounceRate": 83.3,
+        "avgEngagementTimeSeconds": 6
+      }
+    ],
+    "events": [
+      {
+        "eventName": "page_view",
+        "eventCount": 34,
+        "percentageOfTotal": 26.77,
+        "totalUsers": 14,
+        "userPercentage": 100,
+        "eventCountPerActiveUser": 2.43,
+        "totalRevenue": "₹0.00 (-)"
+      },
+      {
+        "eventName": "scroll",
+        "eventCount": 32,
+        "percentageOfTotal": 25.2,
+        "totalUsers": 14,
+        "userPercentage": 100,
+        "eventCountPerActiveUser": 2.29,
+        "totalRevenue": "₹0.00 (-)"
+      },
+      {
+        "eventName": "session_start",
+        "eventCount": 31,
+        "percentageOfTotal": 24.41,
+        "totalUsers": 14,
+        "userPercentage": 100,
+        "eventCountPerActiveUser": 2.21,
+        "totalRevenue": "₹0.00 (-)"
+      },
+      {
+        "eventName": "first_visit",
+        "eventCount": 15,
+        "percentageOfTotal": 11.81,
+        "totalUsers": 14,
+        "userPercentage": 100,
+        "eventCountPerActiveUser": 1.07,
+        "totalRevenue": "₹0.00 (-)"
+      },
+      {
+        "eventName": "user_engagement",
+        "eventCount": 14,
+        "percentageOfTotal": 11.02,
+        "totalUsers": 6,
+        "userPercentage": 42.86,
+        "eventCountPerActiveUser": 2.33,
+        "totalRevenue": "₹0.00 (-)"
+      },
+      {
+        "eventName": "file_download",
+        "eventCount": 1,
+        "percentageOfTotal": 0.79,
+        "totalUsers": 1,
+        "userPercentage": 7.14,
+        "eventCountPerActiveUser": 1,
+        "totalRevenue": "₹0.00 (-)"
+      }
+    ],
+    "eventTrend": [
+      {
+        "date": "2026-08-31",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-03",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-07",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-11",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-15",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-16",
+        "total": 6,
+        "pageView": 2,
+        "scroll": 1,
+        "sessionStart": 2,
+        "firstVisit": 1,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-17",
+        "total": 28,
+        "pageView": 7,
+        "scroll": 5,
+        "sessionStart": 6,
+        "firstVisit": 4,
+        "userEngagement": 6
+      },
+      {
+        "date": "2026-09-18",
+        "total": 18,
+        "pageView": 5,
+        "scroll": 6,
+        "sessionStart": 4,
+        "firstVisit": 2,
+        "userEngagement": 1
+      },
+      {
+        "date": "2026-09-19",
+        "total": 22,
+        "pageView": 6,
+        "scroll": 7,
+        "sessionStart": 5,
+        "firstVisit": 2,
+        "userEngagement": 2
+      },
+      {
+        "date": "2026-09-20",
+        "total": 12,
+        "pageView": 3,
+        "scroll": 2,
+        "sessionStart": 3,
+        "firstVisit": 2,
+        "userEngagement": 2
+      },
+      {
+        "date": "2026-09-21",
+        "total": 18,
+        "pageView": 5,
+        "scroll": 4,
+        "sessionStart": 4,
+        "firstVisit": 2,
+        "userEngagement": 3
+      },
+      {
+        "date": "2026-09-22",
+        "total": 16,
+        "pageView": 4,
+        "scroll": 4,
+        "sessionStart": 4,
+        "firstVisit": 2,
+        "userEngagement": 2
+      },
+      {
+        "date": "2026-09-23",
+        "total": 15,
+        "pageView": 4,
+        "scroll": 4,
+        "sessionStart": 3,
+        "firstVisit": 2,
+        "userEngagement": 2
+      },
+      {
+        "date": "2026-09-24",
+        "total": 16,
+        "pageView": 4,
+        "scroll": 4,
+        "sessionStart": 4,
+        "firstVisit": 2,
+        "userEngagement": 2
+      },
+      {
+        "date": "2026-09-25",
+        "total": 0,
+        "pageView": 0,
+        "scroll": 0,
+        "sessionStart": 0,
+        "firstVisit": 0,
+        "userEngagement": 0
+      },
+      {
+        "date": "2026-09-26",
+        "total": 8,
+        "pageView": 2,
+        "scroll": 2,
+        "sessionStart": 2,
+        "firstVisit": 1,
+        "userEngagement": 1
+      }
+    ],
+    "pageScreens": [
+      {
+        "pagePath": "/",
+        "pageTitle": "Lakshmi Priyan - Portfolio",
+        "views": 34,
+        "activeUsers": 14,
+        "viewsPerActiveUser": 2.43,
+        "avgEngagementTimeSeconds": 6,
+        "eventCount": 127,
+        "keyEvents": 0,
+        "totalRevenue": "₹0.00 (-)"
+      }
+    ],
+    "engagementOverview": {
+      "activeUsers": 14,
+      "newUsers": 15,
+      "channels": [
+        {
+          "channel": "Direct",
+          "newUsers": 11,
+          "sessions": 16,
+          "percentage": 73.3
+        },
+        {
+          "channel": "Organic Search",
+          "newUsers": 3,
+          "sessions": 4,
+          "percentage": 20
+        },
+        {
+          "channel": "Organic Social",
+          "newUsers": 1,
+          "sessions": 2,
+          "percentage": 6.7
+        }
+      ],
+      "pageTitle": "Lakshmi Priyan - Portfolio",
+      "views": 34,
+      "platform": {
+        "name": "Web",
+        "percentage": 100
+      },
+      "retentionCurve": [
+        {
+          "date": "16 Sep",
+          "retentionRate": 15,
+          "benchmarkRetentionRate": 10,
+          "engagementTimeSeconds": 4,
+          "benchmarkEngagementTimeSeconds": 3
+        },
+        {
+          "date": "17 Sep",
+          "retentionRate": 45,
+          "benchmarkRetentionRate": 35,
+          "engagementTimeSeconds": 8,
+          "benchmarkEngagementTimeSeconds": 5
+        },
+        {
+          "date": "18 Sep",
+          "retentionRate": 70,
+          "benchmarkRetentionRate": 45,
+          "engagementTimeSeconds": 12,
+          "benchmarkEngagementTimeSeconds": 6
+        },
+        {
+          "date": "19 Sep",
+          "retentionRate": 60,
+          "benchmarkRetentionRate": 52,
+          "engagementTimeSeconds": 10,
+          "benchmarkEngagementTimeSeconds": 6
+        },
+        {
+          "date": "20 Sep",
+          "retentionRate": 0,
+          "benchmarkRetentionRate": 20,
+          "engagementTimeSeconds": 3,
+          "benchmarkEngagementTimeSeconds": 4
+        },
+        {
+          "date": "21 Sep",
+          "retentionRate": 0,
+          "benchmarkRetentionRate": 15,
+          "engagementTimeSeconds": 4,
+          "benchmarkEngagementTimeSeconds": 3
+        },
+        {
+          "date": "22 Sep",
+          "retentionRate": 30,
+          "benchmarkRetentionRate": 25,
+          "engagementTimeSeconds": 6,
+          "benchmarkEngagementTimeSeconds": 4
+        },
+        {
+          "date": "23 Sep",
+          "retentionRate": 40,
+          "benchmarkRetentionRate": 30,
+          "engagementTimeSeconds": 7,
+          "benchmarkEngagementTimeSeconds": 5
+        },
+        {
+          "date": "24 Sep",
+          "retentionRate": 35,
+          "benchmarkRetentionRate": 28,
+          "engagementTimeSeconds": 7,
+          "benchmarkEngagementTimeSeconds": 5
+        },
+        {
+          "date": "26 Sep",
+          "retentionRate": 10,
+          "benchmarkRetentionRate": 12,
+          "engagementTimeSeconds": 3,
+          "benchmarkEngagementTimeSeconds": 3
+        }
+      ],
+      "userEngagementDaily": [
+        {
+          "day": "Day 0",
+          "seconds": 1.1
+        },
+        {
+          "day": "Day 7",
+          "seconds": 0.9
+        },
+        {
+          "day": "Day 14",
+          "seconds": 0
+        },
+        {
+          "day": "Day 21",
+          "seconds": 0
+        },
+        {
+          "day": "Day 28",
+          "seconds": 0
+        },
+        {
+          "day": "Day 35",
+          "seconds": 0
+        }
+      ]
+    },
+    "trend": [
+      {
+        "date": "2026-08-30",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-01",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-03",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-05",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-07",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-09",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-11",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-13",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-15",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 0.1,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-16",
+        "activeUsers": 1,
+        "newUsers": 1,
+        "eventCount": 6,
+        "keyEvents": 0,
+        "sessions": 2,
+        "engagementRate": 50,
+        "avgEngagementTimeSeconds": 4,
+        "peerBenchmark": 1.5,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-17",
+        "activeUsers": 3,
+        "newUsers": 3,
+        "eventCount": 28,
+        "keyEvents": 0,
+        "sessions": 5,
+        "engagementRate": 66.7,
+        "avgEngagementTimeSeconds": 8,
+        "peerBenchmark": 3.8,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-18",
+        "activeUsers": 2,
+        "newUsers": 2,
+        "eventCount": 18,
+        "keyEvents": 0,
+        "sessions": 3,
+        "engagementRate": 70,
+        "avgEngagementTimeSeconds": 12,
+        "peerBenchmark": 2.5,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-19",
+        "activeUsers": 2,
+        "newUsers": 2,
+        "eventCount": 22,
+        "keyEvents": 0,
+        "sessions": 4,
+        "engagementRate": 60,
+        "avgEngagementTimeSeconds": 10,
+        "peerBenchmark": 2,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-20",
+        "activeUsers": 1,
+        "newUsers": 1,
+        "eventCount": 12,
+        "keyEvents": 0,
+        "sessions": 2,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 3,
+        "peerBenchmark": 3.2,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-21",
+        "activeUsers": 1,
+        "newUsers": 1,
+        "eventCount": 10,
+        "keyEvents": 0,
+        "sessions": 2,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 4,
+        "peerBenchmark": 4,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-22",
+        "activeUsers": 2,
+        "newUsers": 2,
+        "eventCount": 16,
+        "keyEvents": 0,
+        "sessions": 3,
+        "engagementRate": 33.3,
+        "avgEngagementTimeSeconds": 6,
+        "peerBenchmark": 2.8,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-23",
+        "activeUsers": 2,
+        "newUsers": 2,
+        "eventCount": 15,
+        "keyEvents": 0,
+        "sessions": 3,
+        "engagementRate": 50,
+        "avgEngagementTimeSeconds": 7,
+        "peerBenchmark": 2,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-24",
+        "activeUsers": 2,
+        "newUsers": 2,
+        "eventCount": 16,
+        "keyEvents": 0,
+        "sessions": 3,
+        "engagementRate": 50,
+        "avgEngagementTimeSeconds": 7,
+        "peerBenchmark": 2.8,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-25",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 0,
+        "keyEvents": 0,
+        "sessions": 0,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 0,
+        "peerBenchmark": 1.8,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-26",
+        "activeUsers": 1,
+        "newUsers": 1,
+        "eventCount": 8,
+        "keyEvents": 0,
+        "sessions": 2,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 3,
+        "peerBenchmark": 2.5,
+        "previousPeriod": 0
+      },
+      {
+        "date": "2026-09-27",
+        "activeUsers": 0,
+        "newUsers": 0,
+        "eventCount": 2,
+        "keyEvents": 0,
+        "sessions": 1,
+        "engagementRate": 0,
+        "avgEngagementTimeSeconds": 2,
+        "peerBenchmark": 3.5,
+        "previousPeriod": 0
+      }
+    ],
+    "retention": [
+      {
+        "date": "2026-09-16",
+        "retentionRate": 15,
+        "benchmarkRetentionRate": 10,
+        "engagementTimeSeconds": 4,
+        "benchmarkEngagementTimeSeconds": 3
+      },
+      {
+        "date": "2026-09-17",
+        "retentionRate": 45,
+        "benchmarkRetentionRate": 35,
+        "engagementTimeSeconds": 8,
+        "benchmarkEngagementTimeSeconds": 5
+      },
+      {
+        "date": "2026-09-18",
+        "retentionRate": 70,
+        "benchmarkRetentionRate": 45,
+        "engagementTimeSeconds": 12,
+        "benchmarkEngagementTimeSeconds": 6
+      },
+      {
+        "date": "2026-09-19",
+        "retentionRate": 60,
+        "benchmarkRetentionRate": 52,
+        "engagementTimeSeconds": 10,
+        "benchmarkEngagementTimeSeconds": 6
+      },
+      {
+        "date": "2026-09-20",
+        "retentionRate": 0,
+        "benchmarkRetentionRate": 20,
+        "engagementTimeSeconds": 3,
+        "benchmarkEngagementTimeSeconds": 4
+      },
+      {
+        "date": "2026-09-21",
+        "retentionRate": 0,
+        "benchmarkRetentionRate": 15,
+        "engagementTimeSeconds": 4,
+        "benchmarkEngagementTimeSeconds": 3
+      },
+      {
+        "date": "2026-09-22",
+        "retentionRate": 30,
+        "benchmarkRetentionRate": 25,
+        "engagementTimeSeconds": 6,
+        "benchmarkEngagementTimeSeconds": 4
+      },
+      {
+        "date": "2026-09-23",
+        "retentionRate": 40,
+        "benchmarkRetentionRate": 30,
+        "engagementTimeSeconds": 7,
+        "benchmarkEngagementTimeSeconds": 5
+      },
+      {
+        "date": "2026-09-24",
+        "retentionRate": 35,
+        "benchmarkRetentionRate": 28,
+        "engagementTimeSeconds": 7,
+        "benchmarkEngagementTimeSeconds": 5
+      },
+      {
+        "date": "2026-09-26",
+        "retentionRate": 10,
+        "benchmarkRetentionRate": 12,
+        "engagementTimeSeconds": 3,
+        "benchmarkEngagementTimeSeconds": 3
+      }
+    ],
+    "lastSyncedAt": "2026-09-27T07:46:19.310Z"
+  }
+]

@@ -368,4 +368,46 @@ export class GoogleApiClient {
 
     return entries;
   }
+
+  /**
+   * Queries Google Analytics Data API v1beta for property reporting.
+   */
+  public static async queryGa4AnalyticsReport(
+    accessToken: string,
+    propertyId: string,
+    startDate: string,
+    endDate: string,
+    dimensions: string[] = ["date"],
+    metrics: string[] = [
+      "activeUsers",
+      "newUsers",
+      "eventCount",
+      "keyEvents",
+      "averageSessionDuration",
+      "bounceRate",
+    ],
+  ): Promise<any> {
+    const cleanPropId = propertyId.replace(/^properties\//, "");
+    const url = `https://analyticsdata.googleapis.com/v1beta/properties/${cleanPropId}:runReport`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateRanges: [{ startDate, endDate }],
+        dimensions: dimensions.map((d) => ({ name: d })),
+        metrics: metrics.map((m) => ({ name: m })),
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`GA4 runReport failed (${response.status}): ${errText}`);
+    }
+
+    return response.json();
+  }
 }

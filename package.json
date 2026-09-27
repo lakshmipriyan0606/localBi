@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:unit": "vitest run spikes tests/phase1-foundation.test.ts tests/components/login-form.test.tsx tests/unit/metric-registry-and-drilldown.test.ts tests/unit/notify.test.ts",
+    "test:unit": "vitest run spikes tests/phase1-foundation.test.ts tests/components/login-form.test.tsx tests/unit/metric-registry-and-drilldown.test.ts tests/unit/notify.test.ts tests/unit/ga4-analytics.test.ts",
     "test:integration": "vitest run tests/live-rls.test.ts tests/live-redis.test.ts tests/bootstrap-password-safety.test.ts",
     "test:e2e": "playwright test",
     "test:spikes": "vitest run spikes",

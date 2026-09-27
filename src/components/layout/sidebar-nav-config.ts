@@ -9,7 +9,9 @@ import {
   FileText,
   Globe,
   MonitorSmartphone,
+  BarChart2,
   Activity,
+  MousePointerClick,
   Link2,
   Tag,
   Users,
@@ -140,9 +142,25 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
     items: [
       {
-        label: 'Main Website Traffic',
+        label: 'Website analytics',
         href: `/client/${slug}/reports/ga4`,
+        icon: BarChart2,
+        exact: true,
+      },
+      {
+        label: 'User engagement & retention',
+        href: `/client/${slug}/reports/ga4/engagement`,
         icon: Activity,
+      },
+      {
+        label: 'Pages and screens',
+        href: `/client/${slug}/reports/ga4/pages`,
+        icon: FileText,
+      },
+      {
+        label: 'Events',
+        href: `/client/${slug}/reports/ga4/events`,
+        icon: MousePointerClick,
       },
     ],
   },

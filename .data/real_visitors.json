@@ -48,6 +48,24 @@
         "title": "localBi — Enterprise Local SEO Platform",
         "timestamp": "2026-09-26T16:25:12.370Z",
         "dwellTimeSeconds": 7
+      },
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:06:09.659Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:07:30.092Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:08:44.260Z",
+        "dwellTimeSeconds": 74
       }
     ],
     "deviceInfo": {
@@ -62,7 +80,7 @@
     },
     "conversions": [],
     "firstSeenAt": "2026-09-26T07:50:38.462Z",
-    "lastSeenAt": "2026-09-26T16:25:12.370Z"
+    "lastSeenAt": "2026-09-27T07:08:44.260Z"
   },
   {
     "id": "vis-1790409457977-375",
@@ -105,12 +123,18 @@
     "deviceFingerprint": "fp_105df47e",
     "identifiedUser": null,
     "isIdentified": false,
-    "intentLevel": "LOW",
+    "intentLevel": "MEDIUM",
     "pageViews": [
       {
         "url": "/site/lakshmi-food",
         "title": "LAKSHMI-FOOD - Official Storefront",
         "timestamp": "2026-09-26T14:32:36.500Z",
+        "dwellTimeSeconds": 30
+      },
+      {
+        "url": "/site/lakshmi-food",
+        "title": "LAKSHMI-FOOD - Official Storefront",
+        "timestamp": "2026-09-27T07:09:44.561Z",
         "dwellTimeSeconds": 30
       }
     ],
@@ -126,6 +150,56 @@
     },
     "conversions": [],
     "firstSeenAt": "2026-09-26T14:32:36.500Z",
-    "lastSeenAt": "2026-09-26T14:32:37.708Z"
+    "lastSeenAt": "2026-09-27T07:09:44.559Z"
+  },
+  {
+    "id": "vis-1790492860909-107",
+    "tenantSlug": "lakshmi-food",
+    "deviceFingerprint": "fp_5b7694de19e347",
+    "identifiedUser": null,
+    "isIdentified": false,
+    "intentLevel": "HOT",
+    "pageViews": [
+      {
+        "url": "/site/lakshmi-food",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:07:40.909Z",
+        "dwellTimeSeconds": 15
+      },
+      {
+        "url": "/site/lakshmi-food/contact",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:08:07.778Z",
+        "dwellTimeSeconds": 27
+      },
+      {
+        "url": "/site/lakshmi-food/contact",
+        "title": "localBi — Enterprise Local SEO Platform",
+        "timestamp": "2026-09-27T07:08:13.715Z",
+        "dwellTimeSeconds": 33
+      }
+    ],
+    "deviceInfo": {
+      "platform": "Windows 11 / 10",
+      "browser": "Google Chrome 153",
+      "screenResolution": "1600x900",
+      "timezone": "Asia/Calcutta"
+    },
+    "trafficSource": {
+      "referrer": "",
+      "channel": "Direct"
+    },
+    "conversions": [
+      {
+        "type": "PHONE_CALL",
+        "timestamp": "2026-09-27T07:08:07.833Z"
+      },
+      {
+        "type": "WHATSAPP_CLICK",
+        "timestamp": "2026-09-27T07:08:10.692Z"
+      }
+    ],
+    "firstSeenAt": "2026-09-27T07:07:40.909Z",
+    "lastSeenAt": "2026-09-27T07:08:13.715Z"
   }
 ]
