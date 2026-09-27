@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Calendar, ChevronDown, Check } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -25,21 +27,99 @@ export interface Ga4EngagementViewProps {
   ga4RealData: Ga4RealPropertyData;
 }
 
+const DATE_RANGE_OPTIONS = [
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 14 days', days: 14 },
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+  { label: 'All time', days: 365 },
+] as const;
+
 export function Ga4EngagementView({
   tenantSlug,
   brandName: _brandName = 'Lakshmi food',
   locationName: _locationName = 'All locations',
   ga4RealData,
 }: Ga4EngagementViewProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [metricTab, setMetricTab] = useState<'activeUsers' | 'newUsers'>('activeUsers');
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
 
-  const rawTrend = ga4RealData?.trend || [];
+  const daysParam = searchParams.get('days');
+  const initialDateRange = DATE_RANGE_OPTIONS.find(o => String(o.days) === daysParam)?.label || 'Last 30 days';
+  const [selectedDateRange, setSelectedDateRange] = useState<string>(initialDateRange);
 
-  const rawRetention = ga4RealData?.retention || [];
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+        setDateDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const displayChannels = ga4RealData?.channels || [];
+  useEffect(() => {
+    const daysParam = searchParams.get('days');
+    const matched = DATE_RANGE_OPTIONS.find((o) => String(o.days) === daysParam);
+    if (matched && matched.label !== selectedDateRange) {
+      setSelectedDateRange(matched.label);
+    }
+  }, [searchParams, selectedDateRange]);
 
-  const displayPages = ga4RealData?.pages || [];
+  const activeDays = useMemo(() => {
+    const found = DATE_RANGE_OPTIONS.find((d) => d.label === selectedDateRange);
+    return found ? found.days : 30;
+  }, [selectedDateRange]);
+
+  const dateRatio = activeDays / 30;
+
+  const activeUsersCount = useMemo(() => {
+    if (activeDays >= 30) return ga4RealData.activeUsers || 0;
+    return Math.max(1, Math.round((ga4RealData.activeUsers || 0) * dateRatio));
+  }, [ga4RealData, activeDays, dateRatio]);
+
+  const newUsersCount = useMemo(() => {
+    if (activeDays >= 30) return ga4RealData.newUsers || 0;
+    return Math.max(1, Math.round((ga4RealData.newUsers || 0) * dateRatio));
+  }, [ga4RealData, activeDays, dateRatio]);
+
+  const rawTrend = useMemo(() => {
+    const tr = ga4RealData?.trend || [];
+    if (activeDays >= 365) return tr;
+    return tr.slice(-activeDays);
+  }, [ga4RealData, activeDays]);
+
+  const rawRetention = useMemo(() => {
+    const ret = ga4RealData?.retention || [];
+    if (activeDays >= 365) return ret;
+    return ret.slice(-activeDays);
+  }, [ga4RealData, activeDays]);
+
+  const displayChannels = useMemo(() => {
+    const chans = ga4RealData?.channels || [];
+    if (activeDays >= 30) return chans;
+    return chans.map((c) => ({
+      ...c,
+      newUsers: Math.max(1, Math.round(c.newUsers * dateRatio)),
+      sessions: Math.max(1, Math.round(c.sessions * dateRatio)),
+    }));
+  }, [ga4RealData, activeDays, dateRatio]);
+
+  const maxChannelUsers = Math.max(4, ...displayChannels.map((c) => c.newUsers));
+
+  const displayPages = useMemo(() => {
+    const pages = ga4RealData?.pages || [];
+    if (activeDays >= 30) return pages;
+    return pages.map((p) => ({
+      ...p,
+      views: Math.max(1, Math.round(p.views * dateRatio)),
+    }));
+  }, [ga4RealData, activeDays, dateRatio]);
 
   // Active / New Users timeseries
   const userTimeseriesData = useMemo(() => {
@@ -108,6 +188,65 @@ export function Ga4EngagementView({
             Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName}</span> • {ga4RealData.dateRange}
           </p>
         </div>
+
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          {/* Date Range Dropdown */}
+          <div className="relative" ref={dateDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDateDropdownOpen((prev) => !prev)}
+              className={cn(
+                "inline-flex items-center gap-2 px-3 py-2 rounded-xl border bg-white text-xs font-semibold shadow-2xs transition-all cursor-pointer",
+                dateDropdownOpen
+                  ? "border-[#3B49DF] ring-2 ring-indigo-500/20 text-[#3B49DF]"
+                  : "border-slate-200 hover:border-slate-300 text-slate-700"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span>{selectedDateRange}</span>
+              <ChevronDown
+                className={cn(
+                  "w-3.5 h-3.5 text-slate-400 transition-transform duration-200",
+                  dateDropdownOpen && "rotate-180 text-indigo-600"
+                )}
+              />
+            </button>
+
+            {dateDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in-50 zoom-in-95 duration-100">
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Select Range
+                </div>
+                <div className="space-y-0.5">
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDateRange(opt.label);
+                        setDateDropdownOpen(false);
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('days', String(opt.days));
+                        router.push(`${pathname}?${params.toString()}`);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer text-left",
+                        selectedDateRange === opt.label
+                          ? "bg-indigo-50 text-[#3B49DF] font-bold"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      )}
+                    >
+                      <span>{opt.label}</span>
+                      {selectedDateRange === opt.label && (
+                        <Check className="w-3.5 h-3.5 text-[#3B49DF]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── TOP ROW: 4 Core GA4 Cards ── */}
@@ -139,7 +278,7 @@ export function Ga4EngagementView({
                 </button>
               </div>
               <span className="text-xl font-black text-slate-900">
-                {metricTab === 'activeUsers' ? ga4RealData.activeUsers : ga4RealData.newUsers}
+                {metricTab === 'activeUsers' ? activeUsersCount : newUsersCount}
               </span>
             </div>
 
@@ -199,7 +338,7 @@ export function Ga4EngagementView({
                   <div className="h-5 w-full bg-slate-50 rounded overflow-hidden border border-slate-100">
                     <div
                       className="h-full bg-[#2563EB] rounded flex items-center justify-end pr-1.5 text-[10px] font-bold text-white font-mono"
-                      style={{ width: `${Math.max(10, (c.newUsers / 12) * 100)}%` }}
+                      style={{ width: `${Math.max(5, (c.newUsers / maxChannelUsers) * 100)}%` }}
                     >
                       {c.newUsers}
                     </div>
@@ -210,12 +349,11 @@ export function Ga4EngagementView({
 
             <div className="flex justify-between text-[9px] text-slate-400 font-mono mt-2 border-t border-slate-100 pt-1">
               <span>0</span>
-              <span>2</span>
-              <span>4</span>
-              <span>6</span>
-              <span>8</span>
-              <span>10</span>
-              <span>12</span>
+              <span>{Math.round(maxChannelUsers * 0.2)}</span>
+              <span>{Math.round(maxChannelUsers * 0.4)}</span>
+              <span>{Math.round(maxChannelUsers * 0.6)}</span>
+              <span>{Math.round(maxChannelUsers * 0.8)}</span>
+              <span>{maxChannelUsers}</span>
             </div>
           </div>
 

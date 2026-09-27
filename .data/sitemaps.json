@@ -1,0 +1,30 @@
+{
+  "cmucqibzt0000ubj02iu7yob7": [
+    {
+      "path": "https://lakshmipriyan-portfolio.vercel.app/about",
+      "type": "Sitemap",
+      "submitted": "Sep 27, 2026",
+      "lastRead": "Pending",
+      "status": "Pending",
+      "discoveredPages": 1,
+      "discoveredVideos": 0,
+      "isPending": true,
+      "isSitemapsIndex": false,
+      "errors": 1,
+      "warnings": 0
+    },
+    {
+      "path": "https://lakshmipriyan-portfolio.vercel.app/contact",
+      "type": "Sitemap",
+      "submitted": "Sep 26, 2026",
+      "lastRead": "Pending",
+      "status": "Pending",
+      "discoveredPages": 1,
+      "discoveredVideos": 0,
+      "isPending": true,
+      "isSitemapsIndex": false,
+      "errors": 1,
+      "warnings": 0
+    }
+  ]
+}

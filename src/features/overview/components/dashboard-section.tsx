@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface DashboardSectionProps {
@@ -12,7 +12,6 @@ interface DashboardSectionProps {
   subtitle: string;
   bgClass?: string;
   borderClass?: string;
-  dateLabel?: string;
   reportHref?: string;
   reportLabel?: string;
   children: React.ReactNode;
@@ -27,7 +26,6 @@ export function DashboardSection({
   subtitle,
   bgClass = 'bg-white',
   borderClass = 'border-slate-200',
-  dateLabel = 'Last 30 Days',
   reportHref,
   reportLabel = 'View Report',
   children,
@@ -68,10 +66,6 @@ export function DashboardSection({
 
         {/* Right header controls */}
         <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
-          <div className="bg-white/90 backdrop-blur-xs border border-slate-200/90 rounded-lg px-2.5 py-1 text-[11.5px] font-medium text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1.5 cursor-pointer hover:bg-slate-50">
-            <span>{dateLabel}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
-          </div>
 
           {reportHref && (
             <Link

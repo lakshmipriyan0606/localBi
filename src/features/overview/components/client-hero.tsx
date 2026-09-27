@@ -34,12 +34,16 @@ export function ClientHero({
   const displayBadgeName = storeBadgeName || tenantName.toUpperCase().slice(0, 16);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.03)]">
-      <div className="flex items-center justify-between gap-4">
+    <div className="relative overflow-hidden rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-[#FAFAFF] to-[#F5F5FA] p-4 shadow-sm">
+      {/* Decorative blurred blobs */}
+      <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-purple-500/5 blur-3xl pointer-events-none" />
+
+      <div className="relative flex items-center justify-between gap-4 z-10">
         {/* Left: Brand info & status badges */}
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="h-12 w-12 rounded-xl bg-indigo-50 border border-indigo-100/80 flex items-center justify-center flex-shrink-0 shadow-xs">
-            <Building2 className="h-6 w-6 text-indigo-600" />
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-indigo-200">
+            <Building2 className="h-6 w-6 text-white drop-shadow-sm" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -84,23 +88,7 @@ export function ClientHero({
 
         {/* Right: Marketing quote, storefront preview & export */}
         <div className="hidden lg:flex items-center gap-5 flex-shrink-0">
-          {isDataReady && marketingQuote && (
-            <div className="text-right">
-              <p className="text-[11.5px] text-slate-600 italic font-medium leading-tight max-w-[180px]">
-                {marketingQuote.quote}
-              </p>
-            </div>
-          )}
 
-          {/* Storefront badge miniature */}
-          {isDataReady && (
-            <div className="h-12 px-3 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-center gap-1.5 text-white shadow-xs border border-slate-700">
-              <span className="text-sm">{storeBadgeIcon}</span>
-              <span className="text-[11px] font-bold tracking-tight truncate max-w-[120px]">
-                {displayBadgeName}
-              </span>
-            </div>
-          )}
 
           <div className="flex items-center gap-2.5">
             <button 

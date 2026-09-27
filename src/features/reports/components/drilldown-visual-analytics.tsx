@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { WorldMap } from 'react-svg-worldmap';
 import {
   ResponsiveContainer,
   PieChart,
@@ -654,45 +655,20 @@ export function DrilldownVisualAnalytics<T>({
                       </button>
                     </div>
 
-                    {/* Stylized World Map Vector Paths */}
-                    <div className="w-full h-full flex items-center justify-center transition-transform duration-300" style={{ transform: `scale(${mapZoom})` }}>
-                      <svg viewBox="0 0 1000 480" className="w-full h-full fill-slate-200/80 stroke-white stroke-[0.8]">
-                        {/* North America */}
-                        <path d="M 120 70 L 260 65 L 300 120 L 250 180 L 190 230 L 130 150 Z" />
-                        <path d="M 180 230 L 230 250 L 200 300 L 180 270 Z" />
-                        {/* South America */}
-                        <path d="M 240 280 L 320 290 L 310 400 L 260 450 L 230 360 Z" />
-                        {/* Europe */}
-                        <path d="M 450 70 L 530 80 L 550 150 L 480 160 L 440 120 Z" />
-                        <path d="M 430 80 L 450 90 L 440 110 L 420 95 Z" />
-                        {/* Africa */}
-                        <path d="M 460 170 L 560 170 L 570 270 L 530 360 L 480 340 L 450 240 Z" />
-                        {/* Asia & Russia */}
-                        <path d="M 530 60 L 860 60 L 820 170 L 730 210 L 610 180 L 550 140 Z" />
-                        {/* Australia */}
-                        <path d="M 760 310 L 870 300 L 880 380 L 790 390 L 750 350 Z" />
-                        
-                        {/* Highlighted Country: India in Deep Royal Blue */}
-                        <path
-                          d="M 640 180 L 685 190 L 695 240 L 665 290 L 645 250 L 630 210 Z"
-                          fill="#3B82F6"
-                          className="hover:fill-blue-600 transition-colors cursor-pointer"
-                        />
-                      </svg>
-
-                      {/* Tooltip Card over Top Country */}
-                      {topCountry && (
-                        <div className="absolute top-[38%] left-[64%] -translate-x-1/2 -translate-y-full bg-white rounded-lg shadow-lg border border-slate-200/90 px-2.5 py-1 text-xs whitespace-nowrap pointer-events-none z-20 animate-in fade-in">
-                          <div className="flex items-center gap-1.5">
-                            <span>{topCountry.flag}</span>
-                            <span className="font-bold text-slate-900 text-[11px]">{topCountry.name}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                            <span className="font-bold text-slate-800">{topCountry.clicks.toLocaleString()} clicks</span>
-                            <span className="text-slate-400 font-semibold">({topCountry.share}%)</span>
-                          </div>
-                        </div>
-                      )}
+                    {/* Beautiful SVG World Map */}
+                    <div className="w-full h-full flex items-center justify-center p-2" style={{ transform: `scale(${mapZoom})`, transformOrigin: 'center' }}>
+                      <WorldMap
+                        color="#3B82F6"
+                        title=""
+                        valueSuffix="clicks"
+                        size="responsive"
+                        data={countriesList.map(c => ({
+                          country: (c.code || '').toLowerCase(),
+                          value: c.clicks
+                        }))}
+                        backgroundColor="transparent"
+                        borderColor="#e2e8f0"
+                      />
                     </div>
 
                     {/* Gradient Legend on Bottom */}

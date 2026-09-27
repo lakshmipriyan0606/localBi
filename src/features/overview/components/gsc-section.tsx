@@ -4,10 +4,8 @@ import Link from 'next/link';
 import { Plug, ArrowRight } from 'lucide-react';
 import { DashboardSection } from './dashboard-section';
 import { DashboardMetricCard } from './dashboard-metric-card';
-import { GscAchievementCard } from './gsc-achievement-card';
 import { GscPerformanceChart } from './gsc-performance-chart';
 import { GscSearchQueriesTable } from './gsc-search-queries-table';
-import { GscKeywordOpportunities } from './gsc-keyword-opportunities';
 import type { OverviewDataDto } from '@/modules/overview/overview-service';
 
 interface GscSectionProps {
@@ -123,8 +121,8 @@ export function GscSection({ tenantSlug, data, isConnected = false }: GscSection
         </div>
       ) : (
         <>
-          {/* Top Row: 4 KPI Cards + 1 Achievement Card */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
+          {/* Top Row: 4 KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
             {gscCards.map((card) => (
               <DashboardMetricCard
                 key={card.key}
@@ -139,19 +137,15 @@ export function GscSection({ tenantSlug, data, isConnected = false }: GscSection
                 seed={card.seed}
               />
             ))}
-            <GscAchievementCard tenantSlug={tenantSlug} />
           </div>
 
-          {/* Analytics Row: Search Trend + Top Queries + Keyword Opportunities */}
+          {/* Analytics Row: Search Trend + Top Queries */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
-            <div className="lg:col-span-6 flex flex-col">
+            <div className="lg:col-span-7 flex flex-col">
               <GscPerformanceChart trendData={data?.trendData} />
             </div>
-            <div className="lg:col-span-3.5 lg:col-span-4 flex flex-col">
+            <div className="lg:col-span-5 flex flex-col">
               <GscSearchQueriesTable tenantSlug={tenantSlug} queries={data?.queries} />
-            </div>
-            <div className="lg:col-span-2.5 lg:col-span-2 flex flex-col">
-              <GscKeywordOpportunities tenantSlug={tenantSlug} opportunities={data?.keywordOpportunities} />
             </div>
           </div>
         </>

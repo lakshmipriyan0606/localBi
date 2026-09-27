@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   AreaChart,
@@ -205,6 +206,10 @@ export function WebsiteAnalyticsView({
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>('eventCount');
   const [showDetails, setShowDetails] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Dropdown states & refs
   const dateDropdownRef = useRef<HTMLDivElement>(null);
@@ -670,6 +675,9 @@ export function WebsiteAnalyticsView({
                       onClick={() => {
                         setSelectedDateRange(opt.label);
                         setDateDropdownOpen(false);
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('days', String(opt.days));
+                        router.push(`${pathname}?${params.toString()}`);
                       }}
                       className={cn(
                         "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer text-left",

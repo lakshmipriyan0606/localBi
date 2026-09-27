@@ -219,13 +219,27 @@ export function handleRouteError(
   fallbackMessage = 'An unexpected internal server error occurred.',
   context?: Record<string, unknown>
 ): Response {
-  if (error instanceof AppError) {
-    if (error.statusCode >= 500) {
-      logger.error({ err: error, code: error.code, ...context }, error.message);
+  const isAppError = error instanceof AppError || (error && typeof error === 'object' && 'name' in error && error.name === 'AppError');
+
+  if (isAppError) {
+    const appErr = error as any;
+    const statusCode = appErr.statusCode || 500;
+    const isOperational = appErr.isOperational ?? true;
+    
+    if (statusCode >= 500) {
+      logger.error({ err: appErr, code: appErr.code, ...context }, appErr.message);
     } else {
-      logger.warn({ err: error, code: error.code, ...context }, error.message);
+      logger.warn({ err: appErr, code: appErr.code, ...context }, appErr.message);
     }
-    return Response.json(error.toClientResponse(), { status: error.statusCode });
+    
+    return Response.json({
+      error: {
+        code: appErr.code || ErrorCode.INTERNAL_SERVER_ERROR,
+        message: isOperational ? appErr.message : 'An unexpected internal server error occurred.',
+        requestId: appErr.requestId,
+        details: isOperational ? appErr.details : undefined,
+      }
+    }, { status: statusCode });
   }
 
   const actualError = error instanceof Error ? error.message : String(error);

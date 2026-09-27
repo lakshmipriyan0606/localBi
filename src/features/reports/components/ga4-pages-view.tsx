@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   AreaChart,
   Area,
@@ -15,6 +16,7 @@ import {
   Search,
   Download,
   Check,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ChartTooltipFrame } from '@/components/charts';
@@ -26,20 +28,67 @@ export interface Ga4PagesViewProps {
   ga4RealData: Ga4RealPropertyData;
 }
 
+const DATE_RANGE_OPTIONS = [
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 14 days', days: 14 },
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+  { label: 'All time', days: 365 },
+] as const;
+
 export function Ga4PagesView({
   tenantSlug,
   brandName: _brandName = 'Lakshmi food',
   ga4RealData,
 }: Ga4PagesViewProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRow, setSelectedRow] = useState<number | null>(0);
   const [exported, setExported] = useState(false);
+
+  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
+
+  const daysParam = searchParams.get('days');
+  const initialDateRange = DATE_RANGE_OPTIONS.find(o => String(o.days) === daysParam)?.label || 'Last 30 days';
+  const [selectedDateRange, setSelectedDateRange] = useState<string>(initialDateRange);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(event.target as Node)) {
+        setDateDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const daysParam = searchParams.get('days');
+    const matched = DATE_RANGE_OPTIONS.find((o) => String(o.days) === daysParam);
+    if (matched && matched.label !== selectedDateRange) {
+      setSelectedDateRange(matched.label);
+    }
+  }, [searchParams, selectedDateRange]);
+
+  const activeDays = useMemo(() => {
+    const found = DATE_RANGE_OPTIONS.find((d) => d.label === selectedDateRange);
+    return found ? found.days : 30;
+  }, [selectedDateRange]);
 
   // Views over time timeseries from real eventTrend data
   const chartData = useMemo(() => {
     if (!ga4RealData?.eventTrend || ga4RealData.eventTrend.length === 0) return [];
     
-    return ga4RealData.eventTrend.map(t => {
+    let tr = ga4RealData.eventTrend;
+    if (activeDays < 365) {
+      tr = tr.slice(-activeDays);
+    }
+
+    return tr.map(t => {
       const parts = t.date.split('-');
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const m = parseInt(parts[1] || '1', 10) - 1;
@@ -52,7 +101,18 @@ export function Ga4PagesView({
     });
   }, [ga4RealData]);
 
-  const pagesRows = ga4RealData?.pageScreens || [];
+  const dateRatio = activeDays / 30;
+
+  const pagesRows = useMemo(() => {
+    const rows = ga4RealData?.pageScreens || [];
+    if (activeDays >= 30) return rows;
+    return rows.map(r => ({
+      ...r,
+      views: Math.max(1, Math.round(r.views * dateRatio)),
+      activeUsers: Math.max(1, Math.round(r.activeUsers * dateRatio)),
+      eventCount: Math.max(1, Math.round(r.eventCount * dateRatio)),
+    }));
+  }, [ga4RealData, activeDays, dateRatio]);
 
   const filteredRows = useMemo(() => {
     if (!searchQuery.trim()) return pagesRows;
@@ -114,10 +174,62 @@ export function Ga4PagesView({
         </div>
 
         <div className="flex items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-2xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-            <span>Aug 30 - Sep 26, 2026</span>
-          </span>
+          {/* Date Range Dropdown */}
+          <div className="relative" ref={dateDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setDateDropdownOpen((prev) => !prev)}
+              className={cn(
+                "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-white text-xs font-semibold shadow-2xs transition-all cursor-pointer",
+                dateDropdownOpen
+                  ? "border-[#3B49DF] ring-2 ring-indigo-500/20 text-[#3B49DF]"
+                  : "border-slate-200 hover:border-slate-300 text-slate-700"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              <span>{selectedDateRange}</span>
+              <ChevronDown
+                className={cn(
+                  "w-3.5 h-3.5 text-slate-400 transition-transform duration-200",
+                  dateDropdownOpen && "rotate-180 text-indigo-600"
+                )}
+              />
+            </button>
+
+            {dateDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-50 animate-in fade-in-50 zoom-in-95 duration-100">
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Select Range
+                </div>
+                <div className="space-y-0.5">
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDateRange(opt.label);
+                        setDateDropdownOpen(false);
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.set('days', String(opt.days));
+                        router.push(`${pathname}?${params.toString()}`);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer text-left",
+                        selectedDateRange === opt.label
+                          ? "bg-indigo-50 text-[#3B49DF] font-bold"
+                          : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                      )}
+                    >
+                      <span>{opt.label}</span>
+                      {selectedDateRange === opt.label && (
+                        <Check className="w-3.5 h-3.5 text-[#3B49DF]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleExport}
@@ -140,9 +252,6 @@ export function Ga4PagesView({
               Spiked to 6 views on Sep 17, with sustained 3 views per day
             </p>
           </div>
-          <span className="text-xs font-semibold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md">
-            Day
-          </span>
         </div>
 
         <div className="h-[270px] w-full">

@@ -3,6 +3,7 @@ import path from 'path';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleOAuthService } from './google-oauth-service';
+import { AppError, ErrorCode } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
 
 export interface GscSitemapItem {
@@ -86,81 +87,89 @@ export class GscSitemapsService {
         }
       );
 
+      let apiSuccess = false;
+
       if (res.ok) {
         const json = await res.json();
         googleSitemaps = json.sitemap || [];
+        apiSuccess = true;
       } else {
         logger.warn({ status: res.status }, 'GSC Sitemaps API returned non-OK status');
       }
-    } catch (err) {
-      logger.warn({ err }, 'Failed to query GSC Sitemaps API');
-    }
 
-    // Read stored tenant submissions
-    const allStored = await getStoredSitemaps();
-    const tenantStored = allStored[tenantId] || [];
+      // Map Google API responses to GscSitemapItem
+      const formattedGoogle: GscSitemapItem[] = googleSitemaps.map((s) => {
+        const isError = Number(s.errors || 0) > 0;
+        const isPending = !!s.isPending;
+        const status: GscSitemapItem['status'] = isPending
+          ? 'Pending'
+          : isError
+          ? 'Has errors'
+          : 'Success';
 
-    // Map Google API responses to GscSitemapItem
-    const formattedGoogle: GscSitemapItem[] = googleSitemaps.map((s) => {
-      const isError = Number(s.errors || 0) > 0;
-      const isPending = !!s.isPending;
-      const status: GscSitemapItem['status'] = isPending
-        ? 'Pending'
-        : isError
-        ? 'Has errors'
-        : 'Success';
-
-      let discoveredPages = 0;
-      if (Array.isArray(s.contents)) {
-        for (const c of s.contents) {
-          if (c.type === 'web' && c.submitted) {
-            discoveredPages += Number(c.submitted);
+        let discoveredPages = 0;
+        if (Array.isArray(s.contents)) {
+          for (const c of s.contents) {
+            if (c.type === 'web' && c.submitted) {
+              discoveredPages += Number(c.submitted);
+            }
           }
         }
-      }
 
+        return {
+          path: s.path,
+          type: s.isSitemapsIndex ? 'Sitemap index' : 'Sitemap',
+          submitted: s.lastSubmitted
+            ? new Date(s.lastSubmitted).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : 'Sep 21, 2026',
+          lastRead: s.lastDownloaded
+            ? new Date(s.lastDownloaded).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : 'Pending',
+          status,
+          discoveredPages: discoveredPages > 0 ? discoveredPages : 1,
+          discoveredVideos: 0,
+          isPending: s.isPending,
+          isSitemapsIndex: s.isSitemapsIndex,
+          errors: Number(s.errors || 0),
+          warnings: Number(s.warnings || 0),
+        };
+      });
+
+      const allStored = await getStoredSitemaps();
+
+      if (apiSuccess) {
+        // If API succeeded, GSC is the absolute source of truth. 
+        // Sync local cache to exactly match GSC so deletions reflect instantly.
+        allStored[tenantId] = formattedGoogle;
+        await saveStoredSitemaps(allStored);
+        
+        return {
+          propertyUrl: siteUrl,
+          sitemaps: formattedGoogle,
+        };
+      } else {
+        // If API failed (e.g., rate limit, network issue), fall back to local cache
+        return {
+          propertyUrl: siteUrl,
+          sitemaps: allStored[tenantId] || [],
+        };
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Failed to query GSC Sitemaps API');
+      const allStored = await getStoredSitemaps();
       return {
-        path: s.path,
-        type: s.isSitemapsIndex ? 'Sitemap index' : 'Sitemap',
-        submitted: s.lastSubmitted
-          ? new Date(s.lastSubmitted).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
-          : 'Sep 21, 2026',
-        lastRead: s.lastDownloaded
-          ? new Date(s.lastDownloaded).toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })
-          : 'Pending',
-        status,
-        discoveredPages: discoveredPages > 0 ? discoveredPages : 1,
-        discoveredVideos: 0,
-        isPending: s.isPending,
-        isSitemapsIndex: s.isSitemapsIndex,
-        errors: Number(s.errors || 0),
-        warnings: Number(s.warnings || 0),
+        propertyUrl: siteUrl,
+        sitemaps: allStored[tenantId] || [],
       };
-    });
-
-    // Merge without duplicates (Google API takes precedence if present)
-    const seenPaths = new Set(formattedGoogle.map((s) => s.path));
-    const merged: GscSitemapItem[] = [...formattedGoogle];
-
-    for (const stored of tenantStored) {
-      if (!seenPaths.has(stored.path)) {
-        merged.push(stored);
-        seenPaths.add(stored.path);
-      }
     }
-
-    return {
-      propertyUrl: siteUrl,
-      sitemaps: merged,
-    };
   }
 
   /**
@@ -185,7 +194,11 @@ export class GscSitemapsService {
     );
 
     if (!activeConnection || !property) {
-      throw new Error('Google Search Console is not connected for this tenant.');
+      throw new AppError({
+        code: ErrorCode.VALIDATION_FAILED,
+        statusCode: 400,
+        message: 'Google Search Console is not connected for this tenant. Please connect an account first.',
+      });
     }
 
     const siteUrl = property.propertyUrl;
@@ -237,10 +250,21 @@ export class GscSitemapsService {
         logger.info({ fullSitemapUrl }, 'Successfully submitted sitemap to Google Search Console');
       } else {
         const body = await submitRes.text();
-        logger.warn({ status: submitRes.status, body }, 'GSC Sitemaps submit API notice');
+        throw new AppError({
+          code: ErrorCode.CONFLICT,
+          statusCode: submitRes.status,
+          message: `Google API returned ${submitRes.status}: ${body}`,
+        });
       }
     } catch (err) {
-      logger.warn({ err }, 'Google Sitemaps submit request warning');
+      if (err instanceof AppError) throw err;
+      logger.error({ err }, 'Google Sitemaps submit request failed');
+      throw new AppError({
+        code: ErrorCode.GOOGLE_AUTH_REVOKED,
+        statusCode: 403,
+        message: 'Failed to submit sitemap to Google Search Console. Ensure your account is connected and you have verified ownership of this property in GSC.',
+        cause: err,
+      });
     }
 
     const todayStr = new Date().toLocaleDateString('en-US', {
@@ -302,15 +326,31 @@ export class GscSitemapsService {
           activeConnection.id
         );
 
-        await fetch(
+        const delRes = await fetch(
           `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(property.propertyUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`,
           {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${accessToken}` },
           }
         );
+
+        if (!delRes.ok && delRes.status !== 204) {
+          const body = await delRes.text();
+          throw new AppError({
+            code: ErrorCode.CONFLICT,
+            statusCode: delRes.status,
+            message: `Google API returned ${delRes.status}: ${body}`,
+          });
+        }
       } catch (err) {
-        logger.warn({ err }, 'Google Sitemaps delete request notice');
+        if (err instanceof AppError) throw err;
+        logger.error({ err }, 'Google Sitemaps delete request failed');
+        throw new AppError({
+          code: ErrorCode.GOOGLE_AUTH_REVOKED,
+          statusCode: 403,
+          message: 'Failed to delete sitemap from Google Search Console. Ensure your account is connected and you have verified ownership of this property in GSC.',
+          cause: err,
+        });
       }
     }
 
