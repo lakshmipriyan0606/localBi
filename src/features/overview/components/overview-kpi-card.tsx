@@ -38,8 +38,16 @@ export function OverviewKpiCard({
       </div>
       <p className="text-2xl font-bold text-slate-900 tabular-nums">{formatNumber(value)}</p>
       {growthPercent != null ? (
-        <span className="text-[11px] text-emerald-700 font-semibold mt-1 inline-block">
-          +{growthPercent}% vs prior
+        <span
+          className={`text-[11px] font-semibold mt-1 inline-block ${
+            growthPercent > 0
+              ? 'text-emerald-700'
+              : growthPercent < 0
+              ? 'text-rose-700'
+              : 'text-slate-500'
+          }`}
+        >
+          {growthPercent > 0 ? `+${growthPercent}%` : `${growthPercent}%`} vs prior
         </span>
       ) : (
         <span className="text-[11px] text-slate-400 mt-1 inline-block">{subtext}</span>

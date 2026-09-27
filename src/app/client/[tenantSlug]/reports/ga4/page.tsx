@@ -5,6 +5,7 @@ import { redirect, notFound } from "next/navigation";
 import {
   Sparkles,
   Link2,
+  Info,
 } from "lucide-react";
 import { SessionCookieManager } from "@/modules/auth/cookies";
 import { ContextResolver } from "@/modules/auth/context-resolver";
@@ -23,8 +24,8 @@ import { Ga4CountryRow } from "@/features/reports/components/ga4-countries-card"
 import { Ga4StreamDetails } from "@/features/reports/components/ga4-stream-details";
 
 export const metadata: Metadata = {
-  title: "Google Analytics 4 (GA4) — localBi",
-  description: "Website visitors, sessions, engagement, queries, pages, and traffic sources",
+  title: "Website Traffic Attribution (GA4 Proxy Model) — localBi",
+  description: "Estimated website traffic, sessions, engagement, queries, and traffic sources modeled from Google Search Console and GBP",
 };
 
 export default async function Ga4ReportingPage({
@@ -40,8 +41,9 @@ export default async function Ga4ReportingPage({
   let resolved = null;
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
-  } catch (err: any) {
-    console.error("GA4 RESOLVE CONTEXT ERROR:", err?.message || err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("GA4 RESOLVE CONTEXT ERROR:", msg);
     redirect("/login");
   }
   if (!resolved.tenant || !resolved.authorizedContext) {
@@ -335,12 +337,12 @@ export default async function Ga4ReportingPage({
       />
 
       <PageHeader
-        title="Main Website Analytics (GA4)"
-        description="Track website traffic, sessions, and engagement for your corporate domain."
+        title="Website Traffic Attribution (GA4 Proxy)"
+        description="Modeled website traffic, sessions, and engagement derived from Google Search Console and GBP multi-channel attribution."
         badge={
-          <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-semibold text-xs py-1 px-2.5">
-            <Sparkles className="h-3 w-3 text-purple-600" />
-            Main Corporate Domain
+          <Badge className="bg-amber-50 text-amber-800 border-amber-200/80 gap-1 font-semibold text-xs py-1 px-2.5">
+            <Sparkles className="h-3 w-3 text-amber-600" />
+            Modeled Attribution Proxy
           </Badge>
         }
         actions={
@@ -361,6 +363,29 @@ export default async function Ga4ReportingPage({
           </div>
         }
       />
+
+      {/* Attribution Model Disclosure Notice */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="font-bold text-amber-900 text-sm">
+              Search & Listing Attribution Estimate (Direct GA4 API Pending)
+            </h4>
+            <p className="text-amber-800/90 mt-0.5 leading-relaxed max-w-3xl">
+              Figures below are modeled organic attribution metrics derived from connected Google Search Console clicks and Google Business Profile website referrals (estimated session factor: ~1.35× search clicks). Direct measured analytics will display once the Google Analytics Data API v1beta OAuth integration is connected.
+            </p>
+          </div>
+        </div>
+        <Link
+          href={`/client/${tenant.slug}/integrations`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-100 hover:bg-amber-200/80 text-amber-900 font-semibold border border-amber-300 transition-colors shrink-0 self-start sm:self-auto"
+        >
+          Check Integrations
+        </Link>
+      </div>
 
       {/* Stream & Property Attribution Info Card */}
       <Ga4StreamDetails

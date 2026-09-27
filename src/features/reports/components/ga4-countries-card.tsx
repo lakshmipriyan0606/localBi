@@ -12,6 +12,7 @@ import { Globe, MapPin } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber } from '@/shared/lib/formatters';
+import { ChartTooltipFrame, ChartEmptyState } from '@/components/charts';
 
 export interface Ga4CountryRow {
   code: string;
@@ -57,10 +58,8 @@ export function Ga4CountriesCard({ countries = [], hasRealData: _hasRealData = f
     setMounted(true);
   }, []);
 
-  const displayCountries = useMemo(() => {
-    if (countries.length > 0) return countries;
-    return [{ code: 'IND', sessions: 1, impressions: 5, percent: '100%' }];
-  }, [countries]);
+  const hasData = countries.length > 0 && countries.some((c) => c.sessions > 0 || c.impressions > 0);
+  const displayCountries = countries;
 
   const totalSessions = useMemo(() => {
     return displayCountries.reduce((acc, c) => acc + c.sessions, 0);
@@ -118,76 +117,77 @@ export function Ga4CountriesCard({ countries = [], hasRealData: _hasRealData = f
       </CardHeader>
 
       <CardContent className="p-5 sm:p-6 space-y-6">
-        {/* Visual Geographic Share: Donut Reach Chart + Region Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-5 rounded-2xl bg-gradient-to-br from-slate-50/80 via-white to-emerald-50/20 border border-slate-200/80">
-          {/* Donut Reach Canvas */}
-          <div className="lg:col-span-5 flex flex-col items-center justify-center">
-            <div className="relative h-[210px] w-full max-w-[240px] flex items-center justify-center">
-              {!mounted ? (
-                <div className="h-full w-full rounded-full border-4 border-slate-100 flex items-center justify-center text-xs text-slate-400">
-                  Loading geo chart...
+        {!hasData ? (
+          <ChartEmptyState
+            heightClass="h-[220px]"
+            title="No geographic metrics recorded yet"
+            message="Country distributions will appear as Google Search Console geographic metrics are synced."
+          />
+        ) : (
+          <>
+          {/* Visual Geographic Share: Donut Reach Chart + Region Stats */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-5 rounded-2xl bg-gradient-to-br from-slate-50/80 via-white to-emerald-50/20 border border-slate-200/80">
+            {/* Donut Reach Canvas */}
+            <div className="lg:col-span-5 flex flex-col items-center justify-center">
+              <div className="relative h-[210px] w-full max-w-[240px] flex items-center justify-center">
+                {!mounted ? (
+                  <div className="h-full w-full rounded-full border-4 border-slate-100 flex items-center justify-center text-xs text-slate-400">
+                    Loading geo chart...
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={62}
+                        outerRadius={88}
+                        paddingAngle={4}
+                        dataKey="value"
+                        stroke="#FFFFFF"
+                        strokeWidth={2}
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length || !payload[0]?.payload) return null;
+                          const data = payload[0].payload;
+                          return (
+                            <ChartTooltipFrame
+                              title={`${data.flag} ${data.name}`}
+                              items={[
+                                { label: 'Sessions', value: formatNumber(data.actualSessions), color: data.color },
+                                { label: 'Share', value: data.percent },
+                              ]}
+                            />
+                          );
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+                {/* Center of Donut Metric */}
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-2xl font-black text-slate-900 tracking-tight">
+                    {displayCountries[0] ? getCountryInfo(displayCountries[0].code).flag : '🌐'}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200/60 mt-0.5">
+                    {displayCountries[0]?.percent || '100%'}
+                  </span>
                 </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={62}
-                      outerRadius={88}
-                      paddingAngle={4}
-                      dataKey="value"
-                      stroke="#FFFFFF"
-                      strokeWidth={2}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (!active || !payload?.length || !payload[0]?.payload) return null;
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-xl p-2.5 text-xs text-slate-800">
-                            <p className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
-                              <span>{data.flag}</span>
-                              <span>{data.name}</span>
-                            </p>
-                            <div className="flex items-center justify-between gap-3 text-[11px]">
-                              <span className="text-slate-500 font-medium">Sessions:</span>
-                              <span className="font-mono font-bold text-slate-900">{formatNumber(data.actualSessions)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 text-[11px] mt-0.5">
-                              <span className="text-slate-500 font-medium">Share:</span>
-                              <span className="font-mono font-bold text-emerald-600">{data.percent}</span>
-                            </div>
-                          </div>
-                        );
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-              {/* Center of Donut Metric */}
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black text-slate-900 tracking-tight">
-                  {displayCountries[0] ? getCountryInfo(displayCountries[0].code).flag : '🌐'}
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.2 rounded-full border border-emerald-200/60 mt-0.5">
-                  {displayCountries[0]?.percent || '100%'}
-                </span>
               </div>
+              <span className="text-[11px] text-slate-500 font-medium mt-1">
+                Geographic Audience Donut
+              </span>
             </div>
-            <span className="text-[11px] text-slate-500 font-medium mt-1">
-              Geographic Audience Donut
-            </span>
-          </div>
 
-          {/* Regional Legend Chips */}
-          <div className="lg:col-span-7 space-y-2.5">
-            <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-2">
+            {/* Regional Legend Chips */}
+            <div className="lg:col-span-7 space-y-2.5">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-2">
               <span>National Territory Share</span>
               <span className="font-mono text-slate-700 font-bold">{formatNumber(totalImpressions)} Impressions</span>
             </div>
@@ -277,6 +277,8 @@ export function Ga4CountriesCard({ countries = [], hasRealData: _hasRealData = f
             );
           })}
         </div>
+        </>
+        )}
       </CardContent>
     </Card>
   );

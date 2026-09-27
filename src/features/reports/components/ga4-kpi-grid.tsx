@@ -49,11 +49,11 @@ export function Ga4KpiGrid({
   searchImpressions = 0,
   ctr = 0,
   avgPosition = 0,
-  avgDuration = '2m 05s',
+  avgDuration = '—',
   brandName,
   hasRealData: _hasRealData = false,
 }: Ga4KpiGridProps) {
-  const engagementRate = sessions > 0 ? Math.round((engagedSessions / sessions) * 100) : 68;
+  const engagementRate = sessions > 0 ? Math.round((engagedSessions / sessions) * 100) : 0;
 
   return (
     <section className="space-y-4">
@@ -69,16 +69,13 @@ export function Ga4KpiGrid({
                 <h2 className="text-base font-bold tracking-tight text-slate-900">
                   Executive Web Performance Matrix
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                  </span>
-                  Live Sync: {brandName || 'Real-Time'}
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs">
+                  <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                  Attribution Proxy: {brandName || 'Organic Search'}
                 </span>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                   <Sparkles className="h-3 w-3 text-indigo-600" />
-                  Enterprise Tier
+                  Modeled Estimate
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -192,14 +189,14 @@ export function Ga4KpiGrid({
               <Target className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200/80 px-2 py-0.5 rounded-full shadow-2xs">
-              {conversionRateDelta > 0 ? `+${conversionRateDelta}%` : 'Key Events'}
+              {conversionRateDelta > 0 ? `+${conversionRateDelta}%` : conversionRateDelta < 0 ? `${conversionRateDelta}%` : 'Goal Events'}
             </span>
           </div>
           <div className="mt-4 relative z-10">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Conversion Rate</p>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                {conversionRate.toFixed(1)}%
+                {conversionRate > 0 ? `${conversionRate.toFixed(1)}%` : '—'}
               </span>
               <span className="text-xs text-purple-700 font-semibold bg-purple-50 px-1.5 py-0.5 rounded-md">Goal</span>
             </div>
@@ -208,7 +205,7 @@ export function Ga4KpiGrid({
             <span className="text-[11px]">Target Events</span>
             <span className="font-semibold text-purple-700 flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-purple-600" />
-              {conversionsDelta > 0 ? `+${conversionsDelta}% Vol` : `${conversions} Complete`}
+              {conversionsDelta > 0 ? `+${conversionsDelta}% Vol` : `${conversions} Tracked`}
             </span>
           </div>
         </div>
@@ -220,14 +217,14 @@ export function Ga4KpiGrid({
               <Trophy className="h-5 w-5" />
             </div>
             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full shadow-2xs">
-              Page 1 Tier
+              {avgPosition > 0 && avgPosition <= 10 ? 'Page 1 Tier' : 'Search Rank'}
             </span>
           </div>
           <div className="mt-4 relative z-10">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg Search Rank</p>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
-                #{avgPosition > 0 ? avgPosition.toFixed(1) : '10.0'}
+                {avgPosition > 0 ? `#${avgPosition.toFixed(1)}` : '—'}
               </span>
               <span className="text-xs text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded-md">Rank</span>
             </div>
@@ -236,7 +233,7 @@ export function Ga4KpiGrid({
             <span className="text-[11px]">Google Visibility</span>
             <span className="font-semibold text-amber-700 flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Top 10 Position
+              {avgPosition > 0 ? (avgPosition <= 10 ? 'Top 10 Position' : `Rank #${avgPosition.toFixed(1)}`) : 'No Rank Data'}
             </span>
           </div>
         </div>

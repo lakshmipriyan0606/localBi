@@ -23,6 +23,8 @@ import {
   Laptop,
 } from 'lucide-react';
 import type { VisitorSession, VisitorStats } from '@/modules/visitors/visitor-service';
+import { browserClient } from '@/lib/http/browser-client';
+import { notify } from '@/lib/notify';
 
 export default function TenantVisitorsPage({
   params,
@@ -50,12 +52,11 @@ export default function TenantVisitorsPage({
   const fetchVisitors = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/tenants/${tenantSlug}/visitors`);
-      if (res.ok) {
-        const data = await res.json();
-        setVisitors(data.visitors || []);
-        setStats(data.stats || null);
-      }
+      const res = await browserClient.get<{ visitors: VisitorSession[]; stats: VisitorStats }>(
+        `/tenants/${tenantSlug}/visitors`
+      );
+      setVisitors(res.data?.visitors || []);
+      setStats(res.data?.stats || null);
     } catch (err) {
       console.error('Error fetching visitors:', err);
     } finally {
@@ -98,27 +99,25 @@ export default function TenantVisitorsPage({
       else if (/Firefox/i.test(ua)) browser = 'Mozilla Firefox';
       else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Apple Safari';
 
-      await fetch('/api/v1/pixel/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenantSlug,
-          deviceFingerprint: fp,
-          url: `/site/${tenantSlug}`,
-          title: `${tenantSlug.toUpperCase()} - Official Storefront`,
-          platform: os,
-          browser: browser,
-          screenResolution: `${screen.width}x${screen.height}`,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
-          referrer: document.referrer || '',
-          dwellTimeSeconds: 30,
-          eventType: 'page_view',
-        }),
+      await browserClient.post('/v1/pixel/track', {
+        tenantSlug,
+        deviceFingerprint: fp,
+        url: `/site/${tenantSlug}`,
+        title: `${tenantSlug.toUpperCase()} - Official Storefront`,
+        platform: os,
+        browser: browser,
+        screenResolution: `${screen.width}x${screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+        referrer: document.referrer || '',
+        dwellTimeSeconds: 30,
+        eventType: 'page_view',
       });
 
+      notify.success('Test live visit tracked successfully');
       await fetchVisitors();
     } catch (err) {
       console.error('Failed to trigger live test visit:', err);
+      notify.error('Failed to simulate test visit');
     } finally {
       setIsSimulating(false);
     }
@@ -127,10 +126,12 @@ export default function TenantVisitorsPage({
   const handleClearLogs = async () => {
     if (!confirm('Are you sure you want to clear real visitor logs for this store?')) return;
     try {
-      await fetch(`/api/tenants/${tenantSlug}/visitors`, { method: 'DELETE' });
+      await browserClient.delete(`/tenants/${tenantSlug}/visitors`);
+      notify.success('Visitor logs cleared');
       await fetchVisitors();
     } catch (err) {
       console.error(err);
+      notify.error('Failed to clear visitor logs');
     }
   };
 
@@ -141,28 +142,24 @@ export default function TenantVisitorsPage({
     try {
       setIsStitching(true);
       setStitchSuccess(null);
-      const res = await fetch(`/api/tenants/${tenantSlug}/visitors/identify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deviceFingerprint: selectedVisitorForStitch.deviceFingerprint,
-          phone: stitchPhone.trim(),
-          name: stitchName.trim() || undefined,
-        }),
+      await browserClient.post(`/tenants/${tenantSlug}/visitors/identify`, {
+        deviceFingerprint: selectedVisitorForStitch.deviceFingerprint,
+        phone: stitchPhone.trim(),
+        name: stitchName.trim() || undefined,
       });
 
-      if (res.ok) {
-        setStitchSuccess(`Phone ${stitchPhone} stitched to device ${selectedVisitorForStitch.deviceFingerprint}!`);
-        setTimeout(() => {
-          setSelectedVisitorForStitch(null);
-          setStitchPhone('');
-          setStitchName('');
-          setStitchSuccess(null);
-          fetchVisitors();
-        }, 1500);
-      }
+      notify.success(`Phone ${stitchPhone} stitched to device successfully`);
+      setStitchSuccess(`Phone ${stitchPhone} stitched to device ${selectedVisitorForStitch.deviceFingerprint}!`);
+      setTimeout(() => {
+        setSelectedVisitorForStitch(null);
+        setStitchPhone('');
+        setStitchName('');
+        setStitchSuccess(null);
+        fetchVisitors();
+      }, 1500);
     } catch (err) {
       console.error(err);
+      notify.error('Failed to stitch identity');
     } finally {
       setIsStitching(false);
     }
@@ -173,6 +170,7 @@ export default function TenantVisitorsPage({
   const copyEmbedScript = () => {
     navigator.clipboard.writeText(embedScript);
     setCopiedCode(true);
+    notify.success('Embed script copied to clipboard');
     setTimeout(() => setCopiedCode(false), 2000);
   };
 

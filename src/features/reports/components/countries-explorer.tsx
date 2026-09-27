@@ -9,25 +9,10 @@ import {
   formatNumber,
   formatPercent,
   formatPosition,
+  getCountryFlag,
 } from "@/shared/lib/formatters";
 
 import { MoreVertical, ArrowUp } from "lucide-react";
-
-function getCountryFlag(code?: string): string {
-  if (!code) return '🌐';
-  const clean = code.trim().toUpperCase();
-  const map3to2: Record<string, string> = {
-    IND: 'IN', USA: 'US', GBR: 'GB', CAN: 'CA', AUS: 'AU', DEU: 'DE', FRA: 'FR',
-    JPN: 'JP', BRA: 'BR', ARE: 'AE', SGP: 'SG', MYS: 'MY', SAU: 'SA', ITA: 'IT',
-    ESP: 'ES', NLD: 'NL', CHE: 'CH', SWE: 'SE', NOR: 'NO', DNK: 'DK', FIN: 'FI',
-  };
-  const twoLetter = map3to2[clean] || (clean.length === 2 ? clean : clean.slice(0, 2));
-  if (twoLetter.length === 2 && /^[A-Z]{2}$/.test(twoLetter)) {
-    const codePoints = [...twoLetter].map((c) => 127397 + c.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
-  }
-  return '🌐';
-}
 
 export interface CountriesExplorerProps {
   tenantSlug: string;

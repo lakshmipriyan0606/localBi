@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Search, CheckCircle2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { LocationTable } from './location-table';
 import { LocationCreateDialog } from './location-create-dialog';
 import { BrandOptionDto } from '../types/location-dto';
@@ -65,24 +65,15 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
           sparkColor="#8B5CF6"
           seed={3}
         />
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-[0_1px_3px_rgba(15,23,42,0.03)] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between h-[108px] overflow-hidden">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-teal-50 ring-1 ring-teal-100 flex items-center justify-center text-teal-600 flex-shrink-0">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-[11.5px] font-medium text-slate-600 tracking-tight truncate">
-              GBP Sync Status
-            </span>
-          </div>
-          <div className="mt-1">
-            <div className="text-[14px] font-bold text-slate-900 leading-tight">
-              100% Operational
-            </div>
-            <p className="text-[11px] font-semibold text-emerald-600 mt-0.5">
-              All locations active & mapped
-            </p>
-          </div>
-        </div>
+        <DashboardMetricCard
+          label="GBP Sync Status"
+          value="100%"
+          sublabel="All locations active & mapped"
+          icon="check-circle"
+          color="teal"
+          sparkColor="#14B8A6"
+          seed={4}
+        />
       </div>
 
       {/* Filter toolbar */}

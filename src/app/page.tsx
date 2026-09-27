@@ -16,17 +16,16 @@ export default function HomePage() {
             <span className="text-xl font-bold tracking-tight text-slate-900">localBi</span>
           </div>
           <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
-            <Link href="#platform" className="hover:text-primary transition-colors duration-200">Platform</Link>
-            <Link href="#solutions" className="hover:text-primary transition-colors duration-200">Solutions</Link>
-            <Link href="#resources" className="hover:text-primary transition-colors duration-200">Resources</Link>
-            <Link href="#pricing" className="hover:text-primary transition-colors duration-200">Pricing</Link>
+            <Link href="#features" className="hover:text-primary transition-colors duration-200">Platform</Link>
+            <Link href="#features" className="hover:text-primary transition-colors duration-200">Features</Link>
+            <Link href="/login" className="hover:text-primary transition-colors duration-200">Workspace</Link>
           </nav>
           <div className="flex items-center gap-5">
             <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-primary transition-colors duration-200">
               Sign in
             </Link>
-            <Link href="/demo" className="px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90 transition-all shadow-md shadow-primary/20">
-              Book a demo
+            <Link href="/login" className="px-5 py-2.5 text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90 transition-all shadow-md shadow-primary/20">
+              Get Started
             </Link>
           </div>
         </div>
@@ -56,12 +55,12 @@ export default function HomePage() {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4">
-                  <Link href="/platform" className="px-7 py-3.5 text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center gap-2 group">
+                  <Link href="/login" className="px-7 py-3.5 text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/25 flex items-center gap-2 group">
                     Explore the platform
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
-                  <Link href="/demo" className="px-7 py-3.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 shadow-sm rounded-xl hover:bg-slate-50 transition-all">
-                    View live demo
+                  <Link href="#features" className="px-7 py-3.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 shadow-sm rounded-xl hover:bg-slate-50 transition-all">
+                    View features
                   </Link>
                 </div>
               </div>

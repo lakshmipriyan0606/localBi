@@ -138,8 +138,9 @@ export function LoginForm() {
         disabled={isSubmitting}
         className="w-full font-semibold shadow-sm mt-2"
         id="login-submit-button"
+        aria-label={isSubmitting ? 'Signing in...' : 'Sign in to workspace'}
       >
-        {isSubmitting ? 'Signing in...' : 'Continue'}
+        {isSubmitting ? 'Signing in...' : 'Sign in to workspace'}
       </Button>
     </form>
   );

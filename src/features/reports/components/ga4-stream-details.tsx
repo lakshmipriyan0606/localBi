@@ -38,27 +38,23 @@ export function Ga4StreamDetails({
           <div className="flex items-center gap-3">
             <div className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
               <Activity className="h-5 w-5 text-white" />
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-              </span>
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base font-bold tracking-tight text-slate-900">
-                  Live Web Stream & Unified Attribution
+                  Search & Referral Web Stream Attribution
                 </h3>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-2xs">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                  {hasRealData ? 'Stream Verified & Active' : 'Attribution Ready'}
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 shadow-2xs">
+                  <CheckCircle2 className="h-3 w-3 text-indigo-600" />
+                  {hasRealData ? 'Search Attribution Active' : 'Attribution Ready'}
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                   <Sparkles className="h-2.5 w-2.5 text-indigo-600" />
-                  Enterprise Tier
+                  Proxy Model
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Real-time website traffic attribution linked with Google Search Console & Google Business Profile
+                Estimated website traffic attribution linked with Google Search Console & Google Business Profile
               </p>
             </div>
           </div>

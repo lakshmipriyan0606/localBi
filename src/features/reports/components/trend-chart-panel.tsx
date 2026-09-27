@@ -13,6 +13,7 @@ import { Info } from 'lucide-react';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { formatAxisDate, formatCompact, formatNumber, formatDateRange } from '@/shared/lib/formatters';
 import { CHART_COLORS } from '@/shared/config/design-tokens';
+import { ChartTooltipFrame, ChartEmptyState } from '@/components/charts';
 
 interface TimeseriesPoint {
   date: string;
@@ -48,25 +49,18 @@ function ChartTooltip({ active, payload, label }: {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white shadow-lg p-3 min-w-[160px]">
-      <div className="text-[11px] font-semibold text-slate-500 mb-2">
-        {label ? formatAxisDate(label, 'medium') : ''}
-      </div>
-      {payload.map((entry, idx) => (
-        <div key={idx} className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="h-2 w-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-[12px] text-slate-600">{entry.name}</span>
-          </div>
-          <span className="text-[12px] font-bold text-slate-900 tabular">
-            {formatNumber(entry.value)}
-          </span>
-        </div>
-      ))}
-    </div>
+    <ChartTooltipFrame
+      title={label ? formatAxisDate(label, 'medium') : undefined}
+      items={payload.map((entry) => ({
+        label: entry.name || '',
+        color: entry.color,
+        value: entry.name === 'CTR'
+          ? `${typeof entry.value === 'number' ? (entry.value <= 1 && entry.value > 0 ? (entry.value * 100).toFixed(1) : entry.value.toFixed(1)) : 0}%`
+          : entry.name === 'Average Position'
+          ? (typeof entry.value === 'number' ? entry.value.toFixed(1) : '—')
+          : formatNumber(entry.value),
+      }))}
+    />
   );
 }
 
@@ -96,9 +90,11 @@ function TrendPanel({
 
   if (!hasData) {
     return (
-      <div className="py-8 text-center text-slate-400">
-        <p className="text-xs">No trend data available for {title.toLowerCase()} in this time period.</p>
-      </div>
+      <ChartEmptyState
+        title={`No ${title} Data`}
+        description={`No trend data available for ${title.toLowerCase()} in this time period.`}
+        className="py-8"
+      />
     );
   }
 
@@ -169,17 +165,21 @@ function GscMultiTrendPanel({
 
   if (!hasData) {
     return (
-      <div className="py-8 text-center text-slate-400">
-        <p className="text-xs">No trend data available for Google Search Console in this time period.</p>
-      </div>
+      <ChartEmptyState
+        title="No GSC Trend Data"
+        description="No trend data available for Google Search Console in this time period."
+        className="py-8"
+      />
     );
   }
 
   if (activeMetrics.length === 0) {
     return (
-      <div className="py-8 text-center text-slate-400">
-        <p className="text-xs">Select a metric above to view its trend chart.</p>
-      </div>
+      <ChartEmptyState
+        title="No Metrics Selected"
+        description="Select a metric above to view its trend chart."
+        className="py-8"
+      />
     );
   }
 
@@ -298,14 +298,14 @@ export function TrendChartPanel({
   endDate,
   dateRangeDays,
   source = 'all',
-  activeGscMetrics = ['clicks', 'impressions'],
+  activeGscMetrics = ['clicks', 'impressions', 'ctr', 'position'],
 }: TrendChartPanelProps) {
   const showGsc = source === 'all' || source === 'gsc';
   const showGbp = source === 'all' || source === 'gbp';
 
   const chartTitle =
     source === 'gsc'
-      ? 'Google Search Console — Daily Clicks'
+      ? 'Google Search Console — Performance Trends'
       : source === 'gbp'
       ? 'Google Business Profile — Daily Profile Views'
       : 'Daily Performance Trends';

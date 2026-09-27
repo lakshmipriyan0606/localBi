@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
-import { ContextResolver } from '@/modules/auth/context-resolver';
-import { prisma } from '@/shared/database/client';
-import { TenantContextService } from '@/shared/database/tenant-context';
+import { ReportContextService } from '@/modules/reports/report-context-service';
 import { SitemapsView } from '@/features/reports/components/sitemaps-view';
 import { Breadcrumbs } from '@/components/layout/breadcrumbs';
 import { PageHeader } from '@/components/layout/page-header';
@@ -27,32 +25,12 @@ export default async function SitemapsPage({
     redirect('/login');
   }
 
-  let resolved = null;
-  try {
-    resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
-  } catch {
-    redirect('/login');
-  }
-
-  if (!resolved.tenant || !resolved.authorizedContext) {
+  const context = await ReportContextService.resolveReportContext(token, tenantSlug);
+  if (!context) {
     notFound();
   }
 
-  const { tenant } = resolved;
-
-  const { propertyUrl } = await TenantContextService.withTenantContext(
-    prisma,
-    tenant.id,
-    async (tx) => {
-      const prop = await tx.gscProperty.findFirst({
-        where: { tenantId: tenant.id },
-      });
-
-      return {
-        propertyUrl: prop?.propertyUrl || '',
-      };
-    }
-  );
+  const { tenant, propertyUrl } = context;
 
   return (
     <div className="space-y-6">
@@ -76,3 +54,4 @@ export default async function SitemapsPage({
     </div>
   );
 }
+

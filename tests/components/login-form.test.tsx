@@ -188,7 +188,7 @@ describe('LoginForm Component', () => {
     });
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/tenants');
+      expect(mockReplace).toHaveBeenCalledWith('/clients');
       expect(mockRefresh).toHaveBeenCalled();
     });
   });

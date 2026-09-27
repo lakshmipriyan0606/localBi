@@ -17,10 +17,12 @@ import {
   CheckCircle2,
   ShieldCheck,
   Cpu,
+  type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber } from '@/shared/lib/formatters';
+import { ChartTooltipFrame, ChartEmptyState } from '@/components/charts';
 
 export interface Ga4DeviceRow {
   device: string;
@@ -35,7 +37,7 @@ export interface Ga4DevicesCardProps {
 }
 
 interface DeviceStyle {
-  icon: any;
+  icon: LucideIcon;
   gradient: string;
   hex: string;
   text: string;
@@ -83,14 +85,8 @@ export function Ga4DevicesCard({
     setMounted(true);
   }, []);
 
-  const displayDevices = useMemo(() => {
-    if (devices.length > 0) return devices;
-    return [
-      { device: 'Desktop', sessions: 1, percent: '100%' },
-      { device: 'Mobile', sessions: 0, percent: '0%' },
-      { device: 'Tablet', sessions: 0, percent: '0%' },
-    ];
-  }, [devices]);
+  const hasData = devices.length > 0 && devices.some((d) => d.sessions > 0);
+  const displayDevices = devices;
 
   const pieData = useMemo(() => {
     return displayDevices.map((d) => {
@@ -106,7 +102,7 @@ export function Ga4DevicesCard({
     });
   }, [displayDevices]);
 
-  const primaryDevice = displayDevices[0]?.device || 'Desktop';
+  const primaryDevice = displayDevices[0]?.device || 'Devices';
 
   return (
     <div className="space-y-6">
@@ -134,55 +130,58 @@ export function Ga4DevicesCard({
         </CardHeader>
 
         <CardContent className="p-5 sm:p-6 space-y-6">
-          {/* Visual Platform Share: Donut Gauge + Device Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-5 rounded-2xl bg-gradient-to-br from-slate-50/80 via-white to-teal-50/20 border border-slate-200/80">
-            {/* Donut Gauge Canvas */}
-            <div className="lg:col-span-5 flex flex-col items-center justify-center">
-              <div className="relative h-[210px] w-full max-w-[240px] flex items-center justify-center">
-                {!mounted ? (
-                  <div className="h-full w-full rounded-full border-4 border-slate-100 flex items-center justify-center text-xs text-slate-400">
-                    Loading gauge...
-                  </div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={62}
-                        outerRadius={88}
-                        paddingAngle={4}
-                        dataKey="value"
-                        stroke="#FFFFFF"
-                        strokeWidth={2}
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (!active || !payload?.length || !payload[0]?.payload) return null;
-                          const data = payload[0].payload;
-                          return (
-                            <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-xl p-2.5 text-xs text-slate-800">
-                              <p className="font-bold text-slate-900 mb-1">{data.name}</p>
-                              <div className="flex items-center justify-between gap-3 text-[11px]">
-                                <span className="text-slate-500 font-medium">Sessions:</span>
-                                <span className="font-mono font-bold text-slate-900">{formatNumber(data.actualSessions)}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3 text-[11px] mt-0.5">
-                                <span className="text-slate-500 font-medium">Share:</span>
-                                <span className="font-mono font-bold text-teal-700">{data.percent}</span>
-                              </div>
-                            </div>
-                          );
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
+          {!hasData ? (
+            <ChartEmptyState
+              heightClass="h-[220px]"
+              title="No device hardware metrics recorded yet"
+              message="Hardware platform metrics will appear once search impressions or site visits are recorded."
+            />
+          ) : (
+            /* Visual Platform Share: Donut Gauge + Device Cards */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center p-5 rounded-2xl bg-gradient-to-br from-slate-50/80 via-white to-teal-50/20 border border-slate-200/80">
+              {/* Donut Gauge Canvas */}
+              <div className="lg:col-span-5 flex flex-col items-center justify-center">
+                <div className="relative h-[210px] w-full max-w-[240px] flex items-center justify-center">
+                  {!mounted ? (
+                    <div className="h-full w-full rounded-full border-4 border-slate-100 flex items-center justify-center text-xs text-slate-400">
+                      Loading gauge...
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={62}
+                          outerRadius={88}
+                          paddingAngle={4}
+                          dataKey="value"
+                          stroke="#FFFFFF"
+                          strokeWidth={2}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length || !payload[0]?.payload) return null;
+                            const data = payload[0].payload;
+                            return (
+                              <ChartTooltipFrame
+                                title={data.name}
+                                items={[
+                                  { label: 'Sessions', value: formatNumber(data.actualSessions), color: data.color },
+                                  { label: 'Share', value: data.percent },
+                                ]}
+                              />
+                            );
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 {/* Center of Donut Metric */}
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
                   <span className="text-xl font-black text-slate-900 tracking-tight">
@@ -231,6 +230,7 @@ export function Ga4DevicesCard({
               })}
             </div>
           </div>
+          )}
         </CardContent>
       </Card>
 

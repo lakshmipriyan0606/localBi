@@ -11,12 +11,16 @@ import {
   FileCheck,
   Check,
   ChevronRight,
+  TrendingUp,
+  BarChart2,
+  Layers,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
   ComposedChart,
   Bar,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -76,29 +80,37 @@ function CustomGscTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload || !payload.length) return null;
 
   return (
-    <div className="rounded-lg border border-[#dadce0] bg-white p-3 shadow-md text-xs space-y-1.5 min-w-[170px]">
-      <div className="font-medium text-[#202124] border-b border-[#f1f3f4] pb-1">
-        Date: {label}
+    <div className="rounded-xl border border-[#dadce0] bg-white/95 backdrop-blur-xs p-3.5 shadow-xl text-xs space-y-2 min-w-[190px]">
+      <div className="font-semibold text-[#202124] border-b border-[#f1f3f4] pb-1.5 flex items-center justify-between">
+        <span>Date: {label}</span>
       </div>
-      {payload.map((item, i) => (
-        <div key={i} className="flex items-center justify-between gap-3 text-[#5f6368]">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="w-2.5 h-2.5 rounded-xs shrink-0"
-              style={{ backgroundColor: item.color }}
-            />
-            <span>
-              {item.dataKey === 'indexed'
-                ? 'Indexed'
-                : item.dataKey === 'notIndexed'
-                ? 'Not indexed'
-                : 'Impressions'}
-              :
-            </span>
+      <div className="space-y-1.5">
+        {payload.map((item, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 text-[#5f6368]">
+            <div className="flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-white"
+                style={{
+                  backgroundColor:
+                    item.dataKey === 'indexed'
+                      ? '#0f9d58'
+                      : item.dataKey === 'notIndexed'
+                      ? '#70757a'
+                      : '#8b5cf6',
+                }}
+              />
+              <span className="font-medium">
+                {item.dataKey === 'indexed'
+                  ? 'Indexed pages'
+                  : item.dataKey === 'notIndexed'
+                  ? 'Not indexed'
+                  : 'Daily Impressions'}
+              </span>
+            </div>
+            <span className="font-bold text-[#202124] font-mono tabular-nums">{item.value}</span>
           </div>
-          <span className="font-bold text-[#202124] font-mono">{item.value}</span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -113,6 +125,7 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
   const [showNotIndexed, setShowNotIndexed] = useState(true);
   const [showIndexed, setShowIndexed] = useState(true);
   const [showImpressions, setShowImpressions] = useState(false);
+  const [chartStyle, setChartStyle] = useState<'smooth' | 'stepped' | 'bars'>('smooth');
   const [isTableExpanded, setIsTableExpanded] = useState(false);
 
   // URL Inspection state
@@ -202,6 +215,20 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
     return list;
   }, [data?.timeline, data?.totalIndexed]);
 
+  const indexedCount = data?.totalIndexed ?? 1;
+  const notIndexedCount = data?.totalNotIndexed ?? 0;
+  const lastUpdated = data?.lastUpdated ?? '9/21/26';
+
+  const maxPages = useMemo(() => {
+    const vals = timeline.map((t) => (t.indexed || 0) + (t.notIndexed || 0));
+    return Math.max(1, ...vals);
+  }, [timeline]);
+
+  const maxImpressions = useMemo(() => {
+    const vals = timeline.map((t) => t.impressions || 0);
+    return Math.max(1, ...vals);
+  }, [timeline]);
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-[#dadce0] bg-white p-12 text-center space-y-3">
@@ -211,10 +238,6 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
       </div>
     );
   }
-
-  const indexedCount = data?.totalIndexed ?? 1;
-  const notIndexedCount = data?.totalNotIndexed ?? 0;
-  const lastUpdated = data?.lastUpdated ?? '9/21/26';
 
   return (
     <div className="space-y-6 font-sans">
@@ -392,35 +415,107 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
           <div className="flex-1 bg-white" />
         </div>
 
-        {/* Card Body: Impressions Checkbox, Chart, and Accordion */}
+        {/* Card Body: Impressions Checkbox, Chart Controls, and Chart */}
         <div className="p-5 sm:p-6 space-y-4">
-          {/* Impressions Checkbox */}
-          <div>
-            <label className="inline-flex items-center gap-2.5 cursor-pointer text-xs font-normal text-[#3c4043] select-none hover:text-black">
-              <input
-                type="checkbox"
-                checked={showImpressions}
-                onChange={(e) => setShowImpressions(e.target.checked)}
-                className="rounded-[2px] border-[#5f6368] text-[#5f6368] focus:ring-0 w-4 h-4 cursor-pointer"
-              />
-              <span>Impressions</span>
-            </label>
+          {/* Controls Bar: Impressions Checkbox on left + Chart Visual Style Switcher on right */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#f1f3f4] pb-3">
+            {/* Impressions Checkbox */}
+            <div className="flex items-center gap-4">
+              <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-[#3c4043] select-none hover:text-black transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showImpressions}
+                  onChange={(e) => setShowImpressions(e.target.checked)}
+                  className="rounded-[3px] border-[#70757a] text-purple-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                />
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]" />
+                <span>Impressions</span>
+              </label>
+
+              {/* Status summary pill */}
+              <div className="hidden md:flex items-center gap-2 text-[11.5px] text-[#5f6368]">
+                <span>·</span>
+                <span>{indexedCount} of {indexedCount + notIndexedCount} known pages indexed</span>
+              </div>
+            </div>
+
+            {/* Visual Style Selector: Smooth Curve, Stepped Area, or Solid Columns */}
+            <div className="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-lg border border-slate-200/90 self-end sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setChartStyle('smooth')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  chartStyle === 'smooth'
+                    ? 'bg-white text-emerald-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Smooth flowing curve"
+              >
+                <TrendingUp className="w-3 h-3" />
+                <span>Smooth</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChartStyle('stepped')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  chartStyle === 'stepped'
+                    ? 'bg-white text-emerald-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Stepped area block"
+              >
+                <Layers className="w-3 h-3" />
+                <span>Stepped</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setChartStyle('bars')}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                  chartStyle === 'bars'
+                    ? 'bg-white text-emerald-700 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Continuous solid columns"
+              >
+                <BarChart2 className="w-3 h-3" />
+                <span>Solid Columns</span>
+              </button>
+            </div>
           </div>
 
           {/* Y-Axis Label "Pages" above ticks */}
-          <div className="text-[11px] text-[#70757a] font-normal pl-1 select-none">
-            Pages
+          <div className="flex items-center justify-between text-[11px] text-[#70757a] font-normal pl-1 select-none">
+            <span>Pages</span>
+            {showImpressions && <span className="text-[#8b5cf6] font-medium pr-1">Impressions</span>}
           </div>
 
-          {/* GSC Interactive Bar Chart */}
-          <div className="w-full h-[260px] min-h-[260px] relative">
+          {/* GSC Interactive Chart */}
+          <div className="w-full h-[270px] min-h-[270px] relative">
             {mounted ? (
-              <ResponsiveContainer width="100%" height={260}>
+              <ResponsiveContainer width="100%" height={270}>
                 <ComposedChart
                   data={timeline}
                   margin={{ top: 10, right: showImpressions ? 25 : 15, left: -20, bottom: 10 }}
-                  barCategoryGap={1}
+                  barCategoryGap={0}
+                  barGap={0}
                 >
+                  <defs>
+                    <linearGradient id="gscIndexedGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0f9d58" stopOpacity={0.88} />
+                      <stop offset="90%" stopColor="#0f9d58" stopOpacity={0.35} />
+                    </linearGradient>
+                    <linearGradient id="gscNotIndexedGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#70757a" stopOpacity={0.8} />
+                      <stop offset="90%" stopColor="#70757a" stopOpacity={0.25} />
+                    </linearGradient>
+                    <linearGradient id="gscImpressionsGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+
                   <CartesianGrid strokeDasharray="0 0" vertical={false} stroke="#f1f3f4" />
                   <XAxis
                     dataKey="label"
@@ -431,8 +526,9 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
                   />
                   <YAxis
                     yAxisId="pages"
-                    domain={[0, 3]}
-                    ticks={[0, 1, 2, 3]}
+                    domain={[0, maxPages <= 3 ? 3 : Math.ceil(maxPages * 1.25)]}
+                    {...(maxPages <= 3 ? { ticks: [0, 1, 2, 3] } : {})}
+                    allowDecimals={false}
                     tickLine={false}
                     axisLine={false}
                     tick={{ fontSize: 11, fill: '#70757a', fontFamily: 'Roboto, sans-serif' }}
@@ -442,6 +538,9 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
                     <YAxis
                       yAxisId="impressions"
                       orientation="right"
+                      domain={[0, maxImpressions <= 3 ? 3 : Math.ceil(maxImpressions * 1.25)]}
+                      {...(maxImpressions <= 3 ? { ticks: [0, 1, 2, 3] } : {})}
+                      allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#8b5cf6', fontFamily: 'Roboto, sans-serif' }}
@@ -449,32 +548,110 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
                     />
                   )}
                   <Tooltip content={<CustomGscTooltip />} />
-                  {showNotIndexed && (
-                    <Bar
-                      yAxisId="pages"
-                      dataKey="notIndexed"
-                      fill="#70757a"
-                      maxBarSize={8}
-                      radius={[0, 0, 0, 0]}
-                    />
+
+                  {/* ── Smooth Curve Mode (Default) ── */}
+                  {chartStyle === 'smooth' && (
+                    <>
+                      {showNotIndexed && (
+                        <Area
+                          yAxisId="pages"
+                          type="monotone"
+                          dataKey="notIndexed"
+                          name="Not indexed"
+                          stroke="#5f6368"
+                          strokeWidth={2}
+                          fill="url(#gscNotIndexedGrad)"
+                          fillOpacity={1}
+                          stackId="pages"
+                        />
+                      )}
+                      {showIndexed && (
+                        <Area
+                          yAxisId="pages"
+                          type="monotone"
+                          dataKey="indexed"
+                          name="Indexed"
+                          stroke="#0f9d58"
+                          strokeWidth={2.5}
+                          fill="url(#gscIndexedGrad)"
+                          fillOpacity={1}
+                          stackId="pages"
+                        />
+                      )}
+                    </>
                   )}
-                  {showIndexed && (
-                    <Bar
-                      yAxisId="pages"
-                      dataKey="indexed"
-                      fill="#0f9d58"
-                      maxBarSize={8}
-                      radius={[0, 0, 0, 0]}
-                    />
+
+                  {/* ── Stepped Block Mode ── */}
+                  {chartStyle === 'stepped' && (
+                    <>
+                      {showNotIndexed && (
+                        <Area
+                          yAxisId="pages"
+                          type="stepAfter"
+                          dataKey="notIndexed"
+                          name="Not indexed"
+                          stroke="#5f6368"
+                          strokeWidth={2}
+                          fill="url(#gscNotIndexedGrad)"
+                          fillOpacity={1}
+                          stackId="pages"
+                        />
+                      )}
+                      {showIndexed && (
+                        <Area
+                          yAxisId="pages"
+                          type="stepAfter"
+                          dataKey="indexed"
+                          name="Indexed"
+                          stroke="#0f9d58"
+                          strokeWidth={2.5}
+                          fill="url(#gscIndexedGrad)"
+                          fillOpacity={1}
+                          stackId="pages"
+                        />
+                      )}
+                    </>
                   )}
+
+                  {/* ── Solid Columns Mode ── */}
+                  {chartStyle === 'bars' && (
+                    <>
+                      {showNotIndexed && (
+                        <Bar
+                          yAxisId="pages"
+                          dataKey="notIndexed"
+                          name="Not indexed"
+                          fill="#70757a"
+                          stackId="pages"
+                          stroke="#5f6368"
+                          strokeWidth={0.5}
+                        />
+                      )}
+                      {showIndexed && (
+                        <Bar
+                          yAxisId="pages"
+                          dataKey="indexed"
+                          name="Indexed"
+                          fill="#0f9d58"
+                          stackId="pages"
+                          stroke="#0b8043"
+                          strokeWidth={0.5}
+                        />
+                      )}
+                    </>
+                  )}
+
+                  {/* Impressions Trend Line */}
                   {showImpressions && (
                     <Line
                       yAxisId="impressions"
                       type="monotone"
                       dataKey="impressions"
+                      name="Impressions"
                       stroke="#8b5cf6"
-                      strokeWidth={2}
+                      strokeWidth={2.5}
                       dot={false}
+                      activeDot={{ r: 4, fill: '#8b5cf6', stroke: '#ffffff', strokeWidth: 2 }}
                     />
                   )}
                 </ComposedChart>

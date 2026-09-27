@@ -45,7 +45,7 @@ export function ReportsGscSection({
   tenantSlug,
   selectedBrandId,
   dateRangeDays,
-  activeMetrics = [],
+  activeMetrics = ['clicks', 'impressions', 'ctr', 'position'],
   onToggleMetric,
 }: ReportsGscSectionProps) {
   const gsc = summary?.gsc;

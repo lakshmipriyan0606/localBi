@@ -21,6 +21,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber } from '@/shared/lib/formatters';
+import { ChartTooltipFrame, ChartEmptyState } from '@/components/charts';
 
 export interface Ga4TrendPoint {
   date: string;
@@ -42,22 +43,10 @@ export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: 
     setMounted(true);
   }, []);
 
+  const hasData = data.length > 0 && data.some((d) => d.clicks > 0 || d.impressions > 0 || d.sessions > 0);
+
   const formattedData = useMemo(() => {
-    if (data.length === 0) {
-      const now = new Date();
-      return Array.from({ length: 14 }).map((_, i) => {
-        const d = new Date(now);
-        d.setDate(now.getDate() - (13 - i));
-        return {
-          date: d.toISOString().slice(0, 10),
-          rawDate: d.toISOString().slice(0, 10),
-          label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          clicks: 0,
-          impressions: 0,
-          sessions: 0,
-        };
-      });
-    }
+    if (!hasData) return [];
 
     return data.map((d) => {
       const parsed = new Date(d.date);
@@ -70,7 +59,7 @@ export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: 
         label,
       };
     });
-  }, [data]);
+  }, [data, hasData]);
 
   const totalClicks = useMemo(() => formattedData.reduce((acc, d) => acc + d.clicks, 0), [formattedData]);
   const totalImpressions = useMemo(() => formattedData.reduce((acc, d) => acc + d.impressions, 0), [formattedData]);
@@ -93,8 +82,7 @@ export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: 
                   Visitor & Search Traffic Velocity
                 </CardTitle>
                 <Badge variant="outline" className="text-[11px] py-0.5 px-2.5 text-indigo-700 bg-indigo-50 border-indigo-200/80 font-bold shadow-2xs">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 mr-1 animate-pulse" />
-                  Live Sync Active
+                  Attribution Timeline
                 </Badge>
                 <Badge variant="outline" className="bg-white text-slate-700 border-slate-200 text-[10px] font-mono px-2 py-0.5 shadow-2xs">
                   Daily Grain
@@ -226,6 +214,12 @@ export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: 
             <div className="h-full w-full rounded-2xl bg-slate-50 flex items-center justify-center text-xs text-slate-400 border border-slate-100">
               Loading performance telemetry...
             </div>
+          ) : !hasData ? (
+            <ChartEmptyState
+              heightClass="h-full"
+              title="No traffic velocity data recorded yet"
+              message="Attribution points will appear here once Search Console and GBP sync runs complete."
+            />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={formattedData} margin={{ top: 12, right: 12, left: -16, bottom: 0 }}>
@@ -274,28 +268,15 @@ export function Ga4TrendChart({ data = [], hasRealData: _hasRealData = false }: 
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-2xl p-3.5 text-xs text-slate-800 min-w-[175px]">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                          <span className="font-bold text-slate-900">{label}</span>
-                          <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200/60">TELEMETRY</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          {payload.map((entry: any, i) => (
-                            <div key={i} className="flex items-center justify-between gap-4">
-                              <span className="flex items-center gap-2 text-slate-600 font-medium">
-                                <span
-                                  className="w-2.5 h-2.5 rounded-full shadow-xs"
-                                  style={{ backgroundColor: entry.color }}
-                                />
-                                {entry.name}:
-                              </span>
-                              <span className="font-extrabold text-slate-900 font-mono">
-                                {formatNumber(entry.value)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <ChartTooltipFrame
+                        title={String(label || '')}
+                        subtitle="Attribution Telemetry"
+                        items={payload.map((entry) => ({
+                          label: String(entry.name || ''),
+                          value: formatNumber(typeof entry.value === 'number' ? entry.value : Number(entry.value) || 0),
+                          color: entry.color,
+                        }))}
+                      />
                     );
                   }}
                 />

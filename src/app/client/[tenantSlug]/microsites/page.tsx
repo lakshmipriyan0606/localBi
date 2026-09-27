@@ -29,10 +29,9 @@ import {
   Globe,
   Zap,
   Search,
-  CheckCircle2,
-  AlertCircle,
 } from 'lucide-react';
 import type { MicrositeConfig, MenuItem } from '@/modules/microsites/microsite-service';
+import { notify } from '@/lib/notify';
 
 type IndustryType = 'FOOD' | 'JEWELRY' | 'HOSPITAL' | 'RETAIL' | 'SERVICES';
 
@@ -82,12 +81,6 @@ const INDUSTRY_OPTIONS: IndustryOption[] = [
   },
 ];
 
-interface ToastNotice {
-  id: string;
-  type: 'success' | 'info' | 'error';
-  message: string;
-}
-
 export default function TenantMicrositesPage({
   params,
 }: {
@@ -108,14 +101,15 @@ export default function TenantMicrositesPage({
   // QR Code Modal State
   const [qrModalSite, setQrModalSite] = useState<MicrositeConfig | null>(null);
 
-  // Toast notifications
-  const [toasts, setToasts] = useState<ToastNotice[]>([]);
+  // Standardized toast notifications
   const addToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
-    const id = `${Date.now()}-${Math.random()}`;
-    setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3200);
+    if (type === 'success') {
+      notify.success(message);
+    } else if (type === 'error') {
+      notify.error(message);
+    } else {
+      notify.info(message);
+    }
   };
 
   // Form states for currently selected microsite
@@ -473,26 +467,6 @@ export default function TenantMicrositesPage({
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto font-sans antialiased text-slate-900">
-      {/* ── Toast Floating Container ── */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl border text-xs font-semibold animate-in slide-in-from-bottom-3 duration-200 ${
-              toast.type === 'success'
-                ? 'bg-emerald-950 text-emerald-100 border-emerald-800'
-                : toast.type === 'error'
-                ? 'bg-rose-950 text-rose-100 border-rose-800'
-                : 'bg-slate-900 text-slate-100 border-slate-700'
-            }`}
-          >
-            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
-            {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-            {toast.type === 'info' && <Zap className="w-4 h-4 text-amber-400 shrink-0" />}
-            <span>{toast.message}</span>
-          </div>
-        ))}
-      </div>
 
       {/* ── Top Header Section ── */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-slate-200">

@@ -566,7 +566,7 @@ export class ReportingService {
           queryMap.set(txt, curr);
         }
 
-        let items: QueryDimensionRow[] = Array.from(queryMap.entries()).map(([queryText, stats]) => ({
+        const items: QueryDimensionRow[] = Array.from(queryMap.entries()).map(([queryText, stats]) => ({
           queryText,
           clicks: stats.clicks,
           impressions: stats.impressions,
@@ -610,7 +610,7 @@ export class ReportingService {
           pageMap.set(url, curr);
         }
 
-        let items: PageDimensionRow[] = Array.from(pageMap.entries()).map(([fullUrl, stats]) => ({
+        const items: PageDimensionRow[] = Array.from(pageMap.entries()).map(([fullUrl, stats]) => ({
           fullUrl,
           clicks: stats.clicks,
           impressions: stats.impressions,
@@ -846,7 +846,7 @@ export class ReportingService {
           }
 
           const currentMonthStr = `${startDate.slice(0, 7)}`;
-          let items: GbpSearchKeywordRow[] = Array.from(keywordMap.entries()).map(([keyword, impressions]) => {
+          const items: GbpSearchKeywordRow[] = Array.from(keywordMap.entries()).map(([keyword, impressions]) => {
             const isThreshold = impressions < 15;
             return {
               keyword,

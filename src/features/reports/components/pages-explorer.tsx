@@ -264,7 +264,7 @@ export function PagesExplorer({
           />
           <PageIndexingView
             tenantSlug={tenantSlug}
-            propertyUrl={propertyUrl || "https://lakshmipriyan-portfolio.vercel.app/"}
+            propertyUrl={propertyUrl || ""}
           />
         </div>
       ) : (

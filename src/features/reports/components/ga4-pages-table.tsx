@@ -21,6 +21,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber } from '@/shared/lib/formatters';
+import { ChartTooltipFrame } from '@/components/charts';
 
 export interface Ga4PageRow {
   url: string;
@@ -172,25 +173,14 @@ export function Ga4PagesTable({ pages = [], hasRealData = false }: Ga4PagesTable
                         if (!active || !payload?.length || !payload[0]?.payload) return null;
                         const data = payload[0].payload;
                         return (
-                          <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-xl rounded-xl p-3 text-xs text-slate-800 min-w-[170px]">
-                            <p className="font-bold text-slate-900 border-b border-slate-100 pb-1 mb-1.5 truncate">
-                              {data.name}
-                            </p>
-                            <div className="space-y-1">
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500 font-medium">Sessions:</span>
-                                <span className="font-mono font-bold text-sky-700">{formatNumber(data.sessions)}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500 font-medium">Impressions:</span>
-                                <span className="font-mono font-bold text-purple-700">{formatNumber(data.impressions)}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="text-slate-500 font-medium">CTR Rate:</span>
-                                <span className="font-mono font-bold text-emerald-600">{data.ctr.toFixed(1)}%</span>
-                              </div>
-                            </div>
-                          </div>
+                          <ChartTooltipFrame
+                            title={data.name}
+                            items={[
+                              { label: 'Sessions', value: formatNumber(data.sessions), color: '#0284c7' },
+                              { label: 'Impressions', value: formatNumber(data.impressions), color: '#9333ea' },
+                              { label: 'CTR Rate', value: `${data.ctr.toFixed(1)}%`, color: '#059669' },
+                            ]}
+                          />
                         );
                       }}
                     />

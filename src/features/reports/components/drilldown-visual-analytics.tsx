@@ -29,6 +29,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
+import { getCountryFlag } from '@/shared/lib/formatters';
 import type { DrilldownVariant } from './drilldown-view';
 
 export interface DrilldownVisualAnalyticsProps<T> {
@@ -49,21 +50,7 @@ interface ParsedEntity {
   pagePath?: string | undefined;
 }
 
-function getCountryFlag(code?: string): string {
-  if (!code) return '🌐';
-  const clean = code.trim().toUpperCase();
-  const map3to2: Record<string, string> = {
-    IND: 'IN', USA: 'US', GBR: 'GB', CAN: 'CA', AUS: 'AU', DEU: 'DE', FRA: 'FR',
-    JPN: 'JP', BRA: 'BR', ARE: 'AE', SGP: 'SG', MYS: 'MY', SAU: 'SA', ITA: 'IT',
-    ESP: 'ES', NLD: 'NL', CHE: 'CH', SWE: 'SE', NOR: 'NO', DNK: 'DK', FIN: 'FI',
-  };
-  const twoLetter = map3to2[clean] || (clean.length === 2 ? clean : clean.slice(0, 2));
-  if (twoLetter.length === 2 && /^[A-Z]{2}$/.test(twoLetter)) {
-    const codePoints = [...twoLetter].map((c) => 127397 + c.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
-  }
-  return '🌐';
-}
+
 
 function cleanUrlPath(rawUrl?: string): { path: string; domain: string } {
   if (!rawUrl) return { path: '/', domain: '' };
@@ -197,6 +184,266 @@ export function DrilldownVisualAnalytics<T>({
     return { totalClicks, totalImpressions, avgCtr, avgPosition, topItem };
   }, [parsedData]);
 
+  // Memoized variant data transforms to avoid heavy recalculations during interactions
+  const devicesData = useMemo(() => {
+    if (activeVariant !== 'devices') return null;
+    const colors = ['#4F46E5', '#3B82F6', '#38BDF8', '#818CF8'];
+
+    const donutData = parsedData.map((d, i) => {
+      const name = d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase();
+      const sharePct = summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0;
+      return {
+        name,
+        value: d.primaryValue,
+        color: colors[i % colors.length],
+        share: `${sharePct}%`,
+      };
+    });
+
+    const deviceBarData = parsedData.map((d) => ({
+      device: d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase(),
+      clicks: d.primaryValue,
+      impressions: d.secondaryValue,
+      ctr: d.ctr,
+    }));
+
+    return { donutData, deviceBarData };
+  }, [activeVariant, parsedData, summary.totalClicks]);
+
+  const countriesData = useMemo(() => {
+    if (activeVariant !== 'countries') return null;
+    const countriesList = parsedData.map((d, i) => ({
+      rank: i + 1,
+      name: d.name,
+      code: d.extra || d.name.slice(0, 3).toUpperCase(),
+      flag: getCountryFlag(d.extra || d.name),
+      clicks: d.primaryValue,
+      share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0,
+      pctBar: Math.max(10, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 90)),
+    }));
+
+    const barChartData = [...parsedData]
+      .sort((a, b) => a.primaryValue - b.primaryValue)
+      .slice(-6)
+      .map((d) => ({
+        country: d.name,
+        clicks: d.primaryValue,
+      }));
+
+    const bubbleColors = ['#6366F1', '#3B82F6', '#60A5FA', '#93C5FD', '#F59E0B', '#A855F7', '#10B981', '#EC4899'];
+    const bubbleData = parsedData.slice(0, 8).map((d, i) => ({
+      country: d.name,
+      ctr: d.ctr,
+      position: d.position,
+      clicks: d.primaryValue,
+      fill: bubbleColors[i % bubbleColors.length],
+    }));
+
+    const topCountry = countriesList[0] || null;
+
+    return { countriesList, barChartData, bubbleData, topCountry };
+  }, [activeVariant, parsedData, summary.totalClicks]);
+
+  const pagesData = useMemo(() => {
+    if (activeVariant !== 'pages') return null;
+    const pagesList = parsedData.map((d, i) => {
+      const { path } = cleanUrlPath(d.name);
+      return {
+        rank: i + 1,
+        path,
+        clicks: d.primaryValue,
+        impressions: d.secondaryValue,
+        ctr: d.ctr,
+        position: d.position,
+        share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 100,
+        pctBar: Math.max(8, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 95)),
+      };
+    });
+
+    const donutColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
+    const top5Pages = parsedData.slice(0, 5);
+    const top5Sum = top5Pages.reduce((sum, p) => sum + p.primaryValue, 0);
+    const remainderClicks = Math.max(0, summary.totalClicks - top5Sum);
+
+    const pagesDonutData = [
+      ...top5Pages.map((d, i) => {
+        const { path } = cleanUrlPath(d.name);
+        const sharePct = summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0;
+        return {
+          name: path,
+          path,
+          value: d.primaryValue,
+          share: `${sharePct}%`,
+          color: donutColors[i % donutColors.length],
+        };
+      }),
+      ...(remainderClicks > 0
+        ? [{
+            name: 'Other pages',
+            path: 'other',
+            value: remainderClicks,
+            share: `${Math.round((remainderClicks / (summary.totalClicks || 1)) * 1000) / 10}%`,
+            color: '#94A3B8',
+          }]
+        : []),
+    ];
+
+    const scatterColors = ['#4F46E5', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EC4899'];
+    const pageScatterData = parsedData.slice(0, 10).map((d, i) => {
+      const { path } = cleanUrlPath(d.name);
+      return {
+        name: path,
+        impressions: d.secondaryValue,
+        ctr: d.ctr,
+        clicks: d.primaryValue,
+        fill: scatterColors[i % scatterColors.length],
+      };
+    });
+
+    const sectionMap = new Map<string, number>();
+    for (const p of parsedData) {
+      const { path } = cleanUrlPath(p.name);
+      const parts = path.split('/').filter(Boolean);
+      const firstPart = parts[0];
+      const sec = !firstPart ? 'Home' : firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
+      sectionMap.set(sec, (sectionMap.get(sec) || 0) + p.primaryValue);
+    }
+    const sectionColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
+    const sectionData = Array.from(sectionMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([section, clicks], idx) => ({
+        section,
+        clicks,
+        share: `${summary.totalClicks > 0 ? Math.round((clicks / summary.totalClicks) * 1000) / 10 : 0}%`,
+        color: sectionColors[idx % sectionColors.length],
+        barPct: Math.max(8, Math.round((clicks / (parsedData[0]?.primaryValue || 1)) * 90)),
+      }));
+
+    const topPageItem = parsedData[0];
+    const topPagePath = topPageItem ? cleanUrlPath(topPageItem.name).path : '—';
+    const topPageClicks = topPageItem?.primaryValue || 0;
+    const topPageShare = summary.totalClicks > 0 ? Math.round((topPageClicks / summary.totalClicks) * 1000) / 10 : 0;
+
+    const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
+    const highestCtrPath = highestCtrItem ? cleanUrlPath(highestCtrItem.name).path : '—';
+    const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
+
+    const biggestOppItem = [...parsedData]
+      .filter((p) => p.secondaryValue > 0)
+      .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[0];
+    const biggestOppPath = biggestOppItem ? cleanUrlPath(biggestOppItem.name).path : '—';
+    const biggestOppImp = biggestOppItem?.secondaryValue || 0;
+    const biggestOppCtr = biggestOppItem ? Number(biggestOppItem.ctr.toFixed(1)) : 0;
+
+    return {
+      pagesList,
+      pagesDonutData,
+      pageScatterData,
+      sectionData,
+      topPagePath,
+      topPageClicks,
+      topPageShare,
+      highestCtrPath,
+      highestCtrVal,
+      biggestOppPath,
+      biggestOppImp,
+      biggestOppCtr,
+    };
+  }, [activeVariant, parsedData, summary.totalClicks]);
+
+  const queriesData = useMemo(() => {
+    if (activeVariant !== 'queries') return null;
+    const queriesList = parsedData.map((d, i) => ({
+      rank: i + 1,
+      query: d.name,
+      clicks: d.primaryValue,
+      impressions: d.secondaryValue,
+      ctr: d.ctr,
+      position: d.position,
+      share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 100,
+      pctBar: Math.max(8, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 95)),
+    }));
+
+    const donutColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
+    const top5Queries = parsedData.slice(0, 5);
+    const top5Sum = top5Queries.reduce((sum, q) => sum + q.primaryValue, 0);
+    const remainderClicks = Math.max(0, summary.totalClicks - top5Sum);
+
+    const intentDonutData = [
+      ...top5Queries.map((d, i) => ({
+        name: d.name,
+        value: d.primaryValue,
+        share: `${summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0}%`,
+        color: donutColors[i % donutColors.length],
+      })),
+      ...(remainderClicks > 0
+        ? [{
+            name: 'Other queries',
+            value: remainderClicks,
+            share: `${Math.round((remainderClicks / (summary.totalClicks || 1)) * 1000) / 10}%`,
+            color: '#94A3B8',
+          }]
+        : []),
+    ];
+
+    const scatterColors = ['#4F46E5', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EC4899'];
+    const queryScatterData = parsedData.slice(0, 10).map((d, i) => ({
+      name: d.name,
+      position: d.position,
+      ctr: d.ctr,
+      clicks: d.primaryValue,
+      fill: scatterColors[i % scatterColors.length],
+    }));
+
+    let tier1 = 0, tier2 = 0, tier3 = 0, tier4 = 0;
+    for (const q of parsedData) {
+      if (q.position <= 3) tier1 += q.primaryValue;
+      else if (q.position <= 10) tier2 += q.primaryValue;
+      else if (q.position <= 20) tier3 += q.primaryValue;
+      else tier4 += q.primaryValue;
+    }
+
+    const maxTier = Math.max(tier1, tier2, tier3, tier4, 1);
+    const tierData = [
+      { tier: 'Top 3 (Prime)', clicks: tier1, share: `${summary.totalClicks > 0 ? Math.round((tier1 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#10B981', barPct: Math.round((tier1 / maxTier) * 90) },
+      { tier: 'Page 1 (Pos 4-10)', clicks: tier2, share: `${summary.totalClicks > 0 ? Math.round((tier2 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#3B82F6', barPct: Math.round((tier2 / maxTier) * 90) },
+      { tier: 'Page 2 (Pos 11-20)', clicks: tier3, share: `${summary.totalClicks > 0 ? Math.round((tier3 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#F59E0B', barPct: Math.round((tier3 / maxTier) * 90) },
+      { tier: 'Page 3+ (Deep)', clicks: tier4, share: `${summary.totalClicks > 0 ? Math.round((tier4 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#94A3B8', barPct: Math.round((tier4 / maxTier) * 90) },
+    ];
+
+    const topQueryItem = parsedData[0];
+    const topQueryName = topQueryItem?.name || '—';
+    const topQueryClicks = topQueryItem?.primaryValue || 0;
+    const topQueryShare = summary.totalClicks > 0 ? Math.round((topQueryClicks / summary.totalClicks) * 1000) / 10 : 0;
+
+    const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
+    const highestCtrName = highestCtrItem?.name || '—';
+    const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
+
+    const quickWinItem = [...parsedData]
+      .filter((q) => q.position > 10 && q.secondaryValue > 0)
+      .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[1] || parsedData[0];
+    const quickWinName = quickWinItem?.name || '—';
+    const quickWinPos = quickWinItem ? Number(quickWinItem.position.toFixed(1)) : 0;
+    const quickWinCtr = quickWinItem ? Number(quickWinItem.ctr.toFixed(1)) : 0;
+
+    return {
+      queriesList,
+      intentDonutData,
+      queryScatterData,
+      tierData,
+      topQueryName,
+      topQueryClicks,
+      topQueryShare,
+      highestCtrName,
+      highestCtrVal,
+      quickWinName,
+      quickWinPos,
+      quickWinCtr,
+    };
+  }, [activeVariant, parsedData, summary.totalClicks]);
+
   if (!data || data.length === 0) return null;
 
   const displayClicks = summary.totalClicks;
@@ -244,27 +491,8 @@ export function DrilldownVisualAnalytics<T>({
       </div>
 
       {/* ── 2. VISITOR DEVICES CHARTS ──────────────────────── */}
-      {activeVariant === 'devices' && (() => {
-        const colors = ['#4F46E5', '#3B82F6', '#38BDF8', '#818CF8'];
-
-        const donutData = parsedData.map((d, i) => {
-          const name = d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase();
-          const sharePct = summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0;
-          return {
-            name,
-            value: d.primaryValue,
-            color: colors[i % colors.length],
-            share: `${sharePct}%`,
-          };
-        });
-
-        const deviceBarData = parsedData.map((d) => ({
-          device: d.name.charAt(0).toUpperCase() + d.name.slice(1).toLowerCase(),
-          clicks: d.primaryValue,
-          impressions: d.secondaryValue,
-          ctr: d.ctr,
-        }));
-
+      {activeVariant === 'devices' && devicesData && (() => {
+        const { donutData, deviceBarData } = devicesData;
         return (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
             {/* Left Card: Traffic Share by Device (~40% / 5 cols) */}
@@ -388,36 +616,8 @@ export function DrilldownVisualAnalytics<T>({
       })()}
 
       {/* ── 3. VISITOR COUNTRIES CHARTS ────────────────────── */}
-      {activeVariant === 'countries' && (() => {
-        const countriesList = parsedData.map((d, i) => ({
-          rank: i + 1,
-          name: d.name,
-          code: d.extra || d.name.slice(0, 3).toUpperCase(),
-          flag: getCountryFlag(d.extra || d.name),
-          clicks: d.primaryValue,
-          share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0,
-          pctBar: Math.max(10, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 90)),
-        }));
-
-        const barChartData = [...parsedData]
-          .sort((a, b) => a.primaryValue - b.primaryValue)
-          .slice(-6)
-          .map((d) => ({
-            country: d.name,
-            clicks: d.primaryValue,
-          }));
-
-        const bubbleColors = ['#6366F1', '#3B82F6', '#60A5FA', '#93C5FD', '#F59E0B', '#A855F7', '#10B981', '#EC4899'];
-        const bubbleData = parsedData.slice(0, 8).map((d, i) => ({
-          country: d.name,
-          ctr: d.ctr,
-          position: d.position,
-          clicks: d.primaryValue,
-          fill: bubbleColors[i % bubbleColors.length],
-        }));
-
-        const topCountry = countriesList[0] || null;
-
+      {activeVariant === 'countries' && countriesData && (() => {
+        const { countriesList, barChartData, bubbleData, topCountry } = countriesData;
         return (
           <div className="space-y-3.5">
             {/* Row 1: World Map (50%) + Top Countries by Clicks Ranked List (50%) */}
@@ -625,97 +825,21 @@ export function DrilldownVisualAnalytics<T>({
       })()}
 
       {/* ── 4. TOP WEBSITE PAGES CHARTS (Matching Image 1) ────────────────────── */}
-      {activeVariant === 'pages' && (() => {
-        const pagesList = parsedData.map((d, i) => {
-          const { path } = cleanUrlPath(d.name);
-          return {
-            rank: i + 1,
-            path,
-            clicks: d.primaryValue,
-            impressions: d.secondaryValue,
-            ctr: d.ctr,
-            position: d.position,
-            share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 100,
-            pctBar: Math.max(8, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 95)),
-          };
-        });
-
-        const donutColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
-        const top5Pages = parsedData.slice(0, 5);
-        const top5Sum = top5Pages.reduce((sum, p) => sum + p.primaryValue, 0);
-        const remainderClicks = Math.max(0, summary.totalClicks - top5Sum);
-
-        const pagesDonutData = [
-          ...top5Pages.map((d, i) => {
-            const { path } = cleanUrlPath(d.name);
-            const sharePct = summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0;
-            return {
-              name: path,
-              path,
-              value: d.primaryValue,
-              share: `${sharePct}%`,
-              color: donutColors[i % donutColors.length],
-            };
-          }),
-          ...(remainderClicks > 0
-            ? [{
-                name: 'Other pages',
-                path: 'other',
-                value: remainderClicks,
-                share: `${Math.round((remainderClicks / (summary.totalClicks || 1)) * 1000) / 10}%`,
-                color: '#94A3B8',
-              }]
-            : []),
-        ];
-
-        const scatterColors = ['#4F46E5', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EC4899'];
-        const pageScatterData = parsedData.slice(0, 10).map((d, i) => {
-          const { path } = cleanUrlPath(d.name);
-          return {
-            name: path,
-            impressions: d.secondaryValue,
-            ctr: d.ctr,
-            clicks: d.primaryValue,
-            fill: scatterColors[i % scatterColors.length],
-          };
-        });
-
-        const sectionMap = new Map<string, number>();
-        for (const p of parsedData) {
-          const { path } = cleanUrlPath(p.name);
-          const parts = path.split('/').filter(Boolean);
-          const firstPart = parts[0];
-          const sec = !firstPart ? 'Home' : firstPart.charAt(0).toUpperCase() + firstPart.slice(1);
-          sectionMap.set(sec, (sectionMap.get(sec) || 0) + p.primaryValue);
-        }
-        const sectionColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
-        const sectionData = Array.from(sectionMap.entries())
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([section, clicks], idx) => ({
-            section,
-            clicks,
-            share: `${summary.totalClicks > 0 ? Math.round((clicks / summary.totalClicks) * 1000) / 10 : 0}%`,
-            color: sectionColors[idx % sectionColors.length],
-            barPct: Math.max(8, Math.round((clicks / (parsedData[0]?.primaryValue || 1)) * 90)),
-          }));
-
-        const topPageItem = parsedData[0];
-        const topPagePath = topPageItem ? cleanUrlPath(topPageItem.name).path : '—';
-        const topPageClicks = topPageItem?.primaryValue || 0;
-        const topPageShare = summary.totalClicks > 0 ? Math.round((topPageClicks / summary.totalClicks) * 1000) / 10 : 0;
-
-        const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
-        const highestCtrPath = highestCtrItem ? cleanUrlPath(highestCtrItem.name).path : '—';
-        const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
-
-        const biggestOppItem = [...parsedData]
-          .filter((p) => p.secondaryValue > 0)
-          .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[0];
-        const biggestOppPath = biggestOppItem ? cleanUrlPath(biggestOppItem.name).path : '—';
-        const biggestOppImp = biggestOppItem?.secondaryValue || 0;
-        const biggestOppCtr = biggestOppItem ? Number(biggestOppItem.ctr.toFixed(1)) : 0;
-
+      {activeVariant === 'pages' && pagesData && (() => {
+        const {
+          pagesList,
+          pagesDonutData,
+          pageScatterData,
+          sectionData,
+          topPagePath,
+          topPageClicks,
+          topPageShare,
+          highestCtrPath,
+          highestCtrVal,
+          biggestOppPath,
+          biggestOppImp,
+          biggestOppCtr,
+        } = pagesData;
         return (
           <div className="space-y-3.5">
             {/* Row 1: Top Landing Pages by Clicks (50%) + Traffic Share & Page Concentration Donut (50%) */}
@@ -761,22 +885,47 @@ export function DrilldownVisualAnalytics<T>({
                     </div>
                   </div>
                   <div className="space-y-3 mt-3">
-                    {pagesList.slice(0, 5).map((p) => (
-                      <div key={p.path} className="flex items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2 min-w-[100px]">
-                          <span className="text-[11px] font-bold text-slate-400 w-3">{p.rank}</span>
-                          <span className="font-semibold text-indigo-700 truncate font-mono text-[11.5px]">{p.path}</span>
-                        </div>
-                        <div className="flex items-center gap-3 flex-1">
-                          <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500/80 rounded-full" style={{ width: `${p.pctBar}%` }} />
+                    {pagesList.slice(0, 5).map((p) => {
+                      const metricVal =
+                        pageMetricToggle === 'impressions'
+                          ? `${p.impressions.toLocaleString()} imp`
+                          : pageMetricToggle === 'ctr'
+                          ? `${p.ctr.toFixed(1)}% CTR`
+                          : pageMetricToggle === 'position'
+                          ? `Pos #${p.position.toFixed(1)}`
+                          : `${p.clicks.toLocaleString()} (${p.share}%)`;
+
+                      const maxVal =
+                        pageMetricToggle === 'impressions'
+                          ? (parsedData[0]?.secondaryValue || 1)
+                          : (parsedData[0]?.primaryValue || 1);
+
+                      const barPct =
+                        pageMetricToggle === 'impressions'
+                          ? Math.max(8, Math.round((p.impressions / maxVal) * 95))
+                          : pageMetricToggle === 'ctr'
+                          ? Math.min(100, Math.max(8, Math.round(p.ctr * 4)))
+                          : pageMetricToggle === 'position'
+                          ? Math.max(8, Math.round((1 / Math.max(1, p.position)) * 100))
+                          : p.pctBar;
+
+                      return (
+                        <div key={p.path} className="flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2 min-w-[100px]">
+                            <span className="text-[11px] font-bold text-slate-400 w-3">{p.rank}</span>
+                            <span className="font-semibold text-indigo-700 truncate font-mono text-[11.5px]">{p.path}</span>
                           </div>
-                          <span className="font-bold text-slate-900 tabular-nums w-20 text-right">
-                            {p.clicks.toLocaleString()} <span className="text-slate-400 font-normal">({p.share}%)</span>
-                          </span>
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="h-2 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-500/80 rounded-full" style={{ width: `${barPct}%` }} />
+                            </div>
+                            <span className="font-bold text-slate-900 tabular-nums w-24 text-right">
+                              {metricVal}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -991,81 +1140,21 @@ export function DrilldownVisualAnalytics<T>({
       })()}
 
       {/* ── 5. TOP SEARCH KEYWORDS CHARTS (queries) ───────────────────────────── */}
-      {activeVariant === 'queries' && (() => {
-        const queriesList = parsedData.map((d, i) => ({
-          rank: i + 1,
-          query: d.name,
-          clicks: d.primaryValue,
-          impressions: d.secondaryValue,
-          ctr: d.ctr,
-          position: d.position,
-          share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 100,
-          pctBar: Math.max(8, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 95)),
-        }));
-
-        const donutColors = ['#3B82F6', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#94A3B8'];
-        const top5Queries = parsedData.slice(0, 5);
-        const top5Sum = top5Queries.reduce((sum, q) => sum + q.primaryValue, 0);
-        const remainderClicks = Math.max(0, summary.totalClicks - top5Sum);
-
-        const intentDonutData = [
-          ...top5Queries.map((d, i) => ({
-            name: d.name,
-            value: d.primaryValue,
-            share: `${summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0}%`,
-            color: donutColors[i % donutColors.length],
-          })),
-          ...(remainderClicks > 0
-            ? [{
-                name: 'Other queries',
-                value: remainderClicks,
-                share: `${Math.round((remainderClicks / (summary.totalClicks || 1)) * 1000) / 10}%`,
-                color: '#94A3B8',
-              }]
-            : []),
-        ];
-
-        const scatterColors = ['#4F46E5', '#6366F1', '#06B6D4', '#10B981', '#F59E0B', '#EC4899'];
-        const queryScatterData = parsedData.slice(0, 10).map((d, i) => ({
-          name: d.name,
-          position: d.position,
-          ctr: d.ctr,
-          clicks: d.primaryValue,
-          fill: scatterColors[i % scatterColors.length],
-        }));
-
-        let tier1 = 0, tier2 = 0, tier3 = 0, tier4 = 0;
-        for (const q of parsedData) {
-          if (q.position <= 3) tier1 += q.primaryValue;
-          else if (q.position <= 10) tier2 += q.primaryValue;
-          else if (q.position <= 20) tier3 += q.primaryValue;
-          else tier4 += q.primaryValue;
-        }
-
-        const maxTier = Math.max(tier1, tier2, tier3, tier4, 1);
-        const tierData = [
-          { tier: 'Top 3 (Prime)', clicks: tier1, share: `${summary.totalClicks > 0 ? Math.round((tier1 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#10B981', barPct: Math.round((tier1 / maxTier) * 90) },
-          { tier: 'Page 1 (Pos 4-10)', clicks: tier2, share: `${summary.totalClicks > 0 ? Math.round((tier2 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#3B82F6', barPct: Math.round((tier2 / maxTier) * 90) },
-          { tier: 'Page 2 (Pos 11-20)', clicks: tier3, share: `${summary.totalClicks > 0 ? Math.round((tier3 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#F59E0B', barPct: Math.round((tier3 / maxTier) * 90) },
-          { tier: 'Page 3+ (Deep)', clicks: tier4, share: `${summary.totalClicks > 0 ? Math.round((tier4 / summary.totalClicks) * 1000) / 10 : 0}%`, color: '#94A3B8', barPct: Math.round((tier4 / maxTier) * 90) },
-        ];
-
-        const topQueryItem = parsedData[0];
-        const topQueryName = topQueryItem?.name || '—';
-        const topQueryClicks = topQueryItem?.primaryValue || 0;
-        const topQueryShare = summary.totalClicks > 0 ? Math.round((topQueryClicks / summary.totalClicks) * 1000) / 10 : 0;
-
-        const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
-        const highestCtrName = highestCtrItem?.name || '—';
-        const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
-
-        const quickWinItem = [...parsedData]
-          .filter((q) => q.position > 10 && q.secondaryValue > 0)
-          .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[1] || parsedData[0];
-        const quickWinName = quickWinItem?.name || '—';
-        const quickWinPos = quickWinItem ? Number(quickWinItem.position.toFixed(1)) : 0;
-        const quickWinCtr = quickWinItem ? Number(quickWinItem.ctr.toFixed(1)) : 0;
-
+      {activeVariant === 'queries' && queriesData && (() => {
+        const {
+          queriesList,
+          intentDonutData,
+          queryScatterData,
+          tierData,
+          topQueryName,
+          topQueryClicks,
+          topQueryShare,
+          highestCtrName,
+          highestCtrVal,
+          quickWinName,
+          quickWinPos,
+          quickWinCtr,
+        } = queriesData;
         return (
           <div className="space-y-3.5">
             {/* Row 1: Top Queries by Clicks (50%) + Traffic Share by Intent (50%) */}

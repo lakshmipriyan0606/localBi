@@ -40,7 +40,12 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
     brandId: initialBrandId,
   });
 
-  const [activeGscMetrics, setActiveGscMetrics] = useState<string[]>(['clicks', 'impressions']);
+  const [activeGscMetrics, setActiveGscMetrics] = useState<string[]>([
+    'clicks',
+    'impressions',
+    'ctr',
+    'position',
+  ]);
 
 
   const activeSource: 'gbp' | 'gsc' = state.tab === 'gsc' ? 'gsc' : 'gbp';
