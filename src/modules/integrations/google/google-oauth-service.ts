@@ -29,6 +29,7 @@ export class GoogleOAuthService {
     'profile',
     'https://www.googleapis.com/auth/business.manage',
     'https://www.googleapis.com/auth/webmasters.readonly',
+    'https://www.googleapis.com/auth/webmasters',
   ];
 
   /**
@@ -108,7 +109,10 @@ export class GoogleOAuthService {
     const state = this.generateState(tenantId, userId, returnUrl);
 
     const redirectUri = config.GOOGLE_REDIRECT_URI || `${config.APP_URL}/api/integrations/google/callback`;
-    const clientId = config.GOOGLE_CLIENT_ID || 'mock-google-client-id';
+    const clientId = config.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      throw new Error('Google OAuth Client ID is not configured.');
+    }
 
     const params = new URLSearchParams({
       client_id: clientId,

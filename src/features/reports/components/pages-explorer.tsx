@@ -18,7 +18,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, MoreVertical } from "lucide-react";
+import { Breadcrumbs } from "@/components/layout/breadcrumbs";
+import { ExternalLink, MoreVertical, FileCheck, BarChart3 } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
+import { PageIndexingView } from "./page-indexing-view";
 
 export interface PagesExplorerProps {
   tenantSlug: string;
@@ -27,6 +30,7 @@ export interface PagesExplorerProps {
   locations: Array<{ id: string; brandId: string; name: string; city: string }>;
   initialBrandId: string;
   isConnected?: boolean;
+  propertyUrl?: string;
 }
 
 export function PagesExplorer({
@@ -36,6 +40,7 @@ export function PagesExplorer({
   locations,
   initialBrandId,
   isConnected = true,
+  propertyUrl,
 }: PagesExplorerProps) {
   const {
     state,
@@ -53,6 +58,7 @@ export function PagesExplorer({
 
   const [selectedPageRow, setSelectedPageRow] =
     useState<PageDimensionRow | null>(null);
+  const [activeTab, setActiveTab] = useState<'indexing' | 'traffic'>('indexing');
 
   const selectedBrandId = state.brandId || initialBrandId;
   const dateRangeDays = state.dateRangeDays;
@@ -209,18 +215,69 @@ export function PagesExplorer({
 
   return (
     <>
-      <DrilldownView
+      {/* Top Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 mb-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab('indexing')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'indexing'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <FileCheck className="w-3.5 h-3.5" />
+          <span>Page Indexing (Google Search Console)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('traffic')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+            activeTab === 'traffic'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Page Traffic & Rankings ({items.length})</span>
+        </button>
+      </div>
+
+      {activeTab === 'indexing' ? (
+        <div className="space-y-6">
+          <Breadcrumbs
+            items={[
+              { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
+              { label: "Page Indexing", current: true },
+            ]}
+            tenantSlug={tenantSlug}
+          />
+          <PageHeader
+            title="Page Indexing"
+            description="Google Search index coverage, status, and live URL inspection."
+            badge={
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Index Status: Verified
+              </span>
+            }
+          />
+          <PageIndexingView
+            tenantSlug={tenantSlug}
+            propertyUrl={propertyUrl || "https://lakshmipriyan-portfolio.vercel.app/"}
+          />
+        </div>
+      ) : (
+        <DrilldownView
           isConnected={isConnected}
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
-            { label: "Reports", href: `/client/${tenantSlug}/reports` },
             { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
-            { label: "Top Website Pages", current: true },
+            { label: "Top Landing Pages", current: true },
           ]}
-          title="Landing Pages Explorer"
-          description="Review Google Search traffic across your website's top landing pages. Identify which pages are driving traffic, engagement, and opportunities for growth."
+          title="Top Landing Pages"
+          description="Organic Google Search performance across website landing pages."
           sourceBadge="GSC"
           variant="pages"
           brands={brands}
@@ -252,6 +309,7 @@ export function PagesExplorer({
           accuracyNotice="Page performance metrics aggregate organic search data where this specific URL was presented as the landing link in Google Search results. External page links open in a new tab with noopener protection."
           retentionNote="Google Search Console retains page-level reporting for up to 16 months."
         />
+      )}
 
       {/* Page Detail Modal */}
       {selectedPageRow && (

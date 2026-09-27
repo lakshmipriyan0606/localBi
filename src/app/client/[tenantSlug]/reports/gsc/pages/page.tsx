@@ -39,7 +39,7 @@ export default async function PagesReportPage({
 
   const { tenant, authorizedContext } = resolved;
 
-  const { brands, locations, isConnected } = await TenantContextService.withTenantContext(
+  const { brands, locations, isConnected, propertyUrl } = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
     async (tx) => {
@@ -79,12 +79,19 @@ export default async function PagesReportPage({
       });
 
       const hasGscScope = activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false;
-      const mappings = await tx.internalResourceMapping.findMany({
+      const hasGscMapping = (await tx.internalResourceMapping.count({
         where: { tenantId: tenant.id, internalType: 'BRAND' }
+      })) > 0;
+      const prop = await tx.gscProperty.findFirst({
+        where: { tenantId: tenant.id },
       });
-      const hasGscMapping = mappings.length > 0;
 
-      return { brands: bList, locations: lList, isConnected: hasGscScope && hasGscMapping };
+      return {
+        brands: bList,
+        locations: lList,
+        isConnected: hasGscScope && hasGscMapping,
+        propertyUrl: prop?.propertyUrl || '',
+      };
     }
   );
 
@@ -97,6 +104,7 @@ export default async function PagesReportPage({
         locations={locations}
         initialBrandId={brands[0]?.id || ''}
         isConnected={isConnected}
+        propertyUrl={propertyUrl}
       />
     </div>
   );

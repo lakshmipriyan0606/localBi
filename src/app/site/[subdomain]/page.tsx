@@ -49,10 +49,17 @@ export default async function MicrositeHomePage({
       <section className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm text-slate-900 space-y-6">
         <div className="max-w-2xl space-y-5">
           {/* Trust Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-            <span>{site.googleRating} Star Rating · {site.reviewCount.toLocaleString()}+ Google Reviews</span>
-          </div>
+          {site.googleRating > 0 && site.reviewCount > 0 ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+              <span>{site.googleRating} Star Rating · {site.reviewCount.toLocaleString()}+ Google Reviews</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Verified Official Storefront</span>
+            </div>
+          )}
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
             {site.brandName}

@@ -16,6 +16,8 @@ import { ReportsGbpQuickLinks } from './reports-gbp-quick-links';
 import { ReportsPolicyFooter } from './reports-policy-footer';
 import { usePerformanceSummary, usePerformanceTimeseries, usePerformanceDimensions } from '../hooks/use-reports';
 import { useReportsQueryState } from '../hooks/use-reports-query-state';
+import { notify } from '@/lib/notify';
+import { browserClient } from '@/lib/http/browser-client';
 
 const TrendChartPanel = dynamic(
   () => import('./trend-chart-panel').then((m) => ({ default: m.TrendChartPanel })),
@@ -54,21 +56,38 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
 
   const queryParams = { tenantSlug, brandId: selectedBrandId, locationId: state.locationId || undefined, startDate, endDate };
   const { data: summary, isLoading: isSummaryLoading, isFetching: isSummaryFetching, isError: isSummaryError, error: summaryError, refetch: refetchSummary } = usePerformanceSummary(queryParams);
-  const { data: timeseries = [], isLoading: isTimeseriesLoading, isFetching: isTimeseriesFetching } = usePerformanceTimeseries(queryParams);
-  const { data: dimensions, isLoading: isDimensionsLoading, isFetching: isDimensionsFetching } = usePerformanceDimensions(queryParams);
+  const { data: timeseries = [], isLoading: isTimeseriesLoading, isFetching: isTimeseriesFetching, refetch: refetchTimeseries } = usePerformanceTimeseries(queryParams);
+  const { data: dimensions, isLoading: isDimensionsLoading, isFetching: isDimensionsFetching, refetch: refetchDimensions } = usePerformanceDimensions(queryParams);
 
-  const isDataBusy = isSummaryLoading || isSummaryFetching;
+  const [isSyncing, setIsSyncing] = useState(false);
+  const handleSyncWithGoogle = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await browserClient.post<{ success: boolean; message: string }>(
+        `/tenants/${tenantSlug}/sync`,
+        {}
+      );
+      if (res.data?.success) {
+        notify.success(res.data.message || 'Synced successfully with Google!');
+        refetchSummary();
+        refetchTimeseries();
+        refetchDimensions();
+      }
+    } catch (err: unknown) {
+      notify.error((err as Error).message || 'Failed to sync with Google');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const isDataBusy = isSummaryLoading || isSummaryFetching || isSyncing;
 
   return (
     <div className="space-y-6">
       <Breadcrumbs
         items={[
           {
-            label: activeSource === 'gbp' ? 'Google Business Profile' : 'Search Console',
-            href: `/client/${tenantSlug}?tab=${activeSource}`,
-          },
-          {
-            label: activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance',
+            label: activeSource === 'gbp' ? 'Google Business Profile' : 'Google Search Console',
             current: true,
           },
         ]}
@@ -77,8 +96,8 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
       <PageHeader
         title={activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance'}
         description={activeSource === 'gbp'
-          ? `Local search reach, customer actions, and storefront performance for ${tenantName}.`
-          : `Organic search visibility, queries, and landing page reach for ${tenantName}.`}
+          ? 'Local search reach, customer actions, and storefront performance.'
+          : 'Organic search visibility, queries, and landing page reach.'}
         badge={
           <SourceStatusBadge
             connections={
@@ -97,6 +116,8 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
             dateRangeDays={state.dateRangeDays}
             onDateRangeChange={setDateRangeDays}
             isFetching={isDataBusy}
+            onSync={handleSyncWithGoogle}
+            isSyncing={isSyncing}
           />
         }
       />

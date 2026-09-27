@@ -245,16 +245,7 @@ export function DashboardMetricCard({
             >
               {sublabel}
             </div>
-          ) : (
-            <div
-              className={cn(
-                "text-[11px] font-medium mt-1",
-                isActive ? "text-white/70" : "text-slate-400"
-              )}
-            >
-              Current period
-            </div>
-          )}
+          ) : null}
         </div>
 
         {/* Right side inline smooth sparkline */}

@@ -186,13 +186,11 @@ export function DevicesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
-            { label: "Reports", href: `/client/${tenantSlug}/reports` },
             { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Visitor Devices", current: true },
           ]}
-          title="Device Performance Insights"
-          description="Understand how users find and engage with your site across different devices. Identify opportunities to optimize for your highest-performing device types."
+          title="Visitor Devices"
+          description="Traffic and engagement distribution across mobile, desktop, and tablet."
           sourceBadge="GSC"
           variant="devices"
           brands={brands}

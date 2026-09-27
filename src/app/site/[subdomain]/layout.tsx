@@ -129,10 +129,17 @@ export default async function MicrositeLayout({
             <p className="text-xs text-slate-500 leading-relaxed max-w-sm">
               {site.tagline}
             </p>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200">
-              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-              {site.googleRating} Google Rating ({site.reviewCount.toLocaleString()} Verified Reviews)
-            </div>
+            {site.googleRating > 0 && site.reviewCount > 0 ? (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200">
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                {site.googleRating} Google Rating ({site.reviewCount.toLocaleString()} Verified Reviews)
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Verified Official Storefront
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 text-xs text-slate-600">

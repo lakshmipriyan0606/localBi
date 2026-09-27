@@ -135,8 +135,9 @@ export function DrilldownVisualAnalytics<T>({
       );
 
       const rawCtr = Number(record['ctr'] ?? 0);
-      const ctrPct = rawCtr <= 1 ? rawCtr * 100 : rawCtr;
-      const position = Number(record['position'] ?? 0);
+      const computedCtr = rawCtr <= 1 ? rawCtr * 100 : rawCtr;
+      const ctrPct = Number(computedCtr.toFixed(1));
+      const position = Number(Number(record['position'] ?? 0).toFixed(1));
       const cityVal = record['city'];
       const countryCodeVal = record['countryCode'];
       const pagePathVal = record['pagePath'];
@@ -187,8 +188,8 @@ export function DrilldownVisualAnalytics<T>({
       }
     });
 
-    const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-    const avgPosition = totalImpForPos > 0 ? Math.round((sumPosImp / totalImpForPos) * 10) / 10 : 0;
+    const avgCtr = totalImpressions > 0 ? Number(((totalClicks / totalImpressions) * 100).toFixed(1)) : 0;
+    const avgPosition = totalImpForPos > 0 ? Number((sumPosImp / totalImpForPos).toFixed(1)) : 0;
 
     const sorted = [...parsedData].sort((a, b) => b.primaryValue - a.primaryValue);
     const topItem = sorted[0] ?? null;
@@ -269,11 +270,10 @@ export function DrilldownVisualAnalytics<T>({
             {/* Left Card: Traffic Share by Device (~40% / 5 cols) */}
             <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-3">
                   <PieChartIcon className="w-4 h-4 text-indigo-600" />
                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Traffic Share by Device</h3>
                 </div>
-                <p className="text-[11.5px] text-slate-500 mb-4">Distribution of total clicks across device types</p>
 
                 {/* Donut Chart with Center Text */}
                 <div className="flex items-center justify-between gap-4 py-2">
@@ -434,8 +434,6 @@ export function DrilldownVisualAnalytics<T>({
                       Clicks ▾
                     </span>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Country distribution of search traffic</p>
-
                   {/* SVG World Map Container */}
                   <div className="relative w-full h-52 bg-slate-50/50 rounded-xl border border-slate-100 flex items-center justify-center overflow-hidden p-2">
                     {/* Zoom Buttons */}
@@ -519,9 +517,7 @@ export function DrilldownVisualAnalytics<T>({
                       View All
                     </button>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Countries driving the most clicks to your site</p>
-
-                  <div className="space-y-2.5 mt-2">
+                  <div className="space-y-2.5 mt-3">
                     {countriesList.slice(0, 6).map((c) => (
                       <div key={c.name} className="flex items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-2 min-w-[130px]">
@@ -548,11 +544,10 @@ export function DrilldownVisualAnalytics<T>({
               {/* Horizontal Bar Chart */}
               <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-2">
                     <Target className="w-4 h-4 text-blue-600" />
                     <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Top Countries by Clicks</h3>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-2">Compare clicks across your top performing countries</p>
 
                   <div className="h-56 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -571,11 +566,10 @@ export function DrilldownVisualAnalytics<T>({
               {/* Bubble Scatter Chart */}
               <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="w-4 h-4 text-blue-600" />
                     <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Country Performance by CTR and Position</h3>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-2">Each bubble represents a country. Size = Clicks.</p>
 
                   <div className="h-56 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -713,14 +707,14 @@ export function DrilldownVisualAnalytics<T>({
 
         const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
         const highestCtrPath = highestCtrItem ? cleanUrlPath(highestCtrItem.name).path : '—';
-        const highestCtrVal = highestCtrItem?.ctr || 0;
+        const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
 
         const biggestOppItem = [...parsedData]
           .filter((p) => p.secondaryValue > 0)
           .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[0];
         const biggestOppPath = biggestOppItem ? cleanUrlPath(biggestOppItem.name).path : '—';
         const biggestOppImp = biggestOppItem?.secondaryValue || 0;
-        const biggestOppCtr = biggestOppItem?.ctr || 0;
+        const biggestOppCtr = biggestOppItem ? Number(biggestOppItem.ctr.toFixed(1)) : 0;
 
         return (
           <div className="space-y-3.5">
@@ -766,9 +760,7 @@ export function DrilldownVisualAnalytics<T>({
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Which pages are driving the most traffic from Google Search.</p>
-
-                  <div className="space-y-3 mt-2">
+                  <div className="space-y-3 mt-3">
                     {pagesList.slice(0, 5).map((p) => (
                       <div key={p.path} className="flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2 min-w-[100px]">
@@ -802,9 +794,7 @@ export function DrilldownVisualAnalytics<T>({
                       <ChevronRight className="w-3 h-3" />
                     </button>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Top landing pages by share of total clicks.</p>
-
-                  <div className="flex items-center justify-between gap-4 py-1">
+                  <div className="flex items-center justify-between gap-4 py-2">
                     <div className="relative w-40 h-40 flex items-center justify-center flex-shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -854,11 +844,10 @@ export function DrilldownVisualAnalytics<T>({
               {/* Page Performance Map Scatter */}
               <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-2">
                     <BarChart2 className="w-4 h-4 text-indigo-600" />
                     <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Page Performance Map</h3>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-2">Compare page performance by impressions and CTR. Bigger bubbles = more clicks.</p>
 
                   <div className="h-56 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -895,7 +884,7 @@ export function DrilldownVisualAnalytics<T>({
                               <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-2.5 text-xs">
                                 <p className="font-bold text-slate-900 font-mono">{d.name}</p>
                                 <p className="text-slate-500 text-[11px] mt-0.5">Impressions: {d.impressions.toLocaleString()}</p>
-                                <p className="text-slate-500 text-[11px]">CTR: {d.ctr}%</p>
+                                <p className="text-slate-500 text-[11px]">CTR: {Number(d.ctr).toFixed(1)}%</p>
                                 <p className="text-indigo-600 font-bold text-[11px]">{d.clicks.toLocaleString()} clicks</p>
                               </div>
                             );
@@ -944,9 +933,7 @@ export function DrilldownVisualAnalytics<T>({
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Traffic contribution by page section (based on URL structure).</p>
-
-                  <div className="space-y-2 mt-2">
+                  <div className="space-y-2 mt-3">
                     {sectionData.map((s) => (
                       <div key={s.section} className="flex items-center justify-between gap-2 text-xs">
                         <span className="font-medium text-slate-700 w-20 truncate">{s.section}</span>
@@ -984,7 +971,7 @@ export function DrilldownVisualAnalytics<T>({
                 <div>
                   <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">Highest CTR Page</div>
                   <div className="text-[15px] font-bold text-slate-900 mt-0.5 font-mono">{highestCtrPath}</div>
-                  <div className="text-[11px] font-bold text-emerald-600 mt-0.5">{highestCtrVal}% CTR</div>
+                  <div className="text-[11px] font-bold text-emerald-600 mt-0.5">{highestCtrVal.toFixed(1)}% CTR</div>
                 </div>
               </div>
 
@@ -995,7 +982,7 @@ export function DrilldownVisualAnalytics<T>({
                 <div>
                   <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">Biggest Opportunity</div>
                   <div className="text-[15px] font-bold text-slate-900 mt-0.5 font-mono">{biggestOppPath}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">{biggestOppImp.toLocaleString()} impressions, {biggestOppCtr}% CTR</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">{biggestOppImp.toLocaleString()} impressions, {biggestOppCtr.toFixed(1)}% CTR</div>
                 </div>
               </div>
             </div>
@@ -1070,14 +1057,14 @@ export function DrilldownVisualAnalytics<T>({
 
         const highestCtrItem = [...parsedData].sort((a, b) => b.ctr - a.ctr)[0];
         const highestCtrName = highestCtrItem?.name || '—';
-        const highestCtrVal = highestCtrItem?.ctr || 0;
+        const highestCtrVal = highestCtrItem ? Number(highestCtrItem.ctr.toFixed(1)) : 0;
 
         const quickWinItem = [...parsedData]
           .filter((q) => q.position > 10 && q.secondaryValue > 0)
           .sort((a, b) => b.secondaryValue - a.secondaryValue)[0] || parsedData[1] || parsedData[0];
         const quickWinName = quickWinItem?.name || '—';
-        const quickWinPos = quickWinItem?.position || 0;
-        const quickWinCtr = quickWinItem?.ctr || 0;
+        const quickWinPos = quickWinItem ? Number(quickWinItem.position.toFixed(1)) : 0;
+        const quickWinCtr = quickWinItem ? Number(quickWinItem.ctr.toFixed(1)) : 0;
 
         return (
           <div className="space-y-3.5">
@@ -1097,9 +1084,7 @@ export function DrilldownVisualAnalytics<T>({
                       <button type="button" className="px-2 py-0.5 rounded-md hover:text-slate-900">Avg Position</button>
                     </div>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Which search queries drive the most organic traffic.</p>
-
-                  <div className="space-y-3 mt-2">
+                  <div className="space-y-3 mt-3">
                     {queriesList.slice(0, 5).map((q) => (
                       <div key={q.query} className="flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-2 min-w-[130px]">
@@ -1133,9 +1118,7 @@ export function DrilldownVisualAnalytics<T>({
                       <ChevronRight className="w-3 h-3" />
                     </button>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Distribution of total clicks across search intent categories.</p>
-
-                  <div className="flex items-center justify-between gap-4 py-1">
+                  <div className="flex items-center justify-between gap-4 py-2">
                     <div className="relative w-40 h-40 flex items-center justify-center flex-shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -1184,11 +1167,10 @@ export function DrilldownVisualAnalytics<T>({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
               <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-2">
                     <BarChart2 className="w-4 h-4 text-emerald-600" />
                     <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Query Performance Map</h3>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-2">Compare position and CTR. Bigger bubbles = more clicks.</p>
 
                   <div className="h-56 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -1224,8 +1206,8 @@ export function DrilldownVisualAnalytics<T>({
                             return (
                               <div className="bg-white rounded-xl shadow-lg border border-slate-100 p-2.5 text-xs">
                                 <p className="font-bold text-slate-900">&ldquo;{d.name}&rdquo;</p>
-                                <p className="text-slate-500 text-[11px] mt-0.5">Rank: {d.position}</p>
-                                <p className="text-slate-500 text-[11px]">CTR: {d.ctr}%</p>
+                                <p className="text-slate-500 text-[11px] mt-0.5">Rank: {Number(d.position).toFixed(1)}</p>
+                                <p className="text-slate-500 text-[11px]">CTR: {Number(d.ctr).toFixed(1)}%</p>
                                 <p className="text-emerald-600 font-bold text-[11px]">{d.clicks.toLocaleString()} clicks</p>
                               </div>
                             );
@@ -1244,11 +1226,10 @@ export function DrilldownVisualAnalytics<T>({
 
               <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.03)] flex flex-col justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-3">
                     <BarChart2 className="w-4 h-4 text-emerald-600" />
                     <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Clicks by Search Ranking Tier</h3>
                   </div>
-                  <p className="text-[11.5px] text-slate-500 mb-3">Traffic contribution grouped by Google ranking position tier.</p>
 
                   <div className="space-y-2 mt-2">
                     {tierData.map((s) => (
@@ -1288,7 +1269,7 @@ export function DrilldownVisualAnalytics<T>({
                 <div>
                   <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">Highest CTR Query</div>
                   <div className="text-[14px] font-bold text-slate-900 mt-0.5">&ldquo;{highestCtrName}&rdquo;</div>
-                  <div className="text-[11px] font-bold text-emerald-600 mt-0.5">{highestCtrVal}% CTR</div>
+                  <div className="text-[11px] font-bold text-emerald-600 mt-0.5">{highestCtrVal.toFixed(1)}% CTR</div>
                 </div>
               </div>
 
@@ -1299,7 +1280,7 @@ export function DrilldownVisualAnalytics<T>({
                 <div>
                   <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-tight">Page 2 Quick Win</div>
                   <div className="text-[14px] font-bold text-slate-900 mt-0.5">&ldquo;{quickWinName}&rdquo;</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">Rank #{quickWinPos} — {quickWinCtr}% CTR</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">Rank #{quickWinPos.toFixed(1)} — {quickWinCtr.toFixed(1)}% CTR</div>
                 </div>
               </div>
             </div>

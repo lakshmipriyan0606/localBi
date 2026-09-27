@@ -331,15 +331,6 @@ export function DrilldownView<T>({
                         ? 'Landing Pages'
                         : 'Search Queries'}
                     </h3>
-                    <p className="text-[11.5px] text-slate-500 mt-0.5">
-                      {variant === 'devices'
-                        ? 'Detailed performance metrics by device category'
-                        : variant === 'countries'
-                        ? 'Detailed performance metrics by country/region'
-                        : variant === 'pages'
-                        ? 'Detailed performance metrics for your top landing pages'
-                        : 'Detailed organic search query performance from Google Search Console'}
-                    </p>
                   </div>
                 </div>
 
@@ -390,15 +381,12 @@ export function DrilldownView<T>({
     )}
 
       {(accuracyNotice || retentionNote) && (
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5 text-xs text-slate-600">
-          <div className="flex items-center gap-2 font-semibold text-slate-900">
-            <ShieldCheck className="h-4 w-4 text-indigo-600" />
-            <span>Reporting Integrity & Retention Policy</span>
-          </div>
-          {accuracyNotice && <p className="leading-relaxed">{accuracyNotice}</p>}
-          {retentionNote && (
-            <p className="text-[11px] text-slate-500 leading-relaxed italic">Retention note: {retentionNote}</p>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-slate-400 pt-2 px-1 border-t border-slate-100">
+          <span className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+            <span>Google Search Console API verified</span>
+          </span>
+          {retentionNote && <span className="text-[11px] text-slate-400">{retentionNote}</span>}
         </div>
       )}
     </div>

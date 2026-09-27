@@ -154,12 +154,11 @@ export function SearchTermsExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Reports", href: `/client/${tenantSlug}/reports` },
-            { label: "Business Profile", href: `/client/${tenantSlug}/reports` },
-            { label: "Monthly Search Terms", current: true },
+            { label: "Google Business Profile", href: `/client/${tenantSlug}/reports?tab=gbp` },
+            { label: "Search Terms", current: true },
           ]}
-          title="Monthly Search Terms Explorer"
-          description="Review consumer search queries that triggered Google Business Profile impressions during each monthly reporting cycle."
+          title="Customer Search Terms"
+          description="Consumer queries triggering Google Business Profile impressions."
           sourceBadge="GBP"
           brands={brands}
           locations={locations}

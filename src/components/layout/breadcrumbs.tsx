@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Home, ArrowLeft } from 'lucide-react';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
 
 export interface BreadcrumbItem {
   label: string;
@@ -20,7 +20,7 @@ export function Breadcrumbs({
   items,
   tenantSlug,
   backHref,
-  backLabel = 'Back to Overview',
+  backLabel = 'Back',
   className = '',
 }: BreadcrumbsProps) {
   // Infer tenantSlug from items if not explicitly provided
@@ -28,7 +28,7 @@ export function Breadcrumbs({
   if (!inferredSlug) {
     for (const item of items) {
       if (item.href) {
-        const match = item.href.match(/^\/t\/([^/?#]+)/);
+        const match = item.href.match(/^\/client\/([^/?#]+)/) || item.href.match(/^\/t\/([^/?#]+)/);
         if (match?.[1]) {
           inferredSlug = match[1];
           break;
@@ -37,62 +37,58 @@ export function Breadcrumbs({
     }
   }
 
-  const effectiveBackHref = backHref || (inferredSlug ? `/client/${inferredSlug}` : null);
+  // Filter out redundant "Home" / "Overview" when root Overview is already rendered
+  const filteredItems = items.filter((item) => {
+    const l = item.label.trim().toLowerCase();
+    if (inferredSlug && (l === 'home' || l === 'overview')) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <nav
       aria-label="Breadcrumb navigation"
-      className={`flex flex-wrap items-center gap-2.5 py-1 text-xs select-none ${className}`}
+      className={`flex items-center gap-1.5 py-1 text-xs select-none ${className}`}
     >
-      {/* 1. High-Visibility, Bold "Back to Overview" Button */}
-      {effectiveBackHref && (
+      {/* Explicit back button only when specifically provided */}
+      {backHref && (
         <Link
-          href={effectiveBackHref}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold text-slate-700 bg-white border border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/70 hover:text-indigo-700 shadow-2xs transition-all cursor-pointer group flex-shrink-0"
+          href={backHref}
+          className="inline-flex items-center justify-center p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors mr-1 cursor-pointer"
           title={backLabel}
         >
-          <ArrowLeft className="w-3.5 h-3.5 stroke-[2.5] text-slate-500 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-transform" />
-          <span>{backLabel}</span>
+          <ArrowLeft className="w-3.5 h-3.5" />
         </Link>
       )}
 
-      {effectiveBackHref && (
-        <span className="text-slate-300 select-none font-light hidden sm:inline">|</span>
-      )}
-
-      {/* 2. Bold, High-Contrast Breadcrumb Trail */}
-      <ol className="flex flex-wrap items-center gap-1.5 list-none m-0 p-0">
+      {/* Clean, minimalist breadcrumb trail */}
+      <ol className="flex flex-wrap items-center gap-1.5 list-none m-0 p-0 text-[12.5px]">
         {inferredSlug && (
           <li className="flex items-center">
             <Link
               href={`/client/${inferredSlug}`}
-              className="flex items-center gap-1.5 font-bold text-slate-700 hover:text-indigo-600 hover:bg-slate-100/80 transition-colors px-2 py-1 rounded-md"
+              className="text-slate-500 hover:text-slate-900 transition-colors font-medium px-1 py-0.5 rounded hover:bg-slate-100"
               title="Overview"
             >
-              <Home className="h-3.5 w-3.5 flex-shrink-0 stroke-[2.2] text-slate-500" />
-              <span>Overview</span>
+              Overview
             </Link>
           </li>
         )}
 
-        {items.map((item, index) => {
-          // If first item is already 'Overview' and we rendered the Home Overview link, skip duplicate
-          if (index === 0 && item.label.toLowerCase() === 'overview' && inferredSlug) {
-            return null;
-          }
-
-          const isLast = index === items.length - 1;
+        {filteredItems.map((item, index) => {
+          const isLast = index === filteredItems.length - 1;
           const isCurrent = item.current || isLast;
 
           return (
             <React.Fragment key={`${item.label}-${index}`}>
-              <li className="flex items-center text-slate-400">
-                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 stroke-[2.5]" />
+              <li className="flex items-center text-slate-300">
+                <ChevronRight className="h-3 w-3 stroke-[2]" />
               </li>
               <li className="flex items-center">
                 {isCurrent || !item.href ? (
                   <span
-                    className="font-bold text-slate-900 text-[12px] bg-slate-100/90 border border-slate-200/80 px-2.5 py-1 rounded-md max-w-[260px] truncate shadow-2xs"
+                    className="font-semibold text-slate-900 max-w-[280px] truncate px-1 py-0.5"
                     aria-current={isCurrent ? 'page' : undefined}
                   >
                     {item.label}
@@ -100,7 +96,7 @@ export function Breadcrumbs({
                 ) : (
                   <Link
                     href={item.href}
-                    className="font-semibold text-slate-600 hover:text-indigo-600 transition-colors max-w-[260px] truncate px-2 py-1 rounded hover:bg-slate-100/80"
+                    className="font-medium text-slate-500 hover:text-slate-900 transition-colors max-w-[280px] truncate px-1 py-0.5 rounded hover:bg-slate-100"
                   >
                     {item.label}
                   </Link>

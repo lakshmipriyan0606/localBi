@@ -215,13 +215,11 @@ export function CountriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
-            { label: "Reports", href: `/client/${tenantSlug}/reports` },
             { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Visitor Countries", current: true },
           ]}
-          title="Geographic Search Distribution"
-          description="Explore where your search traffic comes from around the world. Understand which countries are discovering your business, how they engage, and where the biggest opportunities lie."
+          title="Visitor Countries"
+          description="Geographic distribution of Google Search traffic and audience reach."
           sourceBadge="GSC"
           variant="countries"
           brands={brands}

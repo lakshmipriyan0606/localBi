@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Clock } from 'lucide-react';
 import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
 
 export interface ReportsGscSectionProps {
@@ -79,13 +79,23 @@ export function ReportsGscSection({
           </div>
         </div>
 
-        <Link
-          href={`/client/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}`}
-          className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap self-end sm:self-auto"
-        >
-          <span>View All Queries</span>
-          <ArrowRight className="w-3 h-3" />
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+          <div
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/90 border border-amber-200/80 text-[11px] font-medium text-amber-800"
+            title="Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is up to September 24."
+          >
+            <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+            <span>Google Data: Through Sep 24 (48h processing lag)</span>
+          </div>
+
+          <Link
+            href={`/client/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+            className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap"
+          >
+            <span>View All Queries</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards Grid */}

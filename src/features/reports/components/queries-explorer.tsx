@@ -196,13 +196,11 @@ export function QueriesExplorer({
           tenantSlug={tenantSlug}
           tenantName={tenantName}
           breadcrumbs={[
-            { label: "Home", href: `/client/${tenantSlug}/dashboard` },
-            { label: "Reports", href: `/client/${tenantSlug}/reports` },
             { label: "Google Search Console", href: `/client/${tenantSlug}/reports` },
             { label: "Top Search Keywords", current: true },
           ]}
-          title="Search Queries Explorer"
-          description="Inspect top Google Search organic queries driving impressions and clicks to your brand properties."
+          title="Top Search Queries"
+          description="Organic Google Search queries driving clicks, impressions, and rankings."
           sourceBadge="GSC"
           variant="queries"
           brands={brands}
@@ -231,7 +229,6 @@ export function QueriesExplorer({
               setSort(key, key === "position" ? "asc" : "desc");
             }
           }}
-          accuracyNotice="Query data is retrieved directly from Google Search Console Search Analytics API. Clicks and impressions reflect organic search appearances. Position represents average top ranking on Google search result pages; a lower numeric value indicates a higher position."
           retentionNote="Google Search Console retains search query history for up to 16 months."
         />
 

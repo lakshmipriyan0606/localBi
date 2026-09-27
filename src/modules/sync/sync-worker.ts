@@ -474,4 +474,89 @@ export class SyncWorkerService {
 
     return rowsIngested;
   }
+
+  /**
+   * Directly synchronizes mapped GSC properties (and GBP if enabled) for a tenant
+   * without requiring an asynchronous background worker process.
+   */
+  public static async syncTenantDirect(tenantId: string): Promise<{ gscRows: number; gbpRows: number }> {
+    const { activeConnection, properties, locations } = await TenantContextService.withTenantContext(
+      prisma,
+      tenantId,
+      async (tx) => {
+        const conn = await tx.integrationConnection.findFirst({
+          where: { tenantId, status: 'ACTIVE' },
+        });
+
+        const props = await tx.gscProperty.findMany({
+          where: { tenantId },
+        });
+
+        const locMappings = await tx.internalResourceMapping.findMany({
+          where: { tenantId, internalType: 'LOCATION' },
+          include: { resource: true },
+        });
+
+        return { activeConnection: conn, properties: props, locations: locMappings };
+      }
+    );
+
+    if (!activeConnection) {
+      return { gscRows: 0, gbpRows: 0 };
+    }
+
+    const accessToken = await GoogleOAuthService.refreshAccessToken(
+      activeConnection.encryptedRefreshToken,
+      tenantId,
+      activeConnection.id
+    );
+
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const startDate = thirtyDaysAgo.toISOString().slice(0, 10);
+    const endDate = today.toISOString().slice(0, 10);
+
+    let gscRows = 0;
+    for (const prop of properties) {
+      try {
+        const rows = await this.processGscJob({
+          type: 'GSC_SYNC',
+          tenantId,
+          propertyId: prop.id,
+          propertyUrl: prop.propertyUrl,
+          startDate,
+          endDate,
+          searchType: 'WEB',
+          businessKey: `${tenantId}:gsc:${prop.id}:${startDate}:${endDate}:WEB`,
+        }, accessToken);
+        gscRows += rows;
+      } catch (err) {
+        logger.error({ err, propertyUrl: prop.propertyUrl }, 'Direct GSC sync error');
+      }
+    }
+
+    let gbpRows = 0;
+    const config = getConfig();
+    if (config.ENABLE_GBP_SYNC) {
+      for (const loc of locations) {
+        try {
+          const rows = await this.processGbpJob({
+            type: 'GBP_SYNC',
+            tenantId,
+            locationId: loc.internalId,
+            locationResourceName: loc.resource.externalResourceId,
+            startDate,
+            endDate,
+            businessKey: `${tenantId}:gbp:${loc.internalId}:${startDate}:${endDate}`,
+          }, accessToken);
+          gbpRows += rows;
+        } catch (err) {
+          logger.warn({ err, locationId: loc.internalId }, 'Direct GBP sync failed or disabled');
+        }
+      }
+    }
+
+    return { gscRows, gbpRows };
+  }
 }

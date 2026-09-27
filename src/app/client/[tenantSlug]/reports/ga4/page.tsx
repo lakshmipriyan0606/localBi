@@ -326,17 +326,17 @@ export default async function Ga4ReportingPage({
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       <Breadcrumbs
         items={[
-          { label: "Overview", href: `/client/${tenant.slug}` },
           {
             label: "Website Visitors & Traffic",
-            href: `/client/${tenant.slug}/reports/ga4`,
+            current: true,
           },
         ]}
+        tenantSlug={tenant.slug}
       />
 
       <PageHeader
         title="Main Website Analytics (GA4)"
-        description="Track total website traffic, sessions, engagement, queries, and acquisition channels for your primary corporate domain."
+        description="Track website traffic, sessions, and engagement for your corporate domain."
         badge={
           <Badge className="bg-purple-50 text-purple-700 border-purple-200 gap-1 font-semibold text-xs py-1 px-2.5">
             <Sparkles className="h-3 w-3 text-purple-600" />

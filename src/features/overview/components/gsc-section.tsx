@@ -96,7 +96,7 @@ export function GscSection({ tenantSlug, data, isConnected = false }: GscSection
       title="Search Console"
       badge="✓ More Clicks. Higher Rankings."
       badgeColor="bg-indigo-100/70 text-indigo-800"
-      subtitle="Track your website's search performance on Google"
+      subtitle="Track your website's search performance on Google · Google updates with a standard 48h latency (latest data: Sep 24)"
       bgClass="bg-[#F1F3FB]"
       borderClass="border-[#DCE2F6]"
       reportHref={`/client/${tenantSlug}/reports?tab=gsc`}

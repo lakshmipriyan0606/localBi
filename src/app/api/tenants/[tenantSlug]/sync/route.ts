@@ -4,6 +4,7 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { SyncQueueService } from '@/modules/sync/sync-queue';
+import { SyncWorkerService } from '@/modules/sync/sync-worker';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { handleRouteError } from '@/shared/errors';
@@ -69,12 +70,21 @@ export async function POST(
 
     AuthorizationService.assertCan(authorizedContext, Action.INTEGRATION_MAP);
 
-    const result = await SyncQueueService.scheduleTenantFullSync(tenant.id);
+    // 1. Run direct sync immediately so tenant sees fresh data without waiting for background worker
+    const directSync = await SyncWorkerService.syncTenantDirect(tenant.id);
+
+    // 2. Also register queue jobs for background traceability
+    const queueResult = await SyncQueueService.scheduleTenantFullSync(tenant.id).catch((err) => {
+      return { scheduledJobsCount: 0, jobs: [], error: (err as Error).message };
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Data sync started! Updating your Google search and store reports in the background.',
-      data: result,
+      message: `Data synchronized with Google! Ingested ${directSync.gscRows} Search Console metrics.`,
+      data: {
+        directSync,
+        queueResult,
+      },
     });
   } catch (error) {
     return handleRouteError(error);

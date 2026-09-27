@@ -2,7 +2,6 @@
 
 import { Search, Tag, MapPin } from 'lucide-react';
 import { NiceSelect } from '@/components/ui/nice-select';
-import { formatDateRange } from '@/shared/lib/formatters';
 
 interface DrilldownFilterBarProps {
   brands: Array<{ id: string; name: string; slug: string }>;
@@ -16,8 +15,8 @@ interface DrilldownFilterBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   searchPlaceholder?: string | undefined;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export function DrilldownFilterBar({
@@ -32,29 +31,27 @@ export function DrilldownFilterBar({
   searchQuery,
   onSearchChange,
   searchPlaceholder = 'Filter results...',
-  startDate,
-  endDate,
 }: DrilldownFilterBarProps) {
   const brandLocations = locations.filter((l) => l.brandId === selectedBrandId);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-white border border-slate-200 rounded-xl shadow-2xs">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Brand Selector */}
-        <NiceSelect
-          label="BRAND"
-          icon={<Tag className="w-3.5 h-3.5" />}
-          options={brands.map((b) => ({ id: b.id, name: b.name }))}
-          value={selectedBrandId}
-          onChange={onBrandChange}
-          className="w-auto min-w-[140px]"
-        />
+        {brands.length > 1 && (
+          <NiceSelect
+            icon={<Tag className="w-3.5 h-3.5 text-slate-500" />}
+            options={brands.map((b) => ({ id: b.id, name: b.name }))}
+            value={selectedBrandId}
+            onChange={onBrandChange}
+            className="w-auto min-w-[130px]"
+          />
+        )}
 
         {/* Location Selector */}
         {brandLocations.length > 0 && onLocationChange && (
           <NiceSelect
-            label="LOCATION"
-            icon={<MapPin className="w-3.5 h-3.5" />}
+            icon={<MapPin className="w-3.5 h-3.5 text-slate-500" />}
             options={[
               { id: "", name: `All Locations (${brandLocations.length})` },
               ...brandLocations.map((l) => ({
@@ -64,41 +61,49 @@ export function DrilldownFilterBar({
             ]}
             value={selectedLocationId || ''}
             onChange={onLocationChange}
-            className="w-auto min-w-[160px]"
+            className="w-auto min-w-[150px]"
           />
         )}
 
         {/* Date Presets */}
-        <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+        <div className="flex items-center rounded-lg border border-slate-200/80 bg-slate-50 p-0.5">
           {[7, 30, 90].map((days) => (
             <button
               key={days}
               type="button"
               onClick={() => onDateRangeChange(days)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 text-xs rounded-md transition-all cursor-pointer ${
                 dateRangeDays === days
-                  ? 'bg-white text-slate-900 font-semibold shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 font-bold shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800 font-medium'
               }`}
             >
               {days}d
             </button>
           ))}
         </div>
-
-        <span className="text-xs text-slate-400">{formatDateRange(startDate, endDate)}</span>
       </div>
 
       {/* Search Filter */}
-      <div className="relative min-w-[220px]">
+      <div className="relative min-w-[200px] flex-1 sm:flex-initial">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
-          className="w-full text-xs pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-colors"
+          className="w-full text-xs pl-8 pr-7 py-1.5 bg-slate-50/80 border border-slate-200 rounded-lg focus:bg-white focus:ring-1.5 focus:ring-indigo-500/30 focus:border-indigo-500 focus:outline-none transition-colors"
         />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => onSearchChange('')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 text-xs font-bold cursor-pointer"
+            title="Clear search"
+          >
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );

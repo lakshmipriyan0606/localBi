@@ -116,8 +116,7 @@ export interface OverviewDataDto {
 export class OverviewService {
   /**
    * Fetches overview data for any tenant.
-   * If the tenant is the showcase "abc-dental", it returns backend showcase mock data.
-   * For any other client, it queries REAL data from PostgreSQL with Row-Level Security!
+   * Strictly queries real data from PostgreSQL with Row-Level Security (Zero Mock Data).
    */
   public static async getOverviewData(
     tenantId: string,

@@ -16,6 +16,7 @@ import {
   Mail,
   Settings,
   Fingerprint,
+  Network,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -112,9 +113,14 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: Search,
       },
       {
-        label: 'Top Website Pages',
+        label: 'Page Indexing & Pages',
         href: `/client/${slug}/reports/gsc/pages`,
         icon: FileText,
+      },
+      {
+        label: 'Sitemaps',
+        href: `/client/${slug}/reports/gsc/sitemaps`,
+        icon: Network,
       },
       {
         label: 'Visitor Countries',
