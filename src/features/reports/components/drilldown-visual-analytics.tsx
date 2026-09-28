@@ -30,7 +30,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
-import { getCountryFlag } from '@/shared/lib/formatters';
+import { getCountryFlag, getTwoLetterCountryCode } from '@/shared/lib/formatters';
 import type { DrilldownVariant } from './drilldown-view';
 
 export interface DrilldownVisualAnalyticsProps<T> {
@@ -213,15 +213,18 @@ export function DrilldownVisualAnalytics<T>({
 
   const countriesData = useMemo(() => {
     if (activeVariant !== 'countries') return null;
-    const countriesList = parsedData.map((d, i) => ({
-      rank: i + 1,
-      name: d.name,
-      code: d.extra || d.name.slice(0, 3).toUpperCase(),
+    const countriesList = parsedData.map((d, i) => {
+      const code = getTwoLetterCountryCode(d.extra || d.name) || (d.extra || d.name.slice(0, 3).toUpperCase());
+      return {
+        rank: i + 1,
+        name: d.name,
+        code,
       flag: getCountryFlag(d.extra || d.name),
       clicks: d.primaryValue,
       share: summary.totalClicks > 0 ? Math.round((d.primaryValue / summary.totalClicks) * 1000) / 10 : 0,
-      pctBar: Math.max(10, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 90)),
-    }));
+        pctBar: Math.max(10, Math.round((d.primaryValue / (parsedData[0]?.primaryValue || 1)) * 90)),
+      };
+    });
 
     const barChartData = [...parsedData]
       .sort((a, b) => a.primaryValue - b.primaryValue)

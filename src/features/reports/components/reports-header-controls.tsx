@@ -58,7 +58,7 @@ export function ReportsHeaderControls({
 
       {/* Date range days toggle */}
       <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-100 p-1" role="group">
-        {([7, 30, 90] as const).map((days) => (
+        {([1, 7, 30, 90, 365] as const).map((days) => (
           <button
             key={days}
             type="button"
@@ -67,7 +67,7 @@ export function ReportsHeaderControls({
               dateRangeDays === days ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            {days}d
+            {days === 1 ? 'Today' : days === 365 ? 'All' : `${days}d`}
           </button>
         ))}
       </div>

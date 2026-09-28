@@ -29,6 +29,10 @@ export default async function TenantsPage() {
 
   const tenants = await TenantService.listUserTenants(user.id);
 
+  if (tenants.length === 1) {
+    redirect(`/client/${tenants[0].slug}`);
+  }
+
   return (
     <TenantsDashboard
       initialTenants={tenants.map((t) => ({

@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { IntegrationsDisconnectDialog } from "./integrations-disconnect-dialog";
 import { BrandCreateDialog } from "@/features/brands/components/brand-create-dialog";
+import { GoogleIntegrationConnect } from "./service-account-connect";
 import { cn } from "@/lib/cn";
 
 export interface IntegrationsManagerProps {
@@ -101,11 +102,15 @@ export function IntegrationsManager({
     string | null
   >(null);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  // Mock service account states removed, we rely purely on initialState from DB
 
   // STEPPER WIZARD STATE (Step 1 -> Step 2 -> Step 3)
   // Smart default: If not connected -> Step 1. If connected -> Step 2.
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(() => {
     if (!initialState.connections.length) return 1;
+    // If we have a connection and it's our service account, check if everything is mapped
+    const hasServiceAccount = initialState.connections.some(c => c.externalEmail.includes('serviceaccount.com'));
+    if (hasServiceAccount) return 3; // For Service Accounts, we assume mapping is done manually at Step 1
     return 2;
   });
 
@@ -121,29 +126,28 @@ export function IntegrationsManager({
   const canManage = canAny([Action.INTEGRATION_CONNECT, Action.INTEGRATION_MAP, Action.INTEGRATION_DISCONNECT]);
 
   const activeConnection = initialState.connections[0];
+  const isServiceAccountActive = Boolean(activeConnection?.externalEmail?.includes('serviceaccount.com'));
+    
   const isAuthorized = Boolean(activeConnection);
   const isStep1Complete = isAuthorized && initialState.brands.length > 0;
 
   // Separate discovered resources into GSC properties and GBP locations
-  const gscResources = initialState.externalResources.filter(
-    (r) => r.resourceType === "PROPERTY",
-  );
-  const gbpResources = initialState.externalResources.filter(
-    (r) => r.resourceType === "LOCATION",
-  );
+  const gscResources = initialState.externalResources.filter((r) => r.resourceType === "PROPERTY");
+  const gbpResources = initialState.externalResources.filter((r) => r.resourceType === "LOCATION");
+  const virtualMappings = initialState.internalMappings;
 
   // Mapped vs Unmapped tracking
-  const mappedGscResourceIds = new Set(
-    initialState.internalMappings
+  const mappedGscResourceIds = new Set([
+    ...virtualMappings
       .filter((m) => m.internalType === "BRAND")
-      .map((m) => m.resourceId),
-  );
+      .map((m) => m.resourceId)
+  ]);
 
-  const mappedGbpResourceIds = new Set(
-    initialState.internalMappings
+  const mappedGbpResourceIds = new Set([
+    ...virtualMappings
       .filter((m) => m.internalType === "LOCATION")
-      .map((m) => m.resourceId),
-  );
+      .map((m) => m.resourceId)
+  ]);
 
   const mappedGscCount = gscResources.filter((r) =>
     mappedGscResourceIds.has(r.id),
@@ -151,7 +155,7 @@ export function IntegrationsManager({
   const mappedGbpCount = gbpResources.filter((r) =>
     mappedGbpResourceIds.has(r.id),
   ).length;
-  const totalMappingsCount = initialState.internalMappings.length;
+  const totalMappingsCount = virtualMappings.length;
 
   // Handler: Initiate Google OAuth
   const handleConnect = async () => {
@@ -698,52 +702,43 @@ export function IntegrationsManager({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-5 border-t border-slate-100">
                   <span className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
                     <Check className="h-4 w-4 text-emerald-600 stroke-[3]" />
-                    Google Account authorized. You are ready to connect your
-                    website and store.
+                    Google Account authorized. You are ready to view your reports.
                   </span>
 
                   <Button
                     type="button"
-                    onClick={() => setActiveStep(2)}
+                    onClick={() => setActiveStep(isServiceAccountActive ? 3 : 2)}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs gap-2 px-5 py-2.5 shadow-sm cursor-pointer ring-2 ring-indigo-500/20 self-end sm:self-auto"
                   >
-                    <span>Continue to Step 2: Link Website & Stores</span>
+                    <span>{isServiceAccountActive ? "Continue to Step 3: View Reports" : "Continue to Step 2: Link Website & Stores"}</span>
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
             ) : (
-              /* Not Connected: Friendly Welcoming Call to Action */
-              <div className="p-8 text-center space-y-4 bg-gradient-to-b from-indigo-50/40 via-white to-slate-50/60 border border-dashed border-indigo-200 rounded-2xl">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center mx-auto shadow-md">
-                  <Globe className="h-7 w-7" />
-                </div>
-                <div className="max-w-md mx-auto space-y-1.5">
-                  <h3 className="font-extrabold text-slate-900 text-base">
-                    Connect Your Google Account
-                  </h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">
-                    Sign in with the Google Account that manages your website in
-                    Google Search Console or your business listing on Google
-                    Maps.
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <Button
-                    size="lg"
-                    onClick={handleConnect}
-                    disabled={isConnecting || !canManage}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs gap-2 px-6 py-3 shadow-md cursor-pointer ring-4 ring-indigo-500/10"
-                  >
-                    <span>
-                      {isConnecting
-                        ? "Opening Google Sign-In…"
-                        : "Sign In With Google"}
-                    </span>
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
+              /* Not Connected: Show Tabbed Connection UI */
+              <div className="pt-2">
+                <GoogleIntegrationConnect 
+                  brandId={initialState.brands[0]?.id}
+                  onOAuthConnect={handleConnect} 
+                  onSuccess={async (config) => {
+                    try {
+                      // Save to the REAL database using our new endpoint
+                      await browserClient.post(`/tenants/${tenantSlug}/integrations/google/service-account`, {
+                        ga4PropertyId: config.ga4PropertyId,
+                        gscSiteUrl: config.gscSiteUrl,
+                        brandId: initialState.brands[0]?.id
+                      });
+                      
+                      // Refresh the page data from the server so the UI knows it's connected
+                      notify.success(`Service Account successfully linked! You are ready to sync.`);
+                      router.refresh();
+                      setActiveStep(3);
+                    } catch (error) {
+                      notify.error("Failed to save connection to database.");
+                    }
+                  }}
+                />
               </div>
             )}
           </CardContent>
@@ -863,7 +858,7 @@ export function IntegrationsManager({
                       <div className="space-y-2.5">
                         {gscResources.map((res) => {
                           const activeMapping =
-                            initialState.internalMappings.find(
+                            virtualMappings.find(
                               (m) =>
                                 m.resourceId === res.id &&
                                 m.internalType === "BRAND",
@@ -1150,7 +1145,7 @@ export function IntegrationsManager({
                   /* Discovered GBP Locations List */
                   <div className="space-y-2.5">
                     {gbpResources.map((res) => {
-                      const activeMapping = initialState.internalMappings.find(
+                      const activeMapping = virtualMappings.find(
                         (m) =>
                           m.resourceId === res.id &&
                           m.internalType === "LOCATION",

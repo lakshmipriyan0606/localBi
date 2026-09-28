@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Menu, Calendar, Search, CheckCircle2 } from 'lucide-react';
+import { TopNavDatePicker } from './top-nav-date-picker';
 import { TopNavBrandSelector, BrandOption } from './top-nav-brand-selector';
 import { TopNavUserMenu } from './top-nav-user-menu';
 import { usePermissions } from '@/hooks/use-permissions';
@@ -26,15 +27,6 @@ interface TenantTopNavProps {
 
 export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: TenantTopNavProps) {
   const { can } = usePermissions(user.role);
-
-  const dateRangeLabel = useMemo(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 30);
-    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    return `${fmt(start)} – ${fmt(end)}`;
-  }, []);
-
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200/90 bg-white px-4 sm:px-5 shadow-xs">
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -55,9 +47,15 @@ export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: Te
       </div>
 
       <div className="flex items-center gap-2.5">
-        <div className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 text-[11px] font-medium text-slate-600">
-          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          <span>{dateRangeLabel}</span>
+        <div className="hidden md:block">
+          <Suspense fallback={
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-slate-50/70 text-[11px] font-medium text-slate-600 animate-pulse w-[180px] h-[32px]">
+              <Calendar className="h-3.5 w-3.5 text-slate-400" />
+              <span>Loading...</span>
+            </div>
+          }>
+            <TopNavDatePicker />
+          </Suspense>
         </div>
 
         <Link

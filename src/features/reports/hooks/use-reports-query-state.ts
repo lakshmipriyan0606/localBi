@@ -21,7 +21,7 @@ export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
   const state: ReportQueryState = useMemo(() => {
     const daysParam = searchParams.get('days');
     const parsedDays = daysParam ? parseInt(daysParam, 10) : NaN;
-    const dateRangeDays = !isNaN(parsedDays) && [7, 14, 30, 90].includes(parsedDays)
+    const dateRangeDays = !isNaN(parsedDays) && [1, 7, 14, 30, 90, 365].includes(parsedDays)
       ? parsedDays
       : defaults?.dateRangeDays ?? 30;
 

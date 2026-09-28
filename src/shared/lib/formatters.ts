@@ -169,21 +169,63 @@ export function formatRelativeTime(isoStringOrDate: string | Date | null | undef
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+export function getTwoLetterCountryCode(code?: string | null): string | null {
+  if (!code) return null;
+  const clean = code.trim().toUpperCase();
+  
+  // Mapping for alpha-3 codes or full names to alpha-2
+  const mapTo2: Record<string, string> = {
+    IND: 'IN', INDIA: 'IN',
+    USA: 'US', 'UNITED STATES': 'US',
+    GBR: 'GB', 'UNITED KINGDOM': 'GB', UK: 'GB',
+    CAN: 'CA', CANADA: 'CA',
+    AUS: 'AU', AUSTRALIA: 'AU',
+    DEU: 'DE', GERMANY: 'DE',
+    FRA: 'FR', FRANCE: 'FR',
+    JPN: 'JP', JAPAN: 'JP',
+    BRA: 'BR', BRAZIL: 'BR',
+    ARE: 'AE', 'UNITED ARAB EMIRATES': 'AE', UAE: 'AE',
+    SGP: 'SG', SINGAPORE: 'SG',
+    MYS: 'MY', MALAYSIA: 'MY',
+    SAU: 'SA', 'SAUDI ARABIA': 'SA',
+    ITA: 'IT', ITALY: 'IT',
+    ESP: 'ES', SPAIN: 'ES',
+    NLD: 'NL', NETHERLANDS: 'NL',
+    CHE: 'CH', SWITZERLAND: 'CH',
+    SWE: 'SE', SWEDEN: 'SE',
+    NOR: 'NO', NORWAY: 'NO',
+    DNK: 'DK', DENMARK: 'DK',
+    FIN: 'FI', FINLAND: 'FI',
+    RUS: 'RU', RUSSIA: 'RU',
+    CHN: 'CN', CHINA: 'CN',
+    MEX: 'MX', MEXICO: 'MX',
+    IDN: 'ID', INDONESIA: 'ID',
+    TUR: 'TR', TURKEY: 'TR',
+    POL: 'PL', POLAND: 'PL',
+    THA: 'TH', THAILAND: 'TH',
+    ZAF: 'ZA', 'SOUTH AFRICA': 'ZA',
+    EGY: 'EG', EGYPT: 'EG',
+    ARG: 'AR', ARGENTINA: 'AR',
+    COL: 'CO', COLOMBIA: 'CO',
+    PHL: 'PH', PHILIPPINES: 'PH',
+    VNM: 'VN', VIETNAM: 'VN',
+    KOR: 'KR', 'SOUTH KOREA': 'KR',
+  };
+  
+  const twoLetter = mapTo2[clean] || (clean.length === 2 ? clean : clean.slice(0, 2));
+  
+  if (twoLetter.length === 2 && /^[A-Z]{2}$/.test(twoLetter)) {
+    return twoLetter;
+  }
+  return null;
+}
+
 /**
  * Convert ISO 3166-1 alpha-3 or alpha-2 country code into an emoji flag with fallback.
  */
 export function getCountryFlag(code?: string | null): string {
-  if (!code) return '🌐';
-  const clean = code.trim().toUpperCase();
-  const map3to2: Record<string, string> = {
-    IND: 'IN', USA: 'US', GBR: 'GB', CAN: 'CA', AUS: 'AU', DEU: 'DE', FRA: 'FR',
-    JPN: 'JP', BRA: 'BR', ARE: 'AE', SGP: 'SG', MYS: 'MY', SAU: 'SA', ITA: 'IT',
-    ESP: 'ES', NLD: 'NL', CHE: 'CH', SWE: 'SE', NOR: 'NO', DNK: 'DK', FIN: 'FI',
-    RUS: 'RU', CHN: 'CN', MEX: 'MX', IDN: 'ID', TUR: 'TR', POL: 'PL', THA: 'TH',
-    ZAF: 'ZA', EGY: 'EG', ARG: 'AR', COL: 'CO', PHL: 'PH', VNM: 'VN', KOR: 'KR',
-  };
-  const twoLetter = map3to2[clean] || (clean.length === 2 ? clean : clean.slice(0, 2));
-  if (twoLetter.length === 2 && /^[A-Z]{2}$/.test(twoLetter)) {
+  const twoLetter = getTwoLetterCountryCode(code);
+  if (twoLetter) {
     const codePoints = [...twoLetter].map((c) => 127397 + c.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
   }
