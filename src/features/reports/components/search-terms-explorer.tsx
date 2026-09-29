@@ -135,16 +135,10 @@ export function SearchTermsExplorer({
           <Info className="h-5 w-5 text-teal-700 flex-shrink-0 mt-0.5" />
           <div className="text-xs text-teal-900 space-y-1">
             <p className="font-semibold">
-              Google Business Profile Monthly Search Keyword Rules
+              Google Business Profile Monthly Search Keyword Rules &amp; Data Provenance
             </p>
             <p className="leading-relaxed text-teal-800">
-              Per Google API specifications, search keywords for business
-              profiles are aggregated monthly. When impression volume is below
-              Google&apos;s privacy threshold, Google returns a bound (such as
-              &ldquo;&lt; 15&rdquo;) rather than an exact count. localBi
-              guarantees thresholds are shown honestly as bounds and are never
-              fabricated as exact figures or artificially split into daily
-              points.
+              Customer search terms displayed here originate strictly from the Google Business Profile Performance API (<code className="text-teal-900 font-semibold">locations.searchkeywords.impressions.monthly</code>). They represent direct local consumer searches on Google Maps and Search triggering the business profile, completely separate from organic Google Search Console domain queries. Per Google API specifications, GBP keywords are aggregated monthly. When impression volume is below Google&apos;s privacy threshold, Google returns a bound (such as &ldquo;&lt; 15&rdquo;) rather than an exact count. localBi guarantees thresholds are shown honestly as bounds and are never fabricated as exact figures or artificially split into daily points.
             </p>
           </div>
         </div>

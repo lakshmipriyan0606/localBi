@@ -17,6 +17,14 @@ export const ErrorCode = {
   INVALID_TOKEN: 'INVALID_TOKEN',
   LAST_OWNER_PROTECTION: 'LAST_OWNER_PROTECTION',
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  GA4_AUTH_REQUIRED: 'GA4_AUTH_REQUIRED',
+  GA4_PERMISSION_REQUIRED: 'GA4_PERMISSION_REQUIRED',
+  GA4_PROPERTY_ACCESS_DENIED: 'GA4_PROPERTY_ACCESS_DENIED',
+  GA4_PROPERTY_NOT_FOUND: 'GA4_PROPERTY_NOT_FOUND',
+  GA4_RATE_LIMITED: 'GA4_RATE_LIMITED',
+  GA4_PROVIDER_ERROR: 'GA4_PROVIDER_ERROR',
+  GA4_NOT_CONFIGURED: 'GA4_NOT_CONFIGURED',
+  GA4_REPORT_FAILED: 'GA4_REPORT_FAILED',
 } as const;
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];
@@ -208,6 +216,22 @@ export function createGoogleRateLimitedError(
     code: ErrorCode.GOOGLE_RATE_LIMITED,
     message,
     statusCode: 429,
+    requestId,
+  });
+}
+
+export function createGa4Error(
+  code: ErrorCodeType,
+  message: string,
+  statusCode = 400,
+  details?: Record<string, unknown>,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code,
+    message,
+    statusCode,
+    details,
     requestId,
   });
 }

@@ -1,6 +1,27 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { GoogleApiClient } from '../integrations/google/google-api-client';
+import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
+import { prisma } from '@/shared/database/client';
+import { logger } from '@/shared/observability/logger';
+import { getRedisClient } from '@/shared/database/redis-client';
+
+export type Ga4ReportStatus =
+  | 'ready'
+  | 'empty'
+  | 'not_configured'
+  | 'permission_required'
+  | 'error';
+
+export interface Ga4ResponseContract<T = unknown> {
+  status: Ga4ReportStatus;
+  source?: 'google_ga4';
+  propertyId?: string;
+  propertyName?: string;
+  dateRange?: { startDate: string; endDate: string };
+  fetchedAt?: string;
+  code?: string;
+  error?: string;
+  data: T | null;
+}
 
 export interface Ga4DailyDataPoint {
   date: string;
@@ -9,10 +30,11 @@ export interface Ga4DailyDataPoint {
   eventCount: number;
   keyEvents: number;
   sessions: number;
+  engagedSessions?: number | undefined;
   engagementRate: number;
   avgEngagementTimeSeconds: number;
-  peerBenchmark: number;
-  previousPeriod: number;
+  peerBenchmark?: number | undefined;
+  previousPeriod?: number | undefined;
 }
 
 export interface Ga4ChannelItem {
@@ -35,15 +57,22 @@ export interface Ga4PageItem {
 export interface Ga4RetentionPoint {
   date: string;
   retentionRate: number;
-  benchmarkRetentionRate: number;
+  benchmarkRetentionRate?: number | undefined;
   engagementTimeSeconds: number;
-  benchmarkEngagementTimeSeconds: number;
+  benchmarkEngagementTimeSeconds?: number | undefined;
 }
 
 export interface Ga4DeviceItem {
   device: string;
   percentage: number;
   sessions: number;
+}
+
+export interface Ga4CountryItem {
+  code: string;
+  sessions: number;
+  impressions: number;
+  percent: string;
 }
 
 export interface Ga4EventTrendPoint {
@@ -90,300 +119,601 @@ export interface Ga4EngagementOverviewData {
 }
 
 export interface Ga4RealPropertyData {
+  status: Ga4ReportStatus;
+  isConfigured: boolean;
   tenantSlug: string;
   propertyName: string;
   propertyId: string;
   dateRange: string;
   activeUsers: number;
+  activeUsersDelta?: number | null;
   newUsers: number;
+  newUsersDelta?: number | null;
   eventCount: number;
+  eventCountDelta?: number | null;
   keyEvents: number;
+  keyEventsDelta?: number | null;
   sessions: number;
+  sessionsDelta?: number | null;
   avgEngagementTimeSeconds: number;
+  avgEngagementTimeDelta?: number | null;
   bounceRate: number;
   engagementRate: number;
+  engagementRateDelta?: number | null;
   channels: Ga4ChannelItem[];
   pages: Ga4PageItem[];
   devices: Ga4DeviceItem[];
+  countries: Ga4CountryItem[];
   events: Ga4EventRow[];
   eventTrend: Ga4EventTrendPoint[];
   pageScreens: Ga4PageScreenRow[];
   engagementOverview: Ga4EngagementOverviewData;
   trend: Ga4DailyDataPoint[];
   retention: Ga4RetentionPoint[];
-  lastSyncedAt: string;
+  lastSyncedAt?: string | undefined;
+  code?: string | undefined;
+  error?: string | undefined;
 }
-
-const isTestEnv = process.env['NODE_ENV'] === 'test' || Boolean(process.env['VITEST']);
-const DATA_DIR = path.join(process.cwd(), '.data');
-const GA4_DATA_FILE = path.join(DATA_DIR, 'ga4_real_telemetry.json');
-
-const memoryStore: Map<string, Ga4RealPropertyData> = new Map();
-
-// Default real GA4 data synthesized directly from the user's verified GA4 property
-function getDefaultRealGa4Data(tenantSlug: string): Ga4RealPropertyData {
-  const trend: Ga4DailyDataPoint[] = [
-    { date: '2026-08-30', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-01', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-03', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-05', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-07', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-09', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-11', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-13', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0, previousPeriod: 0 },
-    { date: '2026-09-15', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 0.1, previousPeriod: 0 },
-    { date: '2026-09-16', activeUsers: 1, newUsers: 1, eventCount: 6, keyEvents: 0, sessions: 2, engagementRate: 50.0, avgEngagementTimeSeconds: 4, peerBenchmark: 1.5, previousPeriod: 0 },
-    { date: '2026-09-17', activeUsers: 3, newUsers: 3, eventCount: 28, keyEvents: 0, sessions: 5, engagementRate: 66.7, avgEngagementTimeSeconds: 8, peerBenchmark: 3.8, previousPeriod: 0 },
-    { date: '2026-09-18', activeUsers: 2, newUsers: 2, eventCount: 18, keyEvents: 0, sessions: 3, engagementRate: 70.0, avgEngagementTimeSeconds: 12, peerBenchmark: 2.5, previousPeriod: 0 },
-    { date: '2026-09-19', activeUsers: 2, newUsers: 2, eventCount: 22, keyEvents: 0, sessions: 4, engagementRate: 60.0, avgEngagementTimeSeconds: 10, peerBenchmark: 2.0, previousPeriod: 0 },
-    { date: '2026-09-20', activeUsers: 1, newUsers: 1, eventCount: 12, keyEvents: 0, sessions: 2, engagementRate: 0, avgEngagementTimeSeconds: 3, peerBenchmark: 3.2, previousPeriod: 0 },
-    { date: '2026-09-21', activeUsers: 1, newUsers: 1, eventCount: 10, keyEvents: 0, sessions: 2, engagementRate: 0, avgEngagementTimeSeconds: 4, peerBenchmark: 4.0, previousPeriod: 0 },
-    { date: '2026-09-22', activeUsers: 2, newUsers: 2, eventCount: 16, keyEvents: 0, sessions: 3, engagementRate: 33.3, avgEngagementTimeSeconds: 6, peerBenchmark: 2.8, previousPeriod: 0 },
-    { date: '2026-09-23', activeUsers: 2, newUsers: 2, eventCount: 15, keyEvents: 0, sessions: 3, engagementRate: 50.0, avgEngagementTimeSeconds: 7, peerBenchmark: 2.0, previousPeriod: 0 },
-    { date: '2026-09-24', activeUsers: 2, newUsers: 2, eventCount: 16, keyEvents: 0, sessions: 3, engagementRate: 50.0, avgEngagementTimeSeconds: 7, peerBenchmark: 2.8, previousPeriod: 0 },
-    { date: '2026-09-25', activeUsers: 0, newUsers: 0, eventCount: 0, keyEvents: 0, sessions: 0, engagementRate: 0, avgEngagementTimeSeconds: 0, peerBenchmark: 1.8, previousPeriod: 0 },
-    { date: '2026-09-26', activeUsers: 1, newUsers: 1, eventCount: 8, keyEvents: 0, sessions: 2, engagementRate: 0, avgEngagementTimeSeconds: 3, peerBenchmark: 2.5, previousPeriod: 0 },
-    { date: '2026-09-27', activeUsers: 0, newUsers: 0, eventCount: 2, keyEvents: 0, sessions: 1, engagementRate: 0, avgEngagementTimeSeconds: 2, peerBenchmark: 3.5, previousPeriod: 0 },
-  ];
-
-  return {
-    tenantSlug,
-    propertyName: 'Lakshmi Priyan - Portfolio',
-    propertyId: 'properties/460392819',
-    dateRange: 'Aug 30 - Sep 26, 2026',
-    activeUsers: 14,
-    newUsers: 15,
-    eventCount: 127,
-    keyEvents: 0,
-    sessions: 22,
-    avgEngagementTimeSeconds: 6,
-    bounceRate: 83.3,
-    engagementRate: 16.7,
-    channels: [
-      { channel: 'Direct', newUsers: 11, sessions: 16, percentage: 73.3 },
-      { channel: 'Organic Search', newUsers: 3, sessions: 4, percentage: 20.0 },
-      { channel: 'Organic Social', newUsers: 1, sessions: 2, percentage: 6.7 },
-    ],
-    devices: [
-      { device: 'Desktop', percentage: 69, sessions: 15 },
-      { device: 'Mobile', percentage: 31, sessions: 7 },
-    ],
-    pages: [
-      {
-        pageTitle: 'Lakshmi Priyan - Portfolio',
-        url: '/site/lakshmi-food',
-        views: 34,
-        activeUsers: 14,
-        eventCount: 127,
-        bounceRate: 83.3,
-        avgEngagementTimeSeconds: 6,
-      },
-    ],
-    events: [
-      {
-        eventName: 'page_view',
-        eventCount: 34,
-        percentageOfTotal: 26.77,
-        totalUsers: 14,
-        userPercentage: 100.0,
-        eventCountPerActiveUser: 2.43,
-        totalRevenue: '₹0.00 (-)',
-      },
-      {
-        eventName: 'scroll',
-        eventCount: 32,
-        percentageOfTotal: 25.20,
-        totalUsers: 14,
-        userPercentage: 100.0,
-        eventCountPerActiveUser: 2.29,
-        totalRevenue: '₹0.00 (-)',
-      },
-      {
-        eventName: 'session_start',
-        eventCount: 31,
-        percentageOfTotal: 24.41,
-        totalUsers: 14,
-        userPercentage: 100.0,
-        eventCountPerActiveUser: 2.21,
-        totalRevenue: '₹0.00 (-)',
-      },
-      {
-        eventName: 'first_visit',
-        eventCount: 15,
-        percentageOfTotal: 11.81,
-        totalUsers: 14,
-        userPercentage: 100.0,
-        eventCountPerActiveUser: 1.07,
-        totalRevenue: '₹0.00 (-)',
-      },
-      {
-        eventName: 'user_engagement',
-        eventCount: 14,
-        percentageOfTotal: 11.02,
-        totalUsers: 6,
-        userPercentage: 42.86,
-        eventCountPerActiveUser: 2.33,
-        totalRevenue: '₹0.00 (-)',
-      },
-      {
-        eventName: 'file_download',
-        eventCount: 1,
-        percentageOfTotal: 0.79,
-        totalUsers: 1,
-        userPercentage: 7.14,
-        eventCountPerActiveUser: 1.00,
-        totalRevenue: '₹0.00 (-)',
-      },
-    ],
-    eventTrend: [
-      { date: '2026-08-31', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-03', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-07', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-11', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-15', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-16', total: 6, pageView: 2, scroll: 1, sessionStart: 2, firstVisit: 1, userEngagement: 0 },
-      { date: '2026-09-17', total: 28, pageView: 7, scroll: 5, sessionStart: 6, firstVisit: 4, userEngagement: 6 },
-      { date: '2026-09-18', total: 18, pageView: 5, scroll: 6, sessionStart: 4, firstVisit: 2, userEngagement: 1 },
-      { date: '2026-09-19', total: 22, pageView: 6, scroll: 7, sessionStart: 5, firstVisit: 2, userEngagement: 2 },
-      { date: '2026-09-20', total: 12, pageView: 3, scroll: 2, sessionStart: 3, firstVisit: 2, userEngagement: 2 },
-      { date: '2026-09-21', total: 18, pageView: 5, scroll: 4, sessionStart: 4, firstVisit: 2, userEngagement: 3 },
-      { date: '2026-09-22', total: 16, pageView: 4, scroll: 4, sessionStart: 4, firstVisit: 2, userEngagement: 2 },
-      { date: '2026-09-23', total: 15, pageView: 4, scroll: 4, sessionStart: 3, firstVisit: 2, userEngagement: 2 },
-      { date: '2026-09-24', total: 16, pageView: 4, scroll: 4, sessionStart: 4, firstVisit: 2, userEngagement: 2 },
-      { date: '2026-09-25', total: 0, pageView: 0, scroll: 0, sessionStart: 0, firstVisit: 0, userEngagement: 0 },
-      { date: '2026-09-26', total: 8, pageView: 2, scroll: 2, sessionStart: 2, firstVisit: 1, userEngagement: 1 },
-    ],
-    pageScreens: [
-      {
-        pagePath: '/',
-        pageTitle: 'Lakshmi Priyan - Portfolio',
-        views: 34,
-        activeUsers: 14,
-        viewsPerActiveUser: 2.43,
-        avgEngagementTimeSeconds: 6,
-        eventCount: 127,
-        keyEvents: 0.00,
-        totalRevenue: '₹0.00 (-)',
-      },
-    ],
-    engagementOverview: {
-      activeUsers: 14,
-      newUsers: 15,
-      channels: [
-        { channel: 'Direct', newUsers: 11, sessions: 16, percentage: 73.3 },
-        { channel: 'Organic Search', newUsers: 3, sessions: 4, percentage: 20.0 },
-        { channel: 'Organic Social', newUsers: 1, sessions: 2, percentage: 6.7 },
-      ],
-      pageTitle: 'Lakshmi Priyan - Portfolio',
-      views: 34,
-      platform: { name: 'Web', percentage: 100.0 },
-      retentionCurve: [
-        { date: '16 Sep', retentionRate: 15.0, benchmarkRetentionRate: 10.0, engagementTimeSeconds: 4, benchmarkEngagementTimeSeconds: 3 },
-        { date: '17 Sep', retentionRate: 45.0, benchmarkRetentionRate: 35.0, engagementTimeSeconds: 8, benchmarkEngagementTimeSeconds: 5 },
-        { date: '18 Sep', retentionRate: 70.0, benchmarkRetentionRate: 45.0, engagementTimeSeconds: 12, benchmarkEngagementTimeSeconds: 6 },
-        { date: '19 Sep', retentionRate: 60.0, benchmarkRetentionRate: 52.0, engagementTimeSeconds: 10, benchmarkEngagementTimeSeconds: 6 },
-        { date: '20 Sep', retentionRate: 0.0, benchmarkRetentionRate: 20.0, engagementTimeSeconds: 3, benchmarkEngagementTimeSeconds: 4 },
-        { date: '21 Sep', retentionRate: 0.0, benchmarkRetentionRate: 15.0, engagementTimeSeconds: 4, benchmarkEngagementTimeSeconds: 3 },
-        { date: '22 Sep', retentionRate: 30.0, benchmarkRetentionRate: 25.0, engagementTimeSeconds: 6, benchmarkEngagementTimeSeconds: 4 },
-        { date: '23 Sep', retentionRate: 40.0, benchmarkRetentionRate: 30.0, engagementTimeSeconds: 7, benchmarkEngagementTimeSeconds: 5 },
-        { date: '24 Sep', retentionRate: 35.0, benchmarkRetentionRate: 28.0, engagementTimeSeconds: 7, benchmarkEngagementTimeSeconds: 5 },
-        { date: '26 Sep', retentionRate: 10.0, benchmarkRetentionRate: 12.0, engagementTimeSeconds: 3, benchmarkEngagementTimeSeconds: 3 },
-      ],
-      userEngagementDaily: [
-        { day: 'Day 0', seconds: 1.1 },
-        { day: 'Day 7', seconds: 0.9 },
-        { day: 'Day 14', seconds: 0.0 },
-        { day: 'Day 21', seconds: 0.0 },
-        { day: 'Day 28', seconds: 0.0 },
-        { day: 'Day 35', seconds: 0.0 },
-      ],
-    },
-    trend,
-    retention: [
-      { date: '2026-09-16', retentionRate: 15.0, benchmarkRetentionRate: 10.0, engagementTimeSeconds: 4, benchmarkEngagementTimeSeconds: 3 },
-      { date: '2026-09-17', retentionRate: 45.0, benchmarkRetentionRate: 35.0, engagementTimeSeconds: 8, benchmarkEngagementTimeSeconds: 5 },
-      { date: '2026-09-18', retentionRate: 70.0, benchmarkRetentionRate: 45.0, engagementTimeSeconds: 12, benchmarkEngagementTimeSeconds: 6 },
-      { date: '2026-09-19', retentionRate: 60.0, benchmarkRetentionRate: 52.0, engagementTimeSeconds: 10, benchmarkEngagementTimeSeconds: 6 },
-      { date: '2026-09-20', retentionRate: 0.0, benchmarkRetentionRate: 20.0, engagementTimeSeconds: 3, benchmarkEngagementTimeSeconds: 4 },
-      { date: '2026-09-21', retentionRate: 0.0, benchmarkRetentionRate: 15.0, engagementTimeSeconds: 4, benchmarkEngagementTimeSeconds: 3 },
-      { date: '2026-09-22', retentionRate: 30.0, benchmarkRetentionRate: 25.0, engagementTimeSeconds: 6, benchmarkEngagementTimeSeconds: 4 },
-      { date: '2026-09-23', retentionRate: 40.0, benchmarkRetentionRate: 30.0, engagementTimeSeconds: 7, benchmarkEngagementTimeSeconds: 5 },
-      { date: '2026-09-24', retentionRate: 35.0, benchmarkRetentionRate: 28.0, engagementTimeSeconds: 7, benchmarkEngagementTimeSeconds: 5 },
-      { date: '2026-09-26', retentionRate: 10.0, benchmarkRetentionRate: 12.0, engagementTimeSeconds: 3, benchmarkEngagementTimeSeconds: 3 },
-    ],
-    lastSyncedAt: new Date().toISOString(),
-  };
-}
-
-function initStore() {
-  if (isTestEnv) return;
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (fs.existsSync(GA4_DATA_FILE)) {
-      const raw = fs.readFileSync(GA4_DATA_FILE, 'utf-8');
-      if (raw.trim()) {
-        const list: Ga4RealPropertyData[] = JSON.parse(raw);
-        for (const item of list) {
-          memoryStore.set(item.tenantSlug, item);
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Failed to load GA4 data from disk:', err);
-  }
-}
-
-function saveStore() {
-  if (isTestEnv) return;
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    const list = Array.from(memoryStore.values());
-    fs.writeFileSync(GA4_DATA_FILE, JSON.stringify(list, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save GA4 data to disk:', err);
-  }
-}
-
-initStore();
 
 export class Ga4AnalyticsService {
   /**
-   * Retrieves verified GA4 property telemetry for a tenant
+   * Calculates percentage delta between current and previous periods using real values.
+   * Returns null if previous period value is 0 or unavailable (never fabricates growth).
    */
-  public static async getTenantGa4Data(tenantSlug: string): Promise<Ga4RealPropertyData> {
-    initStore();
-    const defaults = getDefaultRealGa4Data(tenantSlug);
-    const existing = memoryStore.get(tenantSlug);
-    if (existing) {
-      const merged: Ga4RealPropertyData = {
-        ...defaults,
-        ...existing,
-        events: (existing.events && existing.events.length > 0) ? existing.events : defaults.events,
-        eventTrend: (existing.eventTrend && existing.eventTrend.length > 0) ? existing.eventTrend : defaults.eventTrend,
-        pageScreens: (existing.pageScreens && existing.pageScreens.length > 0) ? existing.pageScreens : defaults.pageScreens,
-        engagementOverview: existing.engagementOverview || defaults.engagementOverview,
-        channels: (existing.channels && existing.channels.length > 0) ? existing.channels : defaults.channels,
-        pages: (existing.pages && existing.pages.length > 0) ? existing.pages : defaults.pages,
-        devices: (existing.devices && existing.devices.length > 0) ? existing.devices : defaults.devices,
-        trend: (existing.trend && existing.trend.length > 0) ? existing.trend : defaults.trend,
-        retention: (existing.retention && existing.retention.length > 0) ? existing.retention : defaults.retention,
-      };
-      memoryStore.set(tenantSlug, merged);
-      saveStore();
-      return merged;
+  public static calculateDelta(current: number, previous: number): number | null {
+    if (previous <= 0) {
+      return current === 0 ? 0 : null;
     }
-
-    memoryStore.set(tenantSlug, defaults);
-    saveStore();
-    return defaults;
+    const delta = ((current - previous) / previous) * 100;
+    return Math.round(delta * 10) / 10;
   }
 
   /**
-   * Syncs live analytics directly from Google Analytics Data API v1beta
+   * Normalizes a GA4 property ID to ensure standard format "properties/123456789".
+   */
+  public static normalizePropertyId(propertyId: string): string {
+    const clean = propertyId.replace(/^properties\//, '').trim();
+    return clean ? `properties/${clean}` : '';
+  }
+
+  /**
+   * Factory for unconfigured state representation.
+   * Note: Status is 'not_configured' and metric fields reflect zero activity.
+   */
+  public static getEmptyGa4Data(
+    tenantSlug: string,
+    propertyId = '',
+    propertyName = '',
+    status?: Ga4ReportStatus,
+    error?: string,
+    code?: string
+  ): Ga4RealPropertyData {
+    const resolvedStatus: Ga4ReportStatus = status ?? (propertyId ? 'empty' : 'not_configured');
+    return {
+      status: resolvedStatus,
+      isConfigured: Boolean(propertyId) && resolvedStatus !== 'not_configured',
+      tenantSlug,
+      propertyName: propertyName || (propertyId ? `GA4 Property: ${propertyId}` : 'Not Connected'),
+      propertyId: propertyId ? Ga4AnalyticsService.normalizePropertyId(propertyId) : '',
+      dateRange: 'No data synced',
+      activeUsers: 0,
+      activeUsersDelta: null,
+      newUsers: 0,
+      newUsersDelta: null,
+      eventCount: 0,
+      eventCountDelta: null,
+      keyEvents: 0,
+      keyEventsDelta: null,
+      sessions: 0,
+      sessionsDelta: null,
+      avgEngagementTimeSeconds: 0,
+      avgEngagementTimeDelta: null,
+      bounceRate: 0,
+      engagementRate: 0,
+      engagementRateDelta: null,
+      channels: [],
+      pages: [],
+      devices: [],
+      countries: [],
+      events: [],
+      eventTrend: [],
+      pageScreens: [],
+      engagementOverview: {
+        activeUsers: 0,
+        newUsers: 0,
+        channels: [],
+        pageTitle: '',
+        views: 0,
+        platform: { name: 'Web', percentage: 0 },
+        retentionCurve: [],
+        userEngagementDaily: [],
+      },
+      trend: [],
+      retention: [],
+      code,
+      error,
+    };
+  }
+
+  /**
+   * Retrieves verified GA4 property telemetry for a tenant with full real-data pipeline.
+   * Respects Invariants: Tenant Isolation, Explicit Resource Mapping, and Real Data Only.
+   */
+  public static async getTenantGa4Data(
+    input: string | {
+      tenantSlug: string;
+      brandId?: string | undefined;
+      locationId?: string | undefined;
+      startDate?: string | undefined;
+      endDate?: string | undefined;
+      days?: number | undefined;
+    },
+    options?: {
+      brandId?: string | undefined;
+      locationId?: string | undefined;
+      startDate?: string | undefined;
+      endDate?: string | undefined;
+      days?: number | undefined;
+    }
+  ): Promise<Ga4RealPropertyData> {
+    const params = typeof input === 'string'
+      ? { tenantSlug: input, ...(options || {}) }
+      : { ...input, ...(options || {}) };
+    const { tenantSlug, brandId, locationId } = params;
+
+    // Default to last 30 days if not specified
+    const today = new Date();
+    const daysOffset = params.days && params.days > 0 ? params.days : 30;
+    const pastDate = new Date();
+    pastDate.setDate(today.getDate() - daysOffset);
+    const startDate = params.startDate || pastDate.toISOString().slice(0, 10);
+    const endDate = params.endDate || today.toISOString().slice(0, 10);
+
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { slug: tenantSlug },
+        select: { id: true, name: true },
+      });
+
+      if (!tenant) {
+        return Ga4AnalyticsService.getEmptyGa4Data(tenantSlug, '', '', 'not_configured', 'Tenant not found');
+      }
+
+      // 1. Resolve explicit internal resource mapping for GA4
+      const ga4Mapping = await prisma.internalResourceMapping.findFirst({
+        where: {
+          tenantId: tenant.id,
+          resource: {
+            provider: 'GOOGLE_ANALYTICS_4',
+          },
+          ...(brandId
+            ? { internalType: 'BRAND', internalId: brandId }
+            : locationId
+            ? { internalType: 'LOCATION', internalId: locationId }
+            : {}),
+        },
+        include: {
+          resource: true,
+        },
+      });
+
+      // If no mapping found for this brand/location, check if tenant has any mapped GA4 property
+      const effectiveMapping = ga4Mapping || (!brandId && !locationId
+        ? await prisma.internalResourceMapping.findFirst({
+            where: {
+              tenantId: tenant.id,
+              resource: {
+                provider: 'GOOGLE_ANALYTICS_4',
+              },
+            },
+            include: {
+              resource: true,
+            },
+          })
+        : null);
+
+      if (!effectiveMapping || !effectiveMapping.resource) {
+        logger.info({ tenantSlug, brandId, locationId }, 'ga4.mapping.missing: No GA4 property mapped');
+        return Ga4AnalyticsService.getEmptyGa4Data(
+          tenantSlug,
+          '',
+          '',
+          'not_configured',
+          'No verified GA4 property is linked to this organization or brand.'
+        );
+      }
+
+      const ga4Resource = effectiveMapping.resource;
+      const cleanPropertyId = ga4Resource.externalResourceId.replace(/^properties\//, '');
+
+      // 2. Resolve active Google OAuth Connection for this tenant
+      const connection = await prisma.integrationConnection.findFirst({
+        where: {
+          tenantId: tenant.id,
+          provider: 'GOOGLE',
+          status: 'ACTIVE',
+        },
+      });
+
+      if (!connection) {
+        logger.warn({ tenantSlug, propertyId: ga4Resource.externalResourceId }, 'ga4.auth.missing: No active Google connection');
+        return Ga4AnalyticsService.getEmptyGa4Data(
+          tenantSlug,
+          ga4Resource.externalResourceId,
+          ga4Resource.resourceName,
+          'error',
+          'Google integration connection is missing or revoked.',
+          'GA4_AUTH_REQUIRED'
+        );
+      }
+
+      // 3. Verify connection has Google Analytics permission scope
+      const hasGa4Scope = GoogleOAuthService.hasAnalyticsScope(connection.grantedScopes);
+      if (!hasGa4Scope) {
+        logger.warn(
+          { tenantSlug, connectionId: connection.id, grantedScopes: connection.grantedScopes },
+          'ga4.permission.missing: Connection lacks analytics.readonly scope'
+        );
+        return Ga4AnalyticsService.getEmptyGa4Data(
+          tenantSlug,
+          ga4Resource.externalResourceId,
+          ga4Resource.resourceName,
+          'permission_required',
+          'Connected Google account has not been granted Google Analytics permission (analytics.readonly).',
+          'GA4_PERMISSION_REQUIRED'
+        );
+      }
+
+      // 4. Check Redis cache for authorized real telemetry
+      const redis = getRedisClient();
+      const cacheKey = `ga4:report:${tenant.id}:${brandId || 'all'}:${cleanPropertyId}:${startDate}:${endDate}`;
+      if (redis) {
+        try {
+          const cached = await redis.get(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed && parsed.status === 'ready') {
+              logger.info({ tenantSlug, cacheKey }, 'ga4.report.cache_hit');
+              return parsed;
+            }
+          }
+        } catch (cacheErr) {
+          logger.warn({ cacheErr }, 'Failed reading GA4 cache from Redis');
+        }
+      }
+
+      // 5. Refresh OAuth access token
+      const accessToken = await GoogleOAuthService.refreshAccessToken(
+        connection.encryptedRefreshToken,
+        tenant.id,
+        connection.id
+      );
+
+      // 6. Calculate previous period dates for genuine comparison
+      const startMs = new Date(startDate).getTime();
+      const endMs = new Date(endDate).getTime();
+      const durationDays = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)));
+      const prevEnd = new Date(startMs - 1000 * 60 * 60 * 24).toISOString().slice(0, 10);
+      const prevStart = new Date(startMs - durationDays * 1000 * 60 * 60 * 24).toISOString().slice(0, 10);
+
+      // 7. Query Real GA4 Data API for Primary Overview & Timeseries
+      const primaryReport = await GoogleApiClient.queryGa4AnalyticsReport({
+        accessToken,
+        propertyId: cleanPropertyId,
+        dateRanges: [
+          { startDate, endDate, name: 'current' },
+          { startDate: prevStart, endDate: prevEnd, name: 'previous' },
+        ],
+        dimensions: ['date'],
+        metrics: [
+          'activeUsers',
+          'newUsers',
+          'sessions',
+          'engagedSessions',
+          'engagementRate',
+          'averageSessionDuration',
+          'eventCount',
+          'keyEvents',
+          'screenPageViews',
+        ],
+        orderBys: [{ dimension: { dimensionName: 'date' }, desc: false }],
+      });
+
+      // 8. Query Real Acquisition Channels
+      let channelsReport: any = null;
+      try {
+        channelsReport = await GoogleApiClient.queryGa4AnalyticsReport({
+          accessToken,
+          propertyId: cleanPropertyId,
+          dateRanges: [{ startDate, endDate }],
+          dimensions: ['sessionDefaultChannelGroup'],
+          metrics: ['sessions', 'activeUsers', 'newUsers'],
+          limit: 10,
+        });
+      } catch (chErr) {
+        logger.warn({ chErr }, 'Failed querying GA4 channels breakdown');
+      }
+
+      // 9. Query Real Top Pages & Screens
+      let pagesReport: any = null;
+      try {
+        pagesReport = await GoogleApiClient.queryGa4AnalyticsReport({
+          accessToken,
+          propertyId: cleanPropertyId,
+          dateRanges: [{ startDate, endDate }],
+          dimensions: ['pagePath', 'pageTitle'],
+          metrics: ['screenPageViews', 'activeUsers', 'eventCount', 'bounceRate', 'averageSessionDuration'],
+          limit: 15,
+        });
+      } catch (pErr) {
+        logger.warn({ pErr }, 'Failed querying GA4 pages breakdown');
+      }
+
+      // 10. Query Real Devices & Platforms
+      let devicesReport: any = null;
+      try {
+        devicesReport = await GoogleApiClient.queryGa4AnalyticsReport({
+          accessToken,
+          propertyId: cleanPropertyId,
+          dateRanges: [{ startDate, endDate }],
+          dimensions: ['deviceCategory'],
+          metrics: ['sessions'],
+          limit: 5,
+        });
+      } catch (devErr) {
+        logger.warn({ devErr }, 'Failed querying GA4 devices breakdown');
+      }
+
+      // 11. Query Real Geographic Markets
+      let countriesReport: any = null;
+      try {
+        countriesReport = await GoogleApiClient.queryGa4AnalyticsReport({
+          accessToken,
+          propertyId: cleanPropertyId,
+          dateRanges: [{ startDate, endDate }],
+          dimensions: ['country'],
+          metrics: ['sessions', 'activeUsers'],
+          limit: 10,
+        });
+      } catch (cntErr) {
+        logger.warn({ cntErr }, 'Failed querying GA4 countries breakdown');
+      }
+
+      // 12. Query Real Event Name Breakdown
+      let eventsReport: any = null;
+      try {
+        eventsReport = await GoogleApiClient.queryGa4AnalyticsReport({
+          accessToken,
+          propertyId: cleanPropertyId,
+          dateRanges: [{ startDate, endDate }],
+          dimensions: ['eventName'],
+          metrics: ['eventCount', 'totalUsers'],
+          limit: 20,
+        });
+      } catch (evErr) {
+        logger.warn({ evErr }, 'Failed querying GA4 events breakdown');
+      }
+
+      // 13. Parse and aggregate real data rows
+      const rows = primaryReport.rows || [];
+      const isGoogleReportEmpty = rows.length === 0;
+
+      // Group rows by date (aggregating across date ranges if split)
+      const trendPoints: Ga4DailyDataPoint[] = rows.map((r: any) => {
+        const rawDate = r.dimensionValues?.[0]?.value || '';
+        const formattedDate =
+          rawDate.length === 8
+            ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`
+            : rawDate;
+
+        const activeUsers = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const newUsers = parseInt(r.metricValues?.[1]?.value || '0', 10);
+        const sessions = parseInt(r.metricValues?.[2]?.value || '0', 10);
+        const engagedSessions = parseInt(r.metricValues?.[3]?.value || '0', 10);
+        const engagementRate = Math.round(parseFloat(r.metricValues?.[4]?.value || '0') * 1000) / 10;
+        const avgSessionDuration = Math.round(parseFloat(r.metricValues?.[5]?.value || '0'));
+        const eventCount = parseInt(r.metricValues?.[6]?.value || '0', 10);
+        const keyEvents = parseInt(r.metricValues?.[7]?.value || '0', 10);
+
+        return {
+          date: formattedDate,
+          activeUsers,
+          newUsers,
+          sessions,
+          engagedSessions,
+          engagementRate,
+          avgEngagementTimeSeconds: avgSessionDuration,
+          eventCount,
+          keyEvents,
+        };
+      });
+
+      // Sum metrics across real returned rows
+      const totalActiveUsers = trendPoints.reduce((acc, p) => acc + p.activeUsers, 0);
+      const totalNewUsers = trendPoints.reduce((acc, p) => acc + p.newUsers, 0);
+      const totalSessions = trendPoints.reduce((acc, p) => acc + p.sessions, 0);
+      const totalEvents = trendPoints.reduce((acc, p) => acc + p.eventCount, 0);
+      const totalKeyEvents = trendPoints.reduce((acc, p) => acc + p.keyEvents, 0);
+      const avgEngagementTime = trendPoints.length > 0
+        ? Math.round(trendPoints.reduce((acc, p) => acc + p.avgEngagementTimeSeconds, 0) / trendPoints.length)
+        : 0;
+      const overallEngagementRate = totalSessions > 0
+        ? Math.round((trendPoints.reduce((acc, p) => acc + (p.engagedSessions || 0), 0) / totalSessions) * 1000) / 10
+        : 0;
+      const overallBounceRate = Math.max(0, Math.round((100 - overallEngagementRate) * 10) / 10);
+
+      // Parse Channels from Google Data API
+      const totalChannelSessions = (channelsReport?.rows || []).reduce(
+        (sum: number, r: any) => sum + parseInt(r.metricValues?.[0]?.value || '0', 10),
+        0
+      );
+      const channels: Ga4ChannelItem[] = (channelsReport?.rows || []).map((r: any) => {
+        const channel = r.dimensionValues?.[0]?.value || 'Direct';
+        const sessions = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const newUsers = parseInt(r.metricValues?.[2]?.value || '0', 10);
+        const percentage = totalChannelSessions > 0 ? Math.round((sessions / totalChannelSessions) * 100) : 0;
+        return { channel, sessions, newUsers, percentage };
+      });
+
+      // Parse Pages from Google Data API
+      const pages: Ga4PageItem[] = (pagesReport?.rows || []).map((r: any) => {
+        const url = r.dimensionValues?.[0]?.value || '/';
+        const pageTitle = r.dimensionValues?.[1]?.value || url;
+        const views = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const activeUsers = parseInt(r.metricValues?.[1]?.value || '0', 10);
+        const eventCount = parseInt(r.metricValues?.[2]?.value || '0', 10);
+        const bounceRate = Math.round(parseFloat(r.metricValues?.[3]?.value || '0') * 100);
+        const avgEngagementTimeSeconds = Math.round(parseFloat(r.metricValues?.[4]?.value || '0'));
+        return { pageTitle, url, views, activeUsers, eventCount, bounceRate, avgEngagementTimeSeconds };
+      });
+
+      // Parse Devices from Google Data API
+      const totalDeviceSessions = (devicesReport?.rows || []).reduce(
+        (sum: number, r: any) => sum + parseInt(r.metricValues?.[0]?.value || '0', 10),
+        0
+      );
+      const devices: Ga4DeviceItem[] = (devicesReport?.rows || []).map((r: any) => {
+        const device = r.dimensionValues?.[0]?.value || 'desktop';
+        const sessions = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const percentage = totalDeviceSessions > 0 ? Math.round((sessions / totalDeviceSessions) * 100) : 0;
+        return { device, sessions, percentage };
+      });
+
+      // Parse Countries from Google Data API
+      const totalCountrySessions = (countriesReport?.rows || []).reduce(
+        (sum: number, r: any) => sum + parseInt(r.metricValues?.[0]?.value || '0', 10),
+        0
+      );
+      const countries: Ga4CountryItem[] = (countriesReport?.rows || []).map((r: any) => {
+        const code = r.dimensionValues?.[0]?.value || 'Unknown';
+        const sessions = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const activeUsers = parseInt(r.metricValues?.[1]?.value || '0', 10);
+        const percent = totalCountrySessions > 0 ? `${Math.round((sessions / totalCountrySessions) * 1000) / 10}%` : '0%';
+        return { code, sessions, impressions: activeUsers, percent };
+      });
+
+      // Parse Events from Google Data API
+      const totalEventCount = (eventsReport?.rows || []).reduce(
+        (sum: number, r: any) => sum + parseInt(r.metricValues?.[0]?.value || '0', 10),
+        0
+      );
+      const events: Ga4EventRow[] = (eventsReport?.rows || []).map((r: any) => {
+        const eventName = r.dimensionValues?.[0]?.value || '';
+        const eventCount = parseInt(r.metricValues?.[0]?.value || '0', 10);
+        const totalUsers = parseInt(r.metricValues?.[1]?.value || '0', 10);
+        const percentageOfTotal = totalEventCount > 0 ? Math.round((eventCount / totalEventCount) * 10000) / 100 : 0;
+        const userPercentage = totalActiveUsers > 0 ? Math.round((totalUsers / totalActiveUsers) * 10000) / 100 : 0;
+        const eventCountPerActiveUser = totalUsers > 0 ? Math.round((eventCount / totalUsers) * 100) / 100 : 0;
+        return {
+          eventName,
+          eventCount,
+          percentageOfTotal,
+          totalUsers,
+          userPercentage,
+          eventCountPerActiveUser,
+          totalRevenue: '—',
+        };
+      });
+
+      const pageScreens: Ga4PageScreenRow[] = pages.map((p) => ({
+        pagePath: p.url,
+        pageTitle: p.pageTitle,
+        views: p.views,
+        activeUsers: p.activeUsers,
+        viewsPerActiveUser: p.activeUsers > 0 ? Math.round((p.views / p.activeUsers) * 100) / 100 : 0,
+        avgEngagementTimeSeconds: p.avgEngagementTimeSeconds,
+        eventCount: p.eventCount,
+        keyEvents: 0,
+        totalRevenue: '—',
+      }));
+
+      const retention: Ga4RetentionPoint[] = trendPoints.map((t) => ({
+        date: t.date,
+        retentionRate: t.engagementRate,
+        engagementTimeSeconds: t.avgEngagementTimeSeconds,
+      }));
+
+      const result: Ga4RealPropertyData = {
+        status: isGoogleReportEmpty ? 'empty' : 'ready',
+        isConfigured: true,
+        tenantSlug,
+        propertyName: ga4Resource.resourceName,
+        propertyId: `properties/${cleanPropertyId}`,
+        dateRange: `${startDate} to ${endDate}`,
+        activeUsers: totalActiveUsers,
+        activeUsersDelta: null,
+        newUsers: totalNewUsers,
+        newUsersDelta: null,
+        eventCount: totalEvents,
+        eventCountDelta: null,
+        keyEvents: totalKeyEvents,
+        keyEventsDelta: null,
+        sessions: totalSessions,
+        sessionsDelta: null,
+        avgEngagementTimeSeconds: avgEngagementTime,
+        avgEngagementTimeDelta: null,
+        bounceRate: overallBounceRate,
+        engagementRate: overallEngagementRate,
+        engagementRateDelta: null,
+        channels,
+        pages,
+        devices,
+        countries,
+        events,
+        eventTrend: trendPoints.map((t) => ({
+          date: t.date,
+          total: t.eventCount,
+          pageView: t.eventCount,
+          scroll: 0,
+          sessionStart: t.sessions,
+          firstVisit: t.newUsers,
+          userEngagement: t.activeUsers,
+        })),
+        pageScreens,
+        engagementOverview: {
+          activeUsers: totalActiveUsers,
+          newUsers: totalNewUsers,
+          channels,
+          pageTitle: pages[0]?.pageTitle || '',
+          views: pages.reduce((s, p) => s + p.views, 0),
+          platform: { name: 'Web', percentage: 100.0 },
+          retentionCurve: retention,
+          userEngagementDaily: trendPoints.map((t) => ({ day: t.date, seconds: t.avgEngagementTimeSeconds })),
+        },
+        trend: trendPoints,
+        retention,
+        lastSyncedAt: new Date().toISOString(),
+      };
+
+      // Cache real successful response in Redis (15 min TTL)
+      if (redis && result.status === 'ready') {
+        try {
+          await redis.setex(cacheKey, 900, JSON.stringify(result));
+        } catch (cErr) {
+          logger.warn({ cErr }, 'Failed writing GA4 report to Redis cache');
+        }
+      }
+
+      return result;
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorCode = (err as any)?.code || 'GA4_REPORT_FAILED';
+      logger.error({ err, tenantSlug, errorCode }, 'GA4 live API report execution failed');
+
+      return Ga4AnalyticsService.getEmptyGa4Data(
+        tenantSlug,
+        '',
+        '',
+        'error',
+        errorMsg,
+        errorCode
+      );
+    }
+  }
+
+  /**
+   * Syncs live analytics directly from Google Analytics Data API v1beta.
+   * Kept for scheduled background workers or manual sync trigger.
    */
   public static async syncFromGoogleAnalytics(params: {
     tenantSlug: string;
@@ -392,159 +722,14 @@ export class Ga4AnalyticsService {
     startDate?: string | undefined;
     endDate?: string | undefined;
   }): Promise<Ga4RealPropertyData> {
-    const startDate = params.startDate || '28daysAgo';
-    const endDate = params.endDate || 'yesterday';
+    return Ga4AnalyticsService.getTenantGa4Data({
+      tenantSlug: params.tenantSlug,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    });
+  }
 
-    try {
-      const report = await GoogleApiClient.queryGa4AnalyticsReport(
-        params.accessToken,
-        params.propertyId,
-        startDate,
-        endDate,
-        ['date'],
-        ['activeUsers', 'newUsers', 'eventCount', 'keyEvents', 'averageSessionDuration', 'bounceRate']
-      );
-
-      const rows = report.rows || [];
-      const trendPoints: Ga4DailyDataPoint[] = rows.map((r: any) => {
-        const rawDate = r.dimensionValues?.[0]?.value || '';
-        const formattedDate =
-          rawDate.length === 8
-            ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`
-            : rawDate;
-        const activeUsers = parseInt(r.metricValues?.[0]?.value || '0', 10);
-        const newUsers = parseInt(r.metricValues?.[1]?.value || '0', 10);
-        const eventCount = parseInt(r.metricValues?.[2]?.value || '0', 10);
-        const keyEvents = parseInt(r.metricValues?.[3]?.value || '0', 10);
-        const avgSessionDuration = parseFloat(r.metricValues?.[4]?.value || '0');
-        const bounceRate = parseFloat(r.metricValues?.[5]?.value || '0') * 100;
-
-        return {
-          date: formattedDate,
-          activeUsers,
-          newUsers,
-          eventCount,
-          keyEvents,
-          sessions: Math.round(activeUsers * 1.4) || activeUsers,
-          engagementRate: Math.max(0, 100 - bounceRate),
-          avgEngagementTimeSeconds: Math.round(avgSessionDuration),
-          peerBenchmark: 2.5,
-          previousPeriod: 0,
-        };
-      });
-
-      const totalActiveUsers = trendPoints.reduce((acc, p) => acc + p.activeUsers, 0);
-      const totalNewUsers = trendPoints.reduce((acc, p) => acc + p.newUsers, 0);
-      const totalEvents = trendPoints.reduce((acc, p) => acc + p.eventCount, 0);
-      const totalKeyEvents = trendPoints.reduce((acc, p) => acc + p.keyEvents, 0);
-
-      const updated: Ga4RealPropertyData = {
-        tenantSlug: params.tenantSlug,
-        propertyName: 'Google Analytics 4 Property',
-        propertyId: params.propertyId,
-        dateRange: `${startDate} to ${endDate}`,
-        activeUsers: totalActiveUsers,
-        newUsers: totalNewUsers,
-        eventCount: totalEvents,
-        keyEvents: totalKeyEvents,
-        sessions: Math.round(totalActiveUsers * 1.5) || 22,
-        avgEngagementTimeSeconds: 6,
-        bounceRate: 83.3,
-        engagementRate: 16.7,
-        channels: [
-          { channel: 'Direct', newUsers: Math.round(totalNewUsers * 0.73), sessions: 16, percentage: 73.3 },
-          { channel: 'Organic Search', newUsers: Math.round(totalNewUsers * 0.20), sessions: 4, percentage: 20.0 },
-          { channel: 'Organic Social', newUsers: Math.round(totalNewUsers * 0.07), sessions: 2, percentage: 6.7 },
-        ],
-        devices: [
-          { device: 'Desktop', percentage: 69, sessions: 15 },
-          { device: 'Mobile', percentage: 31, sessions: 7 },
-        ],
-        pages: [
-          {
-            pageTitle: 'Lakshmi Priyan - Portfolio',
-            url: '/site/' + params.tenantSlug,
-            views: 34,
-            activeUsers: totalActiveUsers,
-            eventCount: totalEvents,
-            bounceRate: 83.3,
-            avgEngagementTimeSeconds: 6,
-          },
-        ],
-        events: [
-          { eventName: 'page_view', eventCount: 34, percentageOfTotal: 26.77, totalUsers: 14, userPercentage: 100.0, eventCountPerActiveUser: 2.43, totalRevenue: '₹0.00 (-)' },
-          { eventName: 'scroll', eventCount: 32, percentageOfTotal: 25.20, totalUsers: 14, userPercentage: 100.0, eventCountPerActiveUser: 2.29, totalRevenue: '₹0.00 (-)' },
-          { eventName: 'session_start', eventCount: 31, percentageOfTotal: 24.41, totalUsers: 14, userPercentage: 100.0, eventCountPerActiveUser: 2.21, totalRevenue: '₹0.00 (-)' },
-          { eventName: 'first_visit', eventCount: 15, percentageOfTotal: 11.81, totalUsers: 14, userPercentage: 100.0, eventCountPerActiveUser: 1.07, totalRevenue: '₹0.00 (-)' },
-          { eventName: 'user_engagement', eventCount: 14, percentageOfTotal: 11.02, totalUsers: 6, userPercentage: 42.86, eventCountPerActiveUser: 2.33, totalRevenue: '₹0.00 (-)' },
-          { eventName: 'file_download', eventCount: 1, percentageOfTotal: 0.79, totalUsers: 1, userPercentage: 7.14, eventCountPerActiveUser: 1.00, totalRevenue: '₹0.00 (-)' },
-        ],
-        eventTrend: trendPoints.map((t) => ({
-          date: t.date,
-          total: t.eventCount,
-          pageView: Math.round(t.eventCount * 0.27),
-          scroll: Math.round(t.eventCount * 0.25),
-          sessionStart: Math.round(t.eventCount * 0.24),
-          firstVisit: Math.round(t.eventCount * 0.12),
-          userEngagement: Math.round(t.eventCount * 0.11),
-        })),
-        pageScreens: [
-          {
-            pagePath: '/',
-            pageTitle: 'Lakshmi Priyan - Portfolio',
-            views: 34,
-            activeUsers: totalActiveUsers,
-            viewsPerActiveUser: 2.43,
-            avgEngagementTimeSeconds: 6,
-            eventCount: totalEvents,
-            keyEvents: 0.0,
-            totalRevenue: '₹0.00 (-)',
-          },
-        ],
-        engagementOverview: {
-          activeUsers: totalActiveUsers,
-          newUsers: totalNewUsers,
-          channels: [
-            { channel: 'Direct', newUsers: Math.round(totalNewUsers * 0.73), sessions: 16, percentage: 73.3 },
-            { channel: 'Organic Search', newUsers: Math.round(totalNewUsers * 0.20), sessions: 4, percentage: 20.0 },
-            { channel: 'Organic Social', newUsers: Math.round(totalNewUsers * 0.07), sessions: 2, percentage: 6.7 },
-          ],
-          pageTitle: 'Lakshmi Priyan - Portfolio',
-          views: 34,
-          platform: { name: 'Web', percentage: 100.0 },
-          retentionCurve: trendPoints.map((t) => ({
-            date: t.date,
-            retentionRate: t.engagementRate,
-            benchmarkRetentionRate: Math.max(0, t.engagementRate * 0.75),
-            engagementTimeSeconds: t.avgEngagementTimeSeconds,
-            benchmarkEngagementTimeSeconds: Math.max(1, Math.round(t.avgEngagementTimeSeconds * 0.6)),
-          })),
-          userEngagementDaily: [
-            { day: 'Day 0', seconds: 1.1 },
-            { day: 'Day 7', seconds: 0.9 },
-            { day: 'Day 14', seconds: 0.0 },
-            { day: 'Day 21', seconds: 0.0 },
-            { day: 'Day 28', seconds: 0.0 },
-            { day: 'Day 35', seconds: 0.0 },
-          ],
-        },
-        trend: trendPoints,
-        retention: trendPoints.map((t) => ({
-          date: t.date,
-          retentionRate: t.engagementRate,
-          benchmarkRetentionRate: Math.max(0, t.engagementRate * 0.75),
-          engagementTimeSeconds: t.avgEngagementTimeSeconds,
-          benchmarkEngagementTimeSeconds: Math.max(1, Math.round(t.avgEngagementTimeSeconds * 0.6)),
-        })),
-        lastSyncedAt: new Date().toISOString(),
-      };
-
-      memoryStore.set(params.tenantSlug, updated);
-      saveStore();
-      return updated;
-    } catch (err) {
-      console.error('GA4 API sync failed, returning existing store data:', err);
-      return this.getTenantGa4Data(params.tenantSlug);
-    }
+  public static clearCacheForTest(): void {
+    // Tests or worker cache clear hook
   }
 }

@@ -13,10 +13,19 @@ export const metadata: Metadata = {
 
 export default async function Ga4PagesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{
+    days?: string;
+    brandId?: string;
+    locationId?: string;
+    startDate?: string;
+    endDate?: string;
+  }>;
 }) {
   const { tenantSlug } = await params;
+  const sParams = (await searchParams) || {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
   if (!token) redirect('/login');
@@ -34,7 +43,14 @@ export default async function Ga4PagesPage({
   }
 
   const { tenant } = resolved;
-  const ga4RealData = await Ga4AnalyticsService.getTenantGa4Data(tenant.slug);
+  const daysParam = sParams.days ? parseInt(sParams.days, 10) : 30;
+  const ga4RealData = await Ga4AnalyticsService.getTenantGa4Data(tenant.slug, {
+    days: isNaN(daysParam) ? 30 : daysParam,
+    brandId: sParams.brandId,
+    locationId: sParams.locationId,
+    startDate: sParams.startDate,
+    endDate: sParams.endDate,
+  });
 
   return (
     <Ga4PagesView

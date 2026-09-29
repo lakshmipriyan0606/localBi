@@ -88,8 +88,20 @@ export async function POST(
         externalResourceId,
         authorizedContext
       );
+    } else if (type === 'GA4_PROPERTY') {
+      if (!internalId || !externalResourceId) {
+        throw createValidationError('Missing required mapping fields: internalId, externalResourceId');
+      }
+      const internalType = (body.internalType === 'LOCATION') ? 'LOCATION' : 'BRAND';
+      result = await ResourceMappingService.mapGa4Property(
+        tenant.id,
+        internalId,
+        internalType,
+        externalResourceId,
+        authorizedContext
+      );
     } else {
-      throw createValidationError(`Unsupported mapping type: "${type}". Expected LOCATION, BRAND, or AUTO_BRAND.`);
+      throw createValidationError(`Unsupported mapping type: "${type}". Expected LOCATION, BRAND, GA4_PROPERTY, or AUTO_BRAND.`);
     }
 
     return NextResponse.json({ success: true, data: result });

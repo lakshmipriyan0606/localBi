@@ -65,19 +65,40 @@ export class SyncWorkerService {
     const data = job.data;
     const { tenantId, businessKey } = data;
 
-    // 1. Verify connection is still ACTIVE for this tenant. Disconnected resources must stop work.
+    // 1. Cooperative cancellation check: has this syncRun already been marked ABORTED_ORPHAN?
+    const existingRun = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      return tx.syncRun.findUnique({
+        where: { uq_sync_run_business_key: { tenantId, businessKey } },
+        select: { status: true },
+      });
+    });
+
+    if (existingRun && existingRun.status === 'ABORTED_ORPHAN') {
+      logger.info({ tenantId, businessKey }, 'Aborting job: sync run was cancelled while queued');
+      return { aborted: true, reason: 'ABORTED_ORPHAN' };
+    }
+
+    // 2. Verify target connection is still ACTIVE for this tenant. Disconnected resources must stop work.
     const activeConnection = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
       async (tx) => {
+        if (data.connectionId) {
+          return tx.integrationConnection.findUnique({
+            where: { id: data.connectionId },
+          });
+        }
         return tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
       }
     );
 
-    if (!activeConnection) {
-      logger.warn({ tenantId, businessKey }, 'Aborting job: active Google connection no longer exists');
+    if (!activeConnection || activeConnection.status !== 'ACTIVE' || activeConnection.tenantId !== tenantId) {
+      logger.warn(
+        { tenantId, connectionId: data.connectionId, businessKey },
+        'Aborting job: target Google connection is not active or has been revoked'
+      );
       await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
         await tx.syncRun.update({
           where: { uq_sync_run_business_key: { tenantId, businessKey } },

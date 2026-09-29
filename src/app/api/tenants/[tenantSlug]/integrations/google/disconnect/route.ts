@@ -61,7 +61,21 @@ export async function POST(
         data: { canAccess: false },
       });
 
-      logger.info({ tenantId: tenant.id, connectionId: connection.id }, 'Revoked Google integration connection');
+      // Mark all in-flight or queued sync runs for this tenant as ABORTED_ORPHAN
+      await tx.syncRun.updateMany({
+        where: {
+          tenantId: tenant.id,
+          status: 'RUNNING',
+          provider: { in: ['GSC', 'GBP', 'GBP_REVIEWS'] },
+        },
+        data: {
+          status: 'ABORTED_ORPHAN',
+          completedAt: new Date(),
+          errorCode: 'CONNECTION_REVOKED_BY_USER',
+        },
+      });
+
+      logger.info({ tenantId: tenant.id, connectionId: connection.id }, 'Revoked Google integration connection and aborted active sync runs');
     });
 
     return NextResponse.json({

@@ -17,6 +17,7 @@ async function main() {
     if (!account) throw new Error('no account');
     
     const mapping = locMappings[0];
+    if (!mapping) throw new Error('no mapping');
     
     const auth = getAuthenticatedGoogleClient();
     const token = await auth.getAccessToken();
@@ -29,6 +30,7 @@ async function main() {
       locationId: mapping.internalId,
       locationResourceName: mapping.resource.externalResourceId,
       accountId: account.externalAccountId.replace('accounts/', ''),
+      businessKey: `${tenant.id}:gbp_reviews:${mapping.internalId}`,
     });
     console.log('Result:', result);
   } catch (err) {

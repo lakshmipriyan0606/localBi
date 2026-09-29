@@ -37,7 +37,7 @@ const DATE_RANGE_OPTIONS = [
 
 export function Ga4EngagementView({
   tenantSlug,
-  brandName: _brandName = 'Lakshmi food',
+  brandName: _brandName = 'All Brands',
   locationName: _locationName = 'All locations',
   ga4RealData,
 }: Ga4EngagementViewProps) {
@@ -71,55 +71,26 @@ export function Ga4EngagementView({
     }
   }, [searchParams, selectedDateRange]);
 
-  const activeDays = useMemo(() => {
-    const found = DATE_RANGE_OPTIONS.find((d) => d.label === selectedDateRange);
-    return found ? found.days : 30;
-  }, [selectedDateRange]);
-
-  const dateRatio = activeDays / 30;
-
-  const activeUsersCount = useMemo(() => {
-    if (activeDays >= 30) return ga4RealData.activeUsers || 0;
-    return Math.max(1, Math.round((ga4RealData.activeUsers || 0) * dateRatio));
-  }, [ga4RealData, activeDays, dateRatio]);
-
-  const newUsersCount = useMemo(() => {
-    if (activeDays >= 30) return ga4RealData.newUsers || 0;
-    return Math.max(1, Math.round((ga4RealData.newUsers || 0) * dateRatio));
-  }, [ga4RealData, activeDays, dateRatio]);
+  const activeUsersCount = ga4RealData?.activeUsers || 0;
+  const newUsersCount = ga4RealData?.newUsers || 0;
 
   const rawTrend = useMemo(() => {
-    const tr = ga4RealData?.trend || [];
-    if (activeDays >= 365) return tr;
-    return tr.slice(-activeDays);
-  }, [ga4RealData, activeDays]);
+    return ga4RealData?.trend || [];
+  }, [ga4RealData]);
 
   const rawRetention = useMemo(() => {
-    const ret = ga4RealData?.retention || [];
-    if (activeDays >= 365) return ret;
-    return ret.slice(-activeDays);
-  }, [ga4RealData, activeDays]);
+    return ga4RealData?.retention || [];
+  }, [ga4RealData]);
 
   const displayChannels = useMemo(() => {
-    const chans = ga4RealData?.channels || [];
-    if (activeDays >= 30) return chans;
-    return chans.map((c) => ({
-      ...c,
-      newUsers: Math.max(1, Math.round(c.newUsers * dateRatio)),
-      sessions: Math.max(1, Math.round(c.sessions * dateRatio)),
-    }));
-  }, [ga4RealData, activeDays, dateRatio]);
+    return ga4RealData?.channels || [];
+  }, [ga4RealData]);
 
-  const maxChannelUsers = Math.max(4, ...displayChannels.map((c) => c.newUsers));
+  const maxChannelUsers = Math.max(1, ...displayChannels.map((c) => c.newUsers || 0));
 
   const displayPages = useMemo(() => {
-    const pages = ga4RealData?.pages || [];
-    if (activeDays >= 30) return pages;
-    return pages.map((p) => ({
-      ...p,
-      views: Math.max(1, Math.round(p.views * dateRatio)),
-    }));
-  }, [ga4RealData, activeDays, dateRatio]);
+    return ga4RealData?.pages || [];
+  }, [ga4RealData]);
 
   // Active / New Users timeseries
   const userTimeseriesData = useMemo(() => {
@@ -133,7 +104,6 @@ export function Ga4EngagementView({
         date: `${d < 10 ? '0' + d : d} ${monthNames[m]}`,
         rawDate: t.date,
         current: val,
-        peerBenchmark: t.peerBenchmark,
       };
     });
   }, [rawTrend, metricTab]);
@@ -185,7 +155,13 @@ export function Ga4EngagementView({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName}</span> • {ga4RealData.dateRange}
+            {ga4RealData?.isConfigured ? (
+              <>
+                Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName || ga4RealData.propertyId}</span> • {ga4RealData.dateRange || selectedDateRange}
+              </>
+            ) : (
+              'No Google Analytics 4 property connected'
+            )}
           </p>
         </div>
 
@@ -249,74 +225,167 @@ export function Ga4EngagementView({
         </div>
       </div>
 
-      {/* ── TOP ROW: 4 Core GA4 Cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Active users / New users curve */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-3">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setMetricTab('activeUsers')}
-                  className={cn(
-                    "text-xs font-bold transition-colors cursor-pointer",
-                    metricTab === 'activeUsers' ? "text-[#2563EB] border-b-2 border-[#2563EB] pb-1" : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  Active users
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMetricTab('newUsers')}
-                  className={cn(
-                    "text-xs font-bold transition-colors cursor-pointer",
-                    metricTab === 'newUsers' ? "text-[#2563EB] border-b-2 border-[#2563EB] pb-1" : "text-slate-500 hover:text-slate-800"
-                  )}
-                >
-                  New users
-                </button>
+      {/* ── Status Guards ── */}
+      {(!ga4RealData?.isConfigured || ga4RealData?.status === 'not_configured') && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-amber-100 p-3 text-amber-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-200 text-amber-900">
+                  GA4_NOT_CONFIGURED
+                </span>
+                <h3 className="text-base font-bold text-amber-950">
+                  Google Analytics 4 Not Configured
+                </h3>
               </div>
-              <span className="text-xl font-black text-slate-900">
-                {metricTab === 'activeUsers' ? activeUsersCount : newUsersCount}
-              </span>
+              <p className="text-xs text-amber-800 leading-relaxed max-w-2xl">
+                No active GA4 property has been mapped to this tenant. To view real user engagement curves, retention metrics, and active session cohorts, link your Google Analytics 4 property under Integrations.
+              </p>
             </div>
-
-            <div className="h-[140px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={userTimeseriesData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 5]} tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null;
-                      return (
-                        <ChartTooltipFrame
-                          title={String(label)}
-                          items={[
-                            { label: metricTab === 'activeUsers' ? 'Active users' : 'New users', value: payload[0]?.value as number, color: '#2563EB' },
-                            { label: 'Peer median', value: payload[1]?.value as number, color: '#06B6D4' },
-                          ]}
-                        />
-                      );
-                    }}
-                  />
-                  <Line type="monotone" dataKey="current" stroke="#2563EB" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="peerBenchmark" stroke="#06B6D4" strokeWidth={1.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-0.5 bg-[#2563EB]" /> Last 28 days
-            </span>
-            <span className="flex items-center gap-1 text-cyan-600">
-              <span className="w-2 h-0.5 bg-[#06B6D4]" /> Peer median
-            </span>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Configure GA4 Mapping →
+            </Link>
           </div>
         </div>
+      )}
+
+      {ga4RealData?.status === 'permission_required' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  GA4_PERMISSION_REQUIRED
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics Scope Missing
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-2xl">
+                The connected Google OAuth account lacks the required Google Analytics read scope. Please re-authorize your connection in Integrations to enable GA4 reporting.
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Reconnect Google Account →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.status === 'error' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  {ga4RealData?.code || 'GA4_REPORT_FAILED'}
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics 4 Report Failed
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-2xl">
+                {ga4RealData?.error || 'Failed to retrieve engagement and retention telemetry from Google Analytics Data API.'}
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-rose-900 bg-white border border-rose-300 hover:bg-rose-50 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Check Property Mapping →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.isConfigured && (ga4RealData?.status === 'ready' || ga4RealData?.status === 'empty') && (
+        <>
+          {ga4RealData?.status === 'empty' && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 shadow-2xs">
+              <p className="text-xs text-blue-900">
+                <strong>Real Zero Data:</strong> Google Analytics Data API returned a successful report with zero users/engagement for property <strong>{ga4RealData.propertyName || ga4RealData.propertyId}</strong> in period {ga4RealData.dateRange || selectedDateRange}.
+              </p>
+            </div>
+          )}
+
+          {/* ── TOP ROW: 4 Core GA4 Cards ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Active users / New users curve */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setMetricTab('activeUsers')}
+                      className={cn(
+                        "text-xs font-bold transition-colors cursor-pointer",
+                        metricTab === 'activeUsers' ? "text-[#2563EB] border-b-2 border-[#2563EB] pb-1" : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      Active users
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMetricTab('newUsers')}
+                      className={cn(
+                        "text-xs font-bold transition-colors cursor-pointer",
+                        metricTab === 'newUsers' ? "text-[#2563EB] border-b-2 border-[#2563EB] pb-1" : "text-slate-500 hover:text-slate-800"
+                      )}
+                    >
+                      New users
+                    </button>
+                  </div>
+                  <span className="text-xl font-black text-slate-900">
+                    {metricTab === 'activeUsers' ? activeUsersCount : newUsersCount}
+                  </span>
+                </div>
+
+                <div className="h-[140px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={userTimeseriesData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                      <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                      <YAxis tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <ChartTooltipFrame
+                              title={String(label)}
+                              items={[
+                                { label: metricTab === 'activeUsers' ? 'Active users' : 'New users', value: payload[0]?.value as number, color: '#2563EB' },
+                              ]}
+                            />
+                          );
+                        }}
+                      />
+                      <Line type="monotone" dataKey="current" stroke="#2563EB" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                <span className="flex items-center gap-1">
+                  <span className="w-2 h-0.5 bg-[#2563EB]" /> {ga4RealData?.dateRange || selectedDateRange}
+                </span>
+              </div>
+            </div>
 
         {/* Card 2: New users by First user primary channel group */}
         <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs flex flex-col justify-between">
@@ -558,7 +627,7 @@ export function Ga4EngagementView({
             <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
               <div>
                 <h3 className="text-xs font-bold text-slate-900">User engagement</h3>
-                <p className="text-[10px] text-slate-400">Last 42 days ending Sep 26</p>
+                <p className="text-[10px] text-slate-400">{ga4RealData?.dateRange || selectedDateRange}</p>
               </div>
               <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold">✓</span>
             </div>
@@ -568,7 +637,7 @@ export function Ga4EngagementView({
                 <LineChart data={dwellData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                   <XAxis dataKey="day" tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
-                  <YAxis domain={[0, 2]} ticks={[0, 1, 2]} tickFormatter={(v) => `${v}s`} tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={(v) => `${v}s`} tick={{ fontSize: 9, fill: '#94A3B8' }} tickLine={false} axisLine={false} />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
@@ -598,6 +667,8 @@ export function Ga4EngagementView({
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

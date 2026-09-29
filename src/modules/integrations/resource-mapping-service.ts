@@ -407,6 +407,105 @@ export class ResourceMappingService {
   }
 
   /**
+   * Maps an external GA4 Property resource to an internal Brand or Location.
+   */
+  public static async mapGa4Property(
+    tenantId: string,
+    internalId: string,
+    internalType: 'BRAND' | 'LOCATION',
+    externalResourceId: string,
+    context: AuthorizedContext
+  ) {
+    AuthorizationService.assertCan(context, Action.INTEGRATION_MAP);
+
+    if (context.tenantId !== tenantId) {
+      throw createTenantAccessDeniedError(tenantId);
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // 1. Verify internal entity exists and check authorization
+      if (internalType === 'BRAND') {
+        AuthorizationService.assertBrandAccess(context, internalId);
+        const brand = await tx.brand.findUnique({
+          where: { uq_brand_tenant_id: { tenantId, id: internalId } },
+        });
+        if (!brand || brand.isArchived) {
+          throw createResourceNotFoundError('Brand', internalId);
+        }
+      } else {
+        const loc = await tx.location.findUnique({
+          where: { uq_location_tenant_id: { tenantId, id: internalId } },
+        });
+        if (!loc || loc.isArchived) {
+          throw createResourceNotFoundError('Location', internalId);
+        }
+        AuthorizationService.assertBrandAccess(context, loc.brandId);
+      }
+
+      // 2. Fetch GA4 external resource
+      const extRes = await tx.externalResource.findUnique({
+        where: {
+          uq_external_resource_tenant_id: {
+            tenantId,
+            id: externalResourceId,
+          },
+        },
+      });
+
+      if (!extRes || extRes.provider !== 'GOOGLE_ANALYTICS_4') {
+        throw createResourceNotFoundError('GA4 Property', externalResourceId);
+      }
+
+      // 3. Enforce 1:1 mapping by removing any existing GA4 mappings for this entity
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          internalType,
+          internalId,
+          resource: {
+            provider: 'GOOGLE_ANALYTICS_4',
+          },
+        },
+      });
+
+      // Also ensure this specific GA4 property isn't mapped to another entity
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          resourceId: extRes.id,
+          internalType,
+        },
+      });
+
+      // 4. Upsert internal resource mapping
+      const mapping = await tx.internalResourceMapping.upsert({
+        where: {
+          uq_internal_resource_mapping: {
+            tenantId,
+            internalType,
+            internalId,
+            resourceId: extRes.id,
+          },
+        },
+        create: {
+          tenantId,
+          internalType,
+          internalId,
+          resourceId: extRes.id,
+        },
+        update: {},
+      });
+
+      logger.info(
+        { tenantId, internalId, internalType, externalResourceId: extRes.externalResourceId, resourceName: extRes.resourceName },
+        'Mapped GA4 Property to internal entity'
+      );
+
+      return mapping;
+    });
+  }
+
+  /**
    * Lists all mappings and available resources for mapping in a tenant workspace.
    */
   public static async listTenantMappingState(tenantId: string, context: AuthorizedContext) {
@@ -423,6 +522,7 @@ export class ResourceMappingService {
               id: true,
               provider: true,
               externalEmail: true,
+              grantedScopes: true,
               createdAt: true,
               lastUsedAt: true,
             },

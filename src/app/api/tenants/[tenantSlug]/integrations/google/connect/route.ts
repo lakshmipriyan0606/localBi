@@ -27,7 +27,12 @@ export async function GET(
     AuthorizationService.assertCan(authorizedContext, Action.INTEGRATION_CONNECT);
 
     const returnUrl = request.nextUrl.searchParams.get('returnUrl') || `/client/${tenant.slug}/integrations`;
-    const authorizationUrl = GoogleOAuthService.getAuthorizationUrl(tenant.id, user.id, returnUrl);
+    const authorizationUrl = GoogleOAuthService.getAuthorizationUrl(
+      tenant.id,
+      user.id,
+      returnUrl,
+      token ?? undefined
+    );
 
     return NextResponse.json({
       success: true,

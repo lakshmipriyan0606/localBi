@@ -4,14 +4,14 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ tenantSlug: string }> }
 ) {
   try {
     const { tenantSlug } = await params;
     const cookieStore = await cookies();
     const token = SessionCookieManager.getSessionToken(cookieStore);
-    const { tenant, authorizedContext } = await ContextResolver.resolveTenantContext(token, tenantSlug);
+    const { tenant } = await ContextResolver.resolveTenantContext(token, tenantSlug);
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' });
 
     const { prisma } = await import('@/shared/database/client');

@@ -24,10 +24,19 @@ export const metadata: Metadata = {
 
 export default async function Ga4ReportingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{
+    days?: string;
+    brandId?: string;
+    locationId?: string;
+    startDate?: string;
+    endDate?: string;
+  }>;
 }) {
   const { tenantSlug } = await params;
+  const sParams = (await searchParams) || {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
   if (!token) redirect("/login");
@@ -46,10 +55,7 @@ export default async function Ga4ReportingPage({
 
   const { tenant } = resolved;
 
-  // 1. Verified Real GA4 Property Telemetry from Ga4AnalyticsService
-  const ga4RealData = await Ga4AnalyticsService.getTenantGa4Data(tenant.slug);
-
-  // 2. Database Aggregation Pipeline for Google Search Console & GBP
+  // 1. Database Aggregation Pipeline for Google Search Console & GBP
   const dbData = await TenantContextService.withTenantContext(
     prisma,
     tenant.id,
@@ -149,39 +155,58 @@ export default async function Ga4ReportingPage({
     }
   );
 
-  const primaryBrandName = dbData.brand;
+  const selectedBrand = dbData.brands.find((b) => b.id === sParams.brandId) || dbData.brands[0];
+  const selectedLocation = dbData.locations.find((l) => l.id === sParams.locationId) || dbData.locations[0];
+
+  const daysNum = sParams.days ? parseInt(sParams.days, 10) : 30;
+  const today = new Date();
+  const pastDate = new Date();
+  pastDate.setDate(today.getDate() - (isNaN(daysNum) || daysNum <= 0 ? 30 : daysNum));
+
+  const startDate = sParams.startDate || pastDate.toISOString().slice(0, 10);
+  const endDate = sParams.endDate || today.toISOString().slice(0, 10);
+
+  const ga4RealData = await Ga4AnalyticsService.getTenantGa4Data({
+    tenantSlug: tenant.slug,
+    brandId: selectedBrand?.id,
+    locationId: selectedLocation?.id,
+    startDate,
+    endDate,
+  });
+
+  const primaryBrandName = selectedBrand?.name || dbData.brand;
   const isConnected = dbData.isConnected;
   const connectedEmail = dbData.connectionEmail;
   const webPropertyUrl = dbData.resource?.externalResourceId || "";
-  const primaryLocationName = dbData.location?.name || "All locations";
-  const primaryStoreCode = dbData.location?.storeCode || "";
-  const primaryAddress = dbData.location
-    ? `${dbData.location.addressLine1 || ""}, ${dbData.location.city || ""} ${dbData.location.state || ""}`.trim()
+  const primaryLocationName = selectedLocation?.name || dbData.location?.name || "All locations";
+  const primaryStoreCode = selectedLocation?.storeCode || dbData.location?.storeCode || "";
+  const primaryAddress = selectedLocation
+    ? `${selectedLocation.addressLine1 || ""}, ${selectedLocation.city || ""} ${selectedLocation.state || ""}`.trim()
     : "";
 
-  const hasRealData = true;
+  const hasRealData = Boolean(ga4RealData.isConfigured && ga4RealData.status === 'ready');
 
-  // 3. Synthesize KPI Numbers from Verified GA4 Property Telemetry
+  // 2. Synthesize KPI Numbers from Verified GA4 Property Telemetry
   const realKpi: Ga4RealKpi = {
     users: ga4RealData.activeUsers,
-    usersDelta: 12.4,
+    usersDelta: ga4RealData.activeUsersDelta ?? undefined,
     newUsers: ga4RealData.newUsers,
-    newUsersDelta: 15.0,
+    newUsersDelta: ga4RealData.newUsersDelta ?? undefined,
     sessions: ga4RealData.sessions,
-    sessionsDelta: 8.2,
-    engagedSessions: Math.round(ga4RealData.sessions * (ga4RealData.engagementRate / 100)) || 7,
-    engagedSessionsDelta: 3.1,
+    sessionsDelta: ga4RealData.sessionsDelta ?? undefined,
+    engagedSessions: Math.round(ga4RealData.sessions * (ga4RealData.engagementRate / 100)) || 0,
+    engagedSessionsDelta: undefined,
     conversionRate: ga4RealData.engagementRate,
-    conversionRateDelta: 0,
+    conversionRateDelta: undefined,
     conversions: ga4RealData.keyEvents,
-    conversionsDelta: 16.7,
+    conversionsDelta: undefined,
     avgEngagementTimeSeconds: ga4RealData.avgEngagementTimeSeconds,
     bounceRate: ga4RealData.bounceRate,
     eventCount: ga4RealData.eventCount,
-    hasRealData: true,
+    hasRealData,
   };
 
-  // 4. Synthesize Timeseries Trend from Verified GA4 Property Telemetry
+  // 3. Synthesize Timeseries Trend from Verified GA4 Property Telemetry
   const realTrend: Ga4TrendPoint[] = ga4RealData.trend.map((t) => ({
     date: t.date,
     clicks: t.activeUsers,
@@ -191,8 +216,7 @@ export default async function Ga4ReportingPage({
     newUsers: t.newUsers,
     eventCount: t.eventCount,
     keyEvents: t.keyEvents,
-    peerBenchmark: t.peerBenchmark,
-    previousPeriod: t.previousPeriod,
+    avgEngagementTimeSeconds: t.avgEngagementTimeSeconds,
   }));
 
   // 5. Synthesize Traffic Channels from Verified GA4 Property Telemetry
@@ -229,54 +253,27 @@ export default async function Ga4ReportingPage({
   }));
 
   // 8. Search Queries (Google Search Console)
-  const realQueries: Ga4QueryRow[] = dbData.rawQueries.length > 0
-    ? dbData.rawQueries.map((q) => {
-        const qClicks = q.clicks || 0;
-        const qImpr = q.impressions || 0;
-        const qCtr = qImpr > 0 ? (qClicks / qImpr) * 100 : 0;
-        const qPos = qImpr > 0 ? q.sumPositionImpressions / qImpr : 0;
-        return {
-          query: q.query?.queryText || "Search Query",
-          clicks: qClicks,
-          impressions: qImpr,
-          ctr: qCtr,
-          position: qPos,
-        };
-      })
-    : [
-        { query: "lakshmi priyan portfolio", clicks: 8, impressions: 42, ctr: 19.0, position: 1.0 },
-        { query: "lakshmi food catering", clicks: 4, impressions: 28, ctr: 14.3, position: 1.4 },
-      ];
-
-  // 9. Geography & Countries
-  const totalCountryClicks = dbData.rawCountries.reduce(
-    (acc, c) => acc + (c._sum.clicks || 0),
-    0
-  );
-  let realCountries: Ga4CountryRow[] = dbData.rawCountries.map((c) => {
-    const cClicks = c._sum.clicks || 0;
-    const cImpr = c._sum.impressions || 0;
-    const pct =
-      totalCountryClicks > 0
-        ? `${Math.round((cClicks / totalCountryClicks) * 1000) / 10}%`
-        : "100%";
+  const realQueries: Ga4QueryRow[] = dbData.rawQueries.map((q) => {
+    const qClicks = q.clicks || 0;
+    const qImpr = q.impressions || 0;
+    const qCtr = qImpr > 0 ? (qClicks / qImpr) * 100 : 0;
+    const qPos = qImpr > 0 ? q.sumPositionImpressions / qImpr : 0;
     return {
-      code: c.country,
-      sessions: cClicks,
-      impressions: cImpr,
-      percent: pct,
+      query: q.query?.queryText || "Search Query",
+      clicks: qClicks,
+      impressions: qImpr,
+      ctr: qCtr,
+      position: qPos,
     };
   });
-  if (realCountries.length === 0) {
-    realCountries = [
-      {
-        code: "India",
-        sessions: ga4RealData.activeUsers,
-        impressions: ga4RealData.eventCount,
-        percent: "100%",
-      },
-    ];
-  }
+
+  // 9. Geography & Countries from Verified GA4 Telemetry
+  const realCountries: Ga4CountryRow[] = ga4RealData.countries.map((c) => ({
+    code: c.code,
+    sessions: c.sessions,
+    impressions: c.impressions,
+    percent: c.percent,
+  }));
 
   return (
     <WebsiteAnalyticsView
@@ -292,9 +289,9 @@ export default async function Ga4ReportingPage({
       }))}
       storeCode={primaryStoreCode}
       address={primaryAddress}
-      websiteUrl={webPropertyUrl || "https://lakshmipriyan.dev"}
-      accountEmail={connectedEmail || "lakshmipriyan@gmail.com"}
-      isConnected={isConnected || true}
+      websiteUrl={webPropertyUrl || undefined}
+      accountEmail={connectedEmail || undefined}
+      isConnected={isConnected}
       kpi={realKpi}
       trend={realTrend}
       channels={realChannels}

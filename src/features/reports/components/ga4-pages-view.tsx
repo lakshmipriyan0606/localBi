@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
   AreaChart,
   Area,
@@ -38,7 +39,7 @@ const DATE_RANGE_OPTIONS = [
 
 export function Ga4PagesView({
   tenantSlug,
-  brandName: _brandName = 'Lakshmi food',
+  brandName: _brandName = 'All Brands',
   ga4RealData,
 }: Ga4PagesViewProps) {
   const router = useRouter();
@@ -101,18 +102,9 @@ export function Ga4PagesView({
     });
   }, [ga4RealData]);
 
-  const dateRatio = activeDays / 30;
-
   const pagesRows = useMemo(() => {
-    const rows = ga4RealData?.pageScreens || [];
-    if (activeDays >= 30) return rows;
-    return rows.map(r => ({
-      ...r,
-      views: Math.max(1, Math.round(r.views * dateRatio)),
-      activeUsers: Math.max(1, Math.round(r.activeUsers * dateRatio)),
-      eventCount: Math.max(1, Math.round(r.eventCount * dateRatio)),
-    }));
-  }, [ga4RealData, activeDays, dateRatio]);
+    return ga4RealData?.pageScreens || [];
+  }, [ga4RealData]);
 
   const filteredRows = useMemo(() => {
     if (!searchQuery.trim()) return pagesRows;
@@ -169,7 +161,13 @@ export function Ga4PagesView({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName}</span> • {ga4RealData.dateRange}
+            {ga4RealData?.isConfigured ? (
+              <>
+                Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName || ga4RealData.propertyId}</span> • {ga4RealData.dateRange || selectedDateRange}
+              </>
+            ) : (
+              'No Google Analytics 4 property connected'
+            )}
           </p>
         </div>
 
@@ -241,18 +239,116 @@ export function Ga4PagesView({
         </div>
       </div>
 
-      {/* ── Main Chart: Views by Page path and screen class over time (Screenshot 1 & 5) ── */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs">
-        <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight">
-              Views by Page path and screen class over time
-            </h3>
-            <p className="text-xs text-slate-500">
-              Spiked to 6 views on Sep 17, with sustained 3 views per day
-            </p>
+      {/* ── Status Guards ── */}
+      {(!ga4RealData?.isConfigured || ga4RealData?.status === 'not_configured') && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-amber-100 p-3 text-amber-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-200 text-amber-900">
+                  GA4_NOT_CONFIGURED
+                </span>
+                <h3 className="text-base font-bold text-amber-950">
+                  Google Analytics 4 Not Configured
+                </h3>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed max-w-2xl">
+                No active GA4 property has been mapped to this tenant. To view real page views, visitor breakdown, and screen class engagement, link your Google Analytics 4 property under Integrations.
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Configure GA4 Mapping →
+            </Link>
           </div>
         </div>
+      )}
+
+      {ga4RealData?.status === 'permission_required' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  GA4_PERMISSION_REQUIRED
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics Scope Missing
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-2xl">
+                The connected Google OAuth account lacks the required Google Analytics read scope. Please re-authorize your connection in Integrations to enable GA4 reporting.
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Reconnect Google Account →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.status === 'error' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <span className="font-bold text-sm">GA4</span>
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  {ga4RealData?.code || 'GA4_REPORT_FAILED'}
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics 4 Report Failed
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-2xl">
+                {ga4RealData?.error || 'Failed to retrieve page and screen metrics from Google Analytics Data API.'}
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-rose-900 bg-white border border-rose-300 hover:bg-rose-50 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Check Property Mapping →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.isConfigured && (ga4RealData?.status === 'ready' || ga4RealData?.status === 'empty') && (
+        <>
+          {ga4RealData?.status === 'empty' && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 shadow-2xs">
+              <p className="text-xs text-blue-900">
+                <strong>Real Zero Data:</strong> Google Analytics Data API returned a successful report with zero page views for property <strong>{ga4RealData.propertyName || ga4RealData.propertyId}</strong> in period {ga4RealData.dateRange || selectedDateRange}.
+              </p>
+            </div>
+          )}
+
+          {/* ── Main Chart: Views by Page path and screen class over time ── */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-2xs">
+            <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 tracking-tight">
+                  Views by Page path and screen class over time
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Real page views across URLs for {ga4RealData?.dateRange || selectedDateRange}
+                </p>
+              </div>
+            </div>
 
         <div className="h-[270px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -412,8 +508,13 @@ export function Ga4PagesView({
               ))}
             </tbody>
           </table>
+          {filteredRows.length === 0 && (
+            <p className="text-xs text-slate-400 py-8 text-center">No page views recorded by GA4 for this period.</p>
+          )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

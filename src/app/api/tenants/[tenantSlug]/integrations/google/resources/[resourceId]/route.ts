@@ -8,7 +8,7 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { handleRouteError } from '@/shared/errors';
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string; resourceId: string }> }
 ) {
   try {

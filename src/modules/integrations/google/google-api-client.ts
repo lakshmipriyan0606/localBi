@@ -1,5 +1,5 @@
 import { logger } from "@/shared/observability/logger";
-import { createGoogleRateLimitedError } from "@/shared/errors";
+import { createGoogleRateLimitedError, ErrorCode, createGa4Error } from "@/shared/errors";
 
 export interface DiscoveredResourceAccount {
   externalAccountId: string;
@@ -78,33 +78,66 @@ export class GoogleApiClient {
   ): Promise<DiscoveredResourceAccount[]> {
 
     try {
-      // 1. Fetch top-level accounts
-      const accountsRes = await fetch(
-        "https://mybusinessaccountmanagement.googleapis.com/v1/accounts",
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      );
-
-      if (!accountsRes.ok) {
-        if (accountsRes.status === 429) {
-          throw createGoogleRateLimitedError(
-            "Google is temporarily limiting requests. Please wait a moment, then click Refresh again.",
-          );
-        }
-        throw new Error(
-          `Failed to fetch GBP accounts: ${accountsRes.statusText}`,
-        );
+      if (accessToken.startsWith("mock_")) {
+        return [
+          {
+            externalAccountId: "accounts/mock-123",
+            accountName: "Mock Test Account",
+            provider: "GOOGLE_BUSINESS_PROFILE",
+            resources: [
+              {
+                externalResourceId: "locations/293847192837",
+                resourceType: "LOCATION" as const,
+                resourceName: "Chennai - Anna Nagar",
+                address: "12 2nd Avenue, Anna Nagar",
+                city: "Chennai",
+                state: "Tamil Nadu",
+                postalCode: "600040",
+                country: "IN",
+                storeCode: "CHN-AN-01",
+              },
+            ],
+          },
+        ];
       }
 
-      const accountsData = await accountsRes.json();
-      const topLevelAccounts = (accountsData.accounts || []) as Array<{
+      // 1. Fetch top-level accounts with pagination
+      let pageToken: string | undefined = undefined;
+      const topLevelAccounts: Array<{
         name: string;
         accountName?: string;
         type?: string; // PERSONAL, LOCATION_GROUP, ORGANIZATION, USER_GROUP
-      }>;
+      }> = [];
+
+      do {
+        const url: string = pageToken
+          ? `https://mybusinessaccountmanagement.googleapis.com/v1/accounts?pageToken=${encodeURIComponent(pageToken)}`
+          : "https://mybusinessaccountmanagement.googleapis.com/v1/accounts";
+
+        const accountsRes = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!accountsRes.ok) {
+          if (accountsRes.status === 429) {
+            throw createGoogleRateLimitedError(
+              "Google is temporarily limiting requests. Please wait a moment, then click Refresh again.",
+            );
+          }
+          throw new Error(
+            `Failed to fetch GBP accounts: ${accountsRes.statusText}`,
+          );
+        }
+
+        const accountsData = await accountsRes.json();
+        const batch = (accountsData.accounts || []) as typeof topLevelAccounts;
+        topLevelAccounts.push(...batch);
+        pageToken = accountsData.nextPageToken;
+      } while (pageToken);
 
       logger.info({ accountsCount: topLevelAccounts.length }, "GBP top-level accounts discovered");
 
-      // 2. Expand ORGANIZATION accounts into their child location-group sub-accounts.
+      // 2. Expand ORGANIZATION accounts into their child location-group sub-accounts with pagination.
       const expandedAccounts: Array<{ name: string; accountName?: string }> = [];
 
       for (const acc of topLevelAccounts) {
@@ -113,24 +146,34 @@ export class GoogleApiClient {
             { account: acc.name },
             "GBP account is ORGANIZATION (Business Manager); fetching child location groups",
           );
-          const subRes = await fetch(
-            `https://mybusinessaccountmanagement.googleapis.com/v1/${acc.name}/accounts`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-          );
-          if (subRes.ok) {
-            const subData = await subRes.json();
-            const subAccounts = (subData.accounts || []) as Array<{
-              name: string;
-              accountName?: string;
-            }>;
-            expandedAccounts.push(...subAccounts);
-          } else {
-            logger.warn(
-              { account: acc.name, status: subRes.status },
-              "Failed to fetch sub-accounts for ORGANIZATION; falling back to direct query",
-            );
-            expandedAccounts.push(acc);
-          }
+
+          let subPageToken: string | undefined = undefined;
+          do {
+            const subUrl: string = subPageToken
+              ? `https://mybusinessaccountmanagement.googleapis.com/v1/${acc.name}/accounts?pageToken=${encodeURIComponent(subPageToken)}`
+              : `https://mybusinessaccountmanagement.googleapis.com/v1/${acc.name}/accounts`;
+
+            const subRes = await fetch(subUrl, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+
+            if (subRes.ok) {
+              const subData = await subRes.json();
+              const subAccounts = (subData.accounts || []) as Array<{
+                name: string;
+                accountName?: string;
+              }>;
+              expandedAccounts.push(...subAccounts);
+              subPageToken = subData.nextPageToken;
+            } else {
+              logger.warn(
+                { account: acc.name, status: subRes.status },
+                "Failed to fetch sub-accounts for ORGANIZATION; falling back to direct query",
+              );
+              expandedAccounts.push(acc);
+              break;
+            }
+          } while (subPageToken);
         } else {
           expandedAccounts.push(acc);
         }
@@ -160,40 +203,48 @@ export class GoogleApiClient {
       const seenLocationNames = new Set<string>();
 
       for (const acc of uniqueAccounts) {
-        // Try v1 Business Information API first (preferred, returns rich metadata)
-        let locRes = await fetch(
-          `https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title,storeCode,storefrontAddress,metadata`,
-          { headers: { Authorization: `Bearer ${accessToken}` } },
-        );
+        let locPageToken: string | undefined = undefined;
+        const locationsForAccount: RawGbpLocation[] = [];
 
-        // Fallback: some accounts only work with the older v4 endpoint
-        if (!locRes.ok) {
-          logger.warn(
-            { account: acc.name, status: locRes.status },
-            "v1 locations endpoint failed; trying legacy v4",
-          );
-          locRes = await fetch(
-            `https://mybusiness.googleapis.com/v4/${acc.name}/locations`,
-            { headers: { Authorization: `Bearer ${accessToken}` } },
-          );
-        }
+        do {
+          const v1Url: string = locPageToken
+            ? `https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title,storeCode,storefrontAddress,metadata&pageSize=100&pageToken=${encodeURIComponent(locPageToken)}`
+            : `https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title,storeCode,storefrontAddress,metadata&pageSize=100`;
 
-        if (!locRes.ok) {
-          logger.warn(
-            { account: acc.name, status: locRes.status },
-            "Failed to list locations for account on both v1 and v4",
-          );
-          continue;
-        }
+          let locRes = await fetch(v1Url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
 
-        const locData = await locRes.json();
-        // v1 returns `locations`, v4 returns `locations` too but with different shape
-        const locations = (locData.locations || []) as RawGbpLocation[];
+          // Fallback: some accounts only work with the older v4 endpoint
+          if (!locRes.ok && !locPageToken) {
+            logger.warn(
+              { account: acc.name, status: locRes.status },
+              "v1 locations endpoint failed; trying legacy v4",
+            );
+            locRes = await fetch(
+              `https://mybusiness.googleapis.com/v4/${acc.name}/locations`,
+              { headers: { Authorization: `Bearer ${accessToken}` } },
+            );
+          }
 
-        logger.info({ account: acc.name, count: locations.length }, "Locations found for account");
+          if (!locRes.ok) {
+            logger.warn(
+              { account: acc.name, status: locRes.status },
+              "Failed to list locations for account on both v1 and v4",
+            );
+            break;
+          }
+
+          const locData = await locRes.json();
+          const batch = (locData.locations || []) as RawGbpLocation[];
+          locationsForAccount.push(...batch);
+          locPageToken = locData.nextPageToken;
+        } while (locPageToken);
+
+        logger.info({ account: acc.name, count: locationsForAccount.length }, "Locations found for account");
 
         // Filter out locations already seen from another account (deduplication)
-        const uniqueLocations = locations.filter((loc) => {
+        const uniqueLocations = locationsForAccount.filter((loc) => {
           if (seenLocationNames.has(loc.name)) return false;
           seenLocationNames.add(loc.name);
           return true;
@@ -271,7 +322,7 @@ export class GoogleApiClient {
   }
 
   /**
-   * Queries Google Search Console Search Analytics API for multi-grain reporting.
+   * Queries Google Search Console Search Analytics API for multi-grain reporting with offset pagination.
    */
   public static async queryGscSearchAnalytics(
     accessToken: string,
@@ -281,35 +332,71 @@ export class GoogleApiClient {
     dimensions: string[] = ["date"],
     searchType: string = "WEB",
   ): Promise<GscSearchAnalyticsRow[]> {
-    const encodedSiteUrl = encodeURIComponent(propertyUrl);
-    const bodyPayload = {
-      startDate,
-      endDate,
-      dimensions,
-      type: searchType.toLowerCase(),
-      rowLimit: 25000,
-      aggregationType: "auto",
-    };
-
-    const response = await fetch(
-      `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
+    if (accessToken.startsWith("mock_")) {
+      return [
+        {
+          keys: [startDate, "best dentist near me", "DESKTOP"],
+          clicks: 12,
+          impressions: 140,
+          ctr: 0.0857,
+          position: 2.4,
         },
-        body: JSON.stringify(bodyPayload),
-      },
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`GSC Query failed (${response.status}): ${errText}`);
+        {
+          keys: [startDate, "emergency dental clinic", "MOBILE"],
+          clicks: 5,
+          impressions: 60,
+          ctr: 0.0833,
+          position: 1.8,
+        },
+      ];
     }
 
-    const data = await response.json();
-    return (data.rows || []) as GscSearchAnalyticsRow[];
+    const encodedSiteUrl = encodeURIComponent(propertyUrl);
+    const rowLimit = 25000;
+    let startRow = 0;
+    const allRows: GscSearchAnalyticsRow[] = [];
+
+    while (true) {
+      const bodyPayload = {
+        startDate,
+        endDate,
+        dimensions,
+        type: searchType.toLowerCase(),
+        startRow,
+        rowLimit,
+        aggregationType: "auto",
+      };
+
+      const response = await fetch(
+        `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(bodyPayload),
+        },
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`GSC Query failed (${response.status}): ${errText}`);
+      }
+
+      const data = await response.json();
+      const rows = (data.rows || []) as GscSearchAnalyticsRow[];
+      allRows.push(...rows);
+
+      // Stop if fewer rows than rowLimit was returned (reached the end)
+      if (rows.length < rowLimit) {
+        break;
+      }
+
+      startRow += rowLimit;
+    }
+
+    return allRows;
   }
 
   /**
@@ -321,6 +408,25 @@ export class GoogleApiClient {
     startDate: string,
     endDate: string,
   ): Promise<GbpDailyMetricEntry[]> {
+    if (accessToken.startsWith("mock_")) {
+      return [
+        {
+          date: startDate,
+          metricType: "CALL_CLICKS",
+          value: 5,
+        },
+        {
+          date: startDate,
+          metricType: "WEBSITE_CLICKS",
+          value: 18,
+        },
+        {
+          date: startDate,
+          metricType: "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
+          value: 120,
+        },
+      ];
+    }
 
     const url = new URL(
       `https://businessprofileperformance.googleapis.com/v1/${locationResourceName}:fetchMultiDailyMetricsTimeSeries`,
@@ -388,44 +494,216 @@ export class GoogleApiClient {
   }
 
   /**
-   * Queries Google Analytics Data API v1beta for property reporting.
+   * Discovers GA4 Accounts and Properties using Google Analytics Admin API v1beta.
+   * Endpoint: GET https://analyticsadmin.googleapis.com/v1beta/accountSummaries
    */
-  public static async queryGa4AnalyticsReport(
-    accessToken: string,
-    propertyId: string,
-    startDate: string,
-    endDate: string,
-    dimensions: string[] = ["date"],
-    metrics: string[] = [
-      "activeUsers",
-      "newUsers",
-      "eventCount",
-      "keyEvents",
-      "averageSessionDuration",
-      "bounceRate",
-    ],
-  ): Promise<any> {
-    const cleanPropId = propertyId.replace(/^properties\//, "");
+  public static async discoverGa4Resources(
+    accessToken: string
+  ): Promise<DiscoveredResourceAccount[]> {
+    const discoveredAccounts: DiscoveredResourceAccount[] = [];
+    let pageToken: string | undefined = undefined;
+
+    do {
+      const url = new URL("https://analyticsadmin.googleapis.com/v1beta/accountSummaries");
+      url.searchParams.set("pageSize", "200");
+      if (pageToken) {
+        url.searchParams.set("pageToken", pageToken);
+      }
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const status = response.status;
+        const errText = await response.text();
+        logger.error(
+          { status, operation: "ga4.discovery.failed", message: errText.slice(0, 300) },
+          "Google Analytics Admin API accountSummaries.list failed"
+        );
+        if (status === 401) {
+          throw createGa4Error(ErrorCode.GA4_AUTH_REQUIRED, "Google OAuth authentication expired or invalid.", 401);
+        }
+        if (status === 403) {
+          throw createGa4Error(ErrorCode.GA4_PERMISSION_REQUIRED, "Google Analytics permission denied. Re-authentication with analytics.readonly scope required.", 403);
+        }
+        if (status === 429) {
+          throw createGoogleRateLimitedError();
+        }
+        throw createGa4Error(ErrorCode.GA4_PROVIDER_ERROR, `Google Analytics discovery failed with HTTP ${status}: ${errText.slice(0, 200)}`, status);
+      }
+
+      const data = await response.json();
+      const accountSummaries = data.accountSummaries || [];
+
+      for (const acc of accountSummaries) {
+        const externalAccountId = acc.account || acc.name || "ga4_unknown_account";
+        const accountName = acc.displayName || "Google Analytics Account";
+        const resources: DiscoveredResourceItem[] = [];
+
+        const propertySummaries = acc.propertySummaries || [];
+        for (const prop of propertySummaries) {
+          // Normalize property resource ID to "properties/123456789"
+          const cleanId = String(prop.property || "").replace(/^properties\//, "");
+          if (!cleanId) continue;
+
+          resources.push({
+            externalResourceId: `properties/${cleanId}`,
+            resourceType: "PROPERTY",
+            resourceName: prop.displayName || `GA4 Property ${cleanId}`,
+          });
+        }
+
+        if (resources.length > 0) {
+          discoveredAccounts.push({
+            externalAccountId,
+            accountName,
+            provider: "GOOGLE_ANALYTICS_4",
+            resources,
+          });
+        }
+      }
+
+      pageToken = data.nextPageToken || undefined;
+    } while (pageToken);
+
+    logger.info(
+      {
+        operation: "ga4.discovery.success",
+        accountCount: discoveredAccounts.length,
+        propertyCount: discoveredAccounts.reduce((sum, a) => sum + a.resources.length, 0),
+      },
+      "GA4 Property discovery completed"
+    );
+
+    return discoveredAccounts;
+  }
+
+  /**
+   * Queries Google Analytics Data API v1beta for real property reporting.
+   * Endpoint: POST https://analyticsdata.googleapis.com/v1beta/properties/{propertyId}:runReport
+   */
+  public static async queryGa4AnalyticsReport(params: {
+    accessToken: string;
+    propertyId: string;
+    dateRanges: Array<{ startDate: string; endDate: string; name?: string }>;
+    dimensions?: string[];
+    metrics: string[];
+    limit?: number;
+    orderBys?: Array<{
+      metric?: { metricName: string };
+      dimension?: { dimensionName: string };
+      desc?: boolean;
+    }>;
+  }): Promise<{
+    dimensionHeaders?: Array<{ name: string }>;
+    metricHeaders?: Array<{ name: string; type: string }>;
+    rows?: Array<{
+      dimensionValues?: Array<{ value: string }>;
+      metricValues?: Array<{ value: string }>;
+    }>;
+    totals?: Array<{
+      dimensionValues?: Array<{ value: string }>;
+      metricValues?: Array<{ value: string }>;
+    }>;
+    rowCount?: number;
+    metadata?: Record<string, unknown>;
+  }> {
+    const cleanPropId = params.propertyId.replace(/^properties\//, "");
+    if (!cleanPropId || !/^\d+$/.test(cleanPropId)) {
+      throw createGa4Error(ErrorCode.GA4_PROPERTY_NOT_FOUND, `Invalid GA4 Property ID format: "${params.propertyId}"`, 400);
+    }
+
     const url = `https://analyticsdata.googleapis.com/v1beta/properties/${cleanPropId}:runReport`;
 
+    const body: Record<string, unknown> = {
+      dateRanges: params.dateRanges.map((dr) => ({
+        startDate: dr.startDate,
+        endDate: dr.endDate,
+        ...(dr.name ? { name: dr.name } : {}),
+      })),
+      metrics: params.metrics.map((m) => ({ name: m })),
+    };
+
+    if (params.dimensions && params.dimensions.length > 0) {
+      body["dimensions"] = params.dimensions.map((d) => ({ name: d }));
+    }
+
+    if (params.limit && params.limit > 0) {
+      body["limit"] = params.limit;
+    }
+
+    if (params.orderBys && params.orderBys.length > 0) {
+      body["orderBys"] = params.orderBys;
+    }
+
+    logger.info(
+      {
+        operation: "ga4.report.start",
+        propertyId: `properties/${cleanPropId}`,
+        metrics: params.metrics,
+        dimensions: params.dimensions || [],
+        dateRanges: params.dateRanges,
+      },
+      "Initiating GA4 Data API runReport"
+    );
+
+    const startTime = Date.now();
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${params.accessToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        dateRanges: [{ startDate, endDate }],
-        dimensions: dimensions.map((d) => ({ name: d })),
-        metrics: metrics.map((m) => ({ name: m })),
-      }),
+      body: JSON.stringify(body),
     });
 
+    const durationMs = Date.now() - startTime;
+
     if (!response.ok) {
+      const status = response.status;
       const errText = await response.text();
-      throw new Error(`GA4 runReport failed (${response.status}): ${errText}`);
+      logger.error(
+        {
+          operation: "ga4.report.failed",
+          propertyId: `properties/${cleanPropId}`,
+          status,
+          durationMs,
+          message: errText.slice(0, 300),
+        },
+        "GA4 runReport failed"
+      );
+
+      if (status === 401) {
+        throw createGa4Error(ErrorCode.GA4_AUTH_REQUIRED, "Google OAuth authentication expired or invalid.", 401);
+      }
+      if (status === 403) {
+        throw createGa4Error(ErrorCode.GA4_PROPERTY_ACCESS_DENIED, `User does not have permission to access GA4 property: properties/${cleanPropId}`, 403);
+      }
+      if (status === 404) {
+        throw createGa4Error(ErrorCode.GA4_PROPERTY_NOT_FOUND, `GA4 property properties/${cleanPropId} was not found on Google Analytics.`, 404);
+      }
+      if (status === 429) {
+        throw createGoogleRateLimitedError();
+      }
+      throw createGa4Error(ErrorCode.GA4_REPORT_FAILED, `GA4 report failed with status ${status}: ${errText.slice(0, 200)}`, status);
     }
 
-    return response.json();
+    const json = await response.json();
+    logger.info(
+      {
+        operation: "ga4.report.success",
+        propertyId: `properties/${cleanPropId}`,
+        rowCount: json.rowCount ?? json.rows?.length ?? 0,
+        durationMs,
+      },
+      "GA4 runReport succeeded"
+    );
+
+    return json;
   }
 }

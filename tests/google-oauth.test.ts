@@ -116,4 +116,69 @@ describe('Google OAuth 2.0 State Security & Token Management', () => {
       })
     ).toThrow();
   });
+
+  it('enforces one-time nonce consumption for replay protection', async () => {
+    const stateToken = GoogleOAuthService.generateState(tenantId, userId);
+    const decoded = GoogleOAuthService.verifyState(stateToken);
+
+    // First consumption succeeds
+    const firstConsume = await GoogleOAuthService.consumeNonce(decoded.nonce);
+    expect(firstConsume).toBe(true);
+
+    // Replay consumption fails
+    const secondConsume = await GoogleOAuthService.consumeNonce(decoded.nonce);
+    expect(secondConsume).toBe(false);
+  });
+
+  it('binds browser session hash and detects session mismatch', () => {
+    const sessionTokenA = 'session_token_alpha_1234567890';
+    const sessionTokenB = 'session_token_bravo_0987654321';
+
+    const stateToken = GoogleOAuthService.generateState(
+      tenantId,
+      userId,
+      '/client/abc/integrations',
+      sessionTokenA
+    );
+
+    // Verifying with correct session token succeeds
+    const decoded = GoogleOAuthService.verifyState(stateToken, sessionTokenA);
+    expect(decoded.sessionHash).toBeDefined();
+
+    // Verifying with different session token throws session mismatch
+    expect(() =>
+      GoogleOAuthService.verifyState(stateToken, sessionTokenB)
+    ).toThrow(/session/i);
+  });
+
+  it('deduplicates concurrent access token refreshes using single-flight mutex', async () => {
+    GoogleOAuthService.clearCacheForTest();
+
+    const connectionId = 'conn_singleflight_test';
+    const envelope = CryptoEnvelopeService.encrypt({
+      plaintext: '1//refresh_token_test',
+      tenantId,
+      connectionId,
+    });
+    const envelopeJson = JSON.stringify(envelope);
+
+    // Fire 5 concurrent refresh requests
+    const promises = Array.from({ length: 5 }).map(() =>
+      GoogleOAuthService.refreshAccessToken(envelopeJson, tenantId, connectionId)
+    );
+
+    const results = await Promise.all(promises);
+
+    // All results must be identical
+    expect(results).toHaveLength(5);
+    const firstToken = results[0];
+    for (const token of results) {
+      expect(token).toBe(firstToken);
+    }
+
+    // Subsequent call without forceRefresh returns cached token
+    const cachedToken = await GoogleOAuthService.refreshAccessToken(envelopeJson, tenantId, connectionId);
+    expect(cachedToken).toBe(firstToken);
+  });
 });
+

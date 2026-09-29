@@ -10,6 +10,7 @@ export const SYNC_QUEUE_NAME = 'localbi-sync-queue';
 export interface GscSyncJobData {
   type: 'GSC_SYNC';
   tenantId: string;
+  connectionId?: string | undefined;
   propertyId: string; // GscProperty id
   propertyUrl: string;
   startDate: string;
@@ -21,6 +22,7 @@ export interface GscSyncJobData {
 export interface GbpSyncJobData {
   type: 'GBP_SYNC';
   tenantId: string;
+  connectionId?: string | undefined;
   locationId: string;
   locationResourceName: string; // e.g. locations/293847192837
   startDate: string;
@@ -31,6 +33,7 @@ export interface GbpSyncJobData {
 export interface GbpReviewSyncJobData {
   type: 'GBP_REVIEW_SYNC';
   tenantId: string;
+  connectionId?: string | undefined;
   locationId: string;
   locationResourceName: string;
   accountId: string; // Needed for v4 GBP API
@@ -82,16 +85,28 @@ export class SyncQueueService {
    */
   public static async scheduleGscSync(params: {
     tenantId: string;
+    connectionId?: string | undefined;
     propertyId: string;
     propertyUrl: string;
     startDate: string;
     endDate: string;
-    searchType?: string;
+    searchType?: string | undefined;
   }) {
     const queue = getSyncQueue();
     const searchType = params.searchType || 'WEB';
     const businessKey = `${params.tenantId}:gsc:${params.propertyId}:${params.startDate}:${params.endDate}:${searchType}`;
     const { jobId } = this.generateJobId('gsc-sync', businessKey);
+
+    let resolvedConnectionId = params.connectionId;
+    if (!resolvedConnectionId) {
+      const activeConn = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+        return tx.integrationConnection.findFirst({
+          where: { tenantId: params.tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+      });
+      resolvedConnectionId = activeConn?.id;
+    }
 
     // Register SyncRun record in database
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
@@ -124,6 +139,7 @@ export class SyncQueueService {
       {
         type: 'GSC_SYNC',
         tenantId: params.tenantId,
+        connectionId: resolvedConnectionId,
         propertyId: params.propertyId,
         propertyUrl: params.propertyUrl,
         startDate: params.startDate,
@@ -134,7 +150,7 @@ export class SyncQueueService {
       { jobId }
     );
 
-    logger.info({ jobId, businessKey }, 'Enqueued GSC synchronization job');
+    logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GSC synchronization job');
     return { jobId, businessKey, id: job.id };
   }
 
@@ -143,6 +159,7 @@ export class SyncQueueService {
    */
   public static async scheduleGbpSync(params: {
     tenantId: string;
+    connectionId?: string | undefined;
     locationId: string;
     locationResourceName: string;
     startDate: string;
@@ -151,6 +168,17 @@ export class SyncQueueService {
     const queue = getSyncQueue();
     const businessKey = `${params.tenantId}:gbp:${params.locationId}:${params.startDate}:${params.endDate}`;
     const { jobId } = this.generateJobId('gbp-sync', businessKey);
+
+    let resolvedConnectionId = params.connectionId;
+    if (!resolvedConnectionId) {
+      const activeConn = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+        return tx.integrationConnection.findFirst({
+          where: { tenantId: params.tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+      });
+      resolvedConnectionId = activeConn?.id;
+    }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
       await tx.syncRun.upsert({
@@ -182,6 +210,7 @@ export class SyncQueueService {
       {
         type: 'GBP_SYNC',
         tenantId: params.tenantId,
+        connectionId: resolvedConnectionId,
         locationId: params.locationId,
         locationResourceName: params.locationResourceName,
         startDate: params.startDate,
@@ -191,7 +220,7 @@ export class SyncQueueService {
       { jobId }
     );
 
-    logger.info({ jobId, businessKey }, 'Enqueued GBP synchronization job');
+    logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GBP synchronization job');
     return { jobId, businessKey, id: job.id };
   }
 
@@ -200,6 +229,7 @@ export class SyncQueueService {
    */
   public static async scheduleGbpReviewSync(params: {
     tenantId: string;
+    connectionId?: string | undefined;
     locationId: string;
     locationResourceName: string;
     accountId: string;
@@ -207,6 +237,17 @@ export class SyncQueueService {
     const queue = getSyncQueue();
     const businessKey = `${params.tenantId}:gbp_reviews:${params.locationId}`;
     const { jobId } = this.generateJobId('gbp-review-sync', businessKey);
+
+    let resolvedConnectionId = params.connectionId;
+    if (!resolvedConnectionId) {
+      const activeConn = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+        return tx.integrationConnection.findFirst({
+          where: { tenantId: params.tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+      });
+      resolvedConnectionId = activeConn?.id;
+    }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
       await tx.syncRun.upsert({
@@ -238,6 +279,7 @@ export class SyncQueueService {
       {
         type: 'GBP_REVIEW_SYNC',
         tenantId: params.tenantId,
+        connectionId: resolvedConnectionId,
         locationId: params.locationId,
         locationResourceName: params.locationResourceName,
         accountId: params.accountId,
@@ -246,7 +288,7 @@ export class SyncQueueService {
       { jobId }
     );
 
-    logger.info({ jobId, businessKey }, 'Enqueued GBP Review synchronization job');
+    logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GBP Review synchronization job');
     return { jobId, businessKey, id: job.id };
   }
 
@@ -254,7 +296,7 @@ export class SyncQueueService {
    * Enqueues initial or manual synchronization for all mapped resources of a tenant.
    */
   public static async scheduleTenantFullSync(tenantId: string) {
-    const { properties, locations, accounts } = await TenantContextService.withTenantContext(
+    const { properties, locations, accounts, activeConnection } = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
       async (tx) => {
@@ -271,7 +313,12 @@ export class SyncQueueService {
           where: { tenantId },
         });
 
-        return { properties: props, locations: locMappings, accounts: extAccounts };
+        const conn = await tx.integrationConnection.findFirst({
+          where: { tenantId, status: 'ACTIVE' },
+          select: { id: true },
+        });
+
+        return { properties: props, locations: locMappings, accounts: extAccounts, activeConnection: conn };
       }
     );
 
@@ -288,6 +335,7 @@ export class SyncQueueService {
     for (const prop of properties) {
       const scheduled = await this.scheduleGscSync({
         tenantId,
+        connectionId: activeConnection?.id,
         propertyId: prop.id,
         propertyUrl: prop.propertyUrl,
         startDate,
@@ -302,6 +350,7 @@ export class SyncQueueService {
       if (enableGbpSync) {
         const scheduled = await this.scheduleGbpSync({
           tenantId,
+          connectionId: activeConnection?.id,
           locationId: mapping.internalId,
           locationResourceName: mapping.resource.externalResourceId,
           startDate,
@@ -315,6 +364,7 @@ export class SyncQueueService {
       if (account) {
         const scheduledReviews = await this.scheduleGbpReviewSync({
           tenantId,
+          connectionId: activeConnection?.id,
           locationId: mapping.internalId,
           locationResourceName: mapping.resource.externalResourceId,
           accountId: account.externalAccountId.replace('accounts/', ''),

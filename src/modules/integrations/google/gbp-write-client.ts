@@ -297,17 +297,32 @@ export class GbpWriteClient {
   public static async listMedia(
     accessToken: string,
     accountId: string,
-    locationId: string
+    locationId: string,
+    pageSize = 100
   ): Promise<any> {
-    const url = `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media`;
-    const response = await this.executeWithBackoff(
-      () =>
-        fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
-      'listMedia'
-    );
-    return this.handleResponse(response, 'listMedia');
+    let pageToken: string | undefined = undefined;
+    const allMedia: any[] = [];
+
+    do {
+      const url: string = pageToken
+        ? `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media?pageSize=${pageSize}&pageToken=${encodeURIComponent(pageToken)}`
+        : `https://mybusiness.googleapis.com/v4/accounts/${accountId}/locations/${locationId}/media?pageSize=${pageSize}`;
+
+      const response = await this.executeWithBackoff(
+        () =>
+          fetch(url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }),
+        'listMedia'
+      );
+      const data = await this.handleResponse<any>(response, 'listMedia');
+      if (Array.isArray(data.mediaItems)) {
+        allMedia.push(...data.mediaItems);
+      }
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return { mediaItems: allMedia };
   }
 
   public static async createMedia(

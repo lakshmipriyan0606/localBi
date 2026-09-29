@@ -827,42 +827,6 @@ export class ReportingService {
 
 
       if (dimension === 'search-keywords') {
-        // Real Client: Query actual search queries mapped to this brand
-        if (propertyIds.length > 0) {
-          const queryMetrics = await tx.gscDailyQueryMetric.findMany({
-            where: {
-              tenantId,
-              propertyId: { in: propertyIds },
-              date: { gte: start, lte: end },
-              ...(search ? { query: { queryText: { contains: search, mode: 'insensitive' } } } : {}),
-            },
-            include: { query: true },
-          });
-
-          const keywordMap = new Map<string, number>();
-          for (const q of queryMetrics) {
-            const kw = q.query.queryText;
-            keywordMap.set(kw, (keywordMap.get(kw) || 0) + q.impressions);
-          }
-
-          const currentMonthStr = `${startDate.slice(0, 7)}`;
-          const items: GbpSearchKeywordRow[] = Array.from(keywordMap.entries()).map(([keyword, impressions]) => {
-            const isThreshold = impressions < 15;
-            return {
-              keyword,
-              month: currentMonthStr,
-              impressions,
-              impressionsText: isThreshold ? '< 15' : String(impressions),
-              isThreshold,
-            };
-          });
-
-          items.sort((a, b) => b.impressions - a.impressions);
-          const totalCount = items.length;
-          const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
-          return { items: paginatedItems, totalCount, page, pageSize };
-        }
-
         return { items: [], totalCount: 0, page, pageSize };
       }
 

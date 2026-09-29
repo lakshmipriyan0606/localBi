@@ -5,7 +5,6 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
-import { handleRouteError } from '@/shared/errors';
 import { getGA4Client } from '@/shared/lib/google-auth';
 
 export async function POST(

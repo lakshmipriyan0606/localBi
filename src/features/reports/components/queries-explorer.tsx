@@ -111,7 +111,12 @@ export function QueriesExplorer({
       key: "intent",
       header: "Intent",
       render: (row) => {
-        const isBranded = row.queryText.toLowerCase().includes('lakshmi');
+        const currentBrandName = brands.find((b) => b.id === selectedBrandId)?.name || tenantName;
+        const brandTokens = (currentBrandName || "").toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+        const qText = row.queryText.toLowerCase();
+        const isBranded = brandTokens.length > 0
+          ? brandTokens.some((tok) => qText.includes(tok))
+          : false;
         return (
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${isBranded ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
             {isBranded ? 'Branded' : 'Discovery'}

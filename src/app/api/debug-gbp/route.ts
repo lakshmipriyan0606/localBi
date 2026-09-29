@@ -9,7 +9,7 @@ export async function GET() {
     const tenant = await prisma.tenant.findUnique({ where: { slug: 'lakshmi-food' } });
     if (!tenant) return NextResponse.json({ 
       error: 'Tenant lakshmi-food not found in DB!', 
-      databaseUrl: process.env.DATABASE_URL 
+      databaseUrl: process.env['DATABASE_URL'] 
     });
 
     // Find first mapped location
@@ -46,6 +46,9 @@ export async function GET() {
     }
 
     const mapping = locMappings[0];
+    if (!mapping) {
+      return NextResponse.json({ error: 'No location mapping found' });
+    }
 
     // Find Google connection
     const allConnections = await prisma.integrationConnection.findMany({ where: { tenantId: tenant.id } });

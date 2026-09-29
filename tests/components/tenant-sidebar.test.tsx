@@ -12,6 +12,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe('TenantSidebar Component', () => {

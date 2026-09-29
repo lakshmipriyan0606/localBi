@@ -45,6 +45,7 @@ export interface IntegrationsManagerProps {
       id: string;
       provider: string;
       externalEmail: string;
+      grantedScopes?: string[] | undefined;
       createdAt: string;
       lastUsedAt: string | null;
     }>;
@@ -152,7 +153,14 @@ export function IntegrationsManager({
   }
 
   const gscResources = deduplicateResources(
-    initialState.externalResources.filter((r) => r.resourceType === "PROPERTY")
+    initialState.externalResources.filter(
+      (r) => r.resourceType === "PROPERTY" && r.provider === "GOOGLE_SEARCH_CONSOLE"
+    )
+  );
+  const ga4Resources = deduplicateResources(
+    initialState.externalResources.filter(
+      (r) => r.provider === "GOOGLE_ANALYTICS_4"
+    )
   );
   const gbpResources = deduplicateResources(
     initialState.externalResources.filter((r) => r.resourceType === "LOCATION")
@@ -162,23 +170,42 @@ export function IntegrationsManager({
   // Mapped vs Unmapped tracking
   const mappedGscResourceIds = new Set([
     ...virtualMappings
-      .filter((m) => m.internalType === "BRAND")
-      .map((m) => m.resourceId)
+      .filter((m) => {
+        const res = initialState.externalResources.find((r) => r.id === m.resourceId);
+        return res?.provider === "GOOGLE_SEARCH_CONSOLE" && m.internalType === "BRAND";
+      })
+      .map((m) => m.resourceId),
+  ]);
+
+  const mappedGa4ResourceIds = new Set([
+    ...virtualMappings
+      .filter((m) => {
+        const res = initialState.externalResources.find((r) => r.id === m.resourceId);
+        return res?.provider === "GOOGLE_ANALYTICS_4";
+      })
+      .map((m) => m.resourceId),
   ]);
 
   const mappedGbpResourceIds = new Set([
     ...virtualMappings
       .filter((m) => m.internalType === "LOCATION")
-      .map((m) => m.resourceId)
+      .map((m) => m.resourceId),
   ]);
 
   const mappedGscCount = gscResources.filter((r) =>
     mappedGscResourceIds.has(r.id),
   ).length;
+  const mappedGa4Count = ga4Resources.filter((r) =>
+    mappedGa4ResourceIds.has(r.id),
+  ).length;
   const mappedGbpCount = gbpResources.filter((r) =>
     mappedGbpResourceIds.has(r.id),
   ).length;
   const totalMappingsCount = virtualMappings.length;
+
+  const hasGa4Scope = activeConnection?.grantedScopes
+    ? activeConnection.grantedScopes.some((s) => s.includes("analytics"))
+    : false;
 
   // Handler: Initiate Google OAuth
   const handleConnect = async () => {
@@ -260,6 +287,36 @@ export function IntegrationsManager({
       router.refresh();
     } catch (err: unknown) {
       notify.error((err as Error).message || "Failed to connect website");
+    } finally {
+      setMappingInProgressId(null);
+    }
+  };
+
+  // Handler: Map a single GA4 property to a Brand
+  const handleMapGa4 = async (externalResourceId: string) => {
+    const brandId =
+      pendingBrandSelections[externalResourceId] || initialState.brands[0]?.id;
+    if (!brandId) {
+      notify.warning("Please select a brand to connect this GA4 property to.");
+      return;
+    }
+    setMappingInProgressId(externalResourceId);
+    try {
+      await browserClient.post(
+        `/tenants/${tenantSlug}/integrations/google/mappings`,
+        {
+          type: "GA4_PROPERTY",
+          internalType: "BRAND",
+          internalId: brandId,
+          externalResourceId,
+        },
+      );
+      notify.success(
+        "Google Analytics 4 property connected successfully! Live GA4 reports are now active.",
+      );
+      router.refresh();
+    } catch (err: unknown) {
+      notify.error((err as Error).message || "Failed to connect GA4 property");
     } finally {
       setMappingInProgressId(null);
     }
@@ -1004,6 +1061,169 @@ export function IntegrationsManager({
                       </div>
                     )}
 
+                  </div>
+                )}
+              </div>
+
+              {/* ---------------------------------------------------------------- */}
+              {/* 1b. GOOGLE ANALYTICS 4 (PROPERTIES)                             */}
+              {/* ---------------------------------------------------------------- */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Google Analytics 4 (Properties)
+                    </h3>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">
+                    {mappedGa4Count} of {ga4Resources.length} Linked
+                  </span>
+                </div>
+
+                {!isStep1Complete ? (
+                  <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs">
+                    <p className="font-bold flex items-center gap-2">
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Action Required: Complete Step 1
+                    </p>
+                    <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                      Connect your Google account with Analytics read permissions before linking GA4 properties.
+                    </p>
+                  </div>
+                ) : !hasGa4Scope ? (
+                  <div className="p-4 text-sm text-left text-amber-800 bg-amber-50 rounded-xl border border-amber-200 shadow-xs">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-bold flex items-center gap-2">
+                          <svg className="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          Google Analytics Permission Required
+                        </p>
+                        <p className="mt-1 ml-7 opacity-90 text-xs leading-relaxed">
+                          Your connected Google account ({activeConnection?.externalEmail}) does not currently have Google Analytics permissions granted. Please reconnect your account to authorize GA4.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={handleConnect}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs gap-1.5 flex-shrink-0"
+                      >
+                        Authorize Analytics
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {ga4Resources.length === 0 ? (
+                      <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200/70 space-y-1.5">
+                        <p className="font-bold text-slate-800">
+                          No Google Analytics 4 properties found
+                        </p>
+                        <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                          Ensure your Google account ({activeConnection?.externalEmail}) has Viewer or Editor access to a GA4 property, then click Refresh above.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {ga4Resources.map((res) => {
+                          const activeMapping = virtualMappings.find(
+                            (m) => m.resourceId === res.id
+                          );
+                          const mappedBrand = initialState.brands.find(
+                            (b) => b.id === activeMapping?.internalId
+                          );
+                          const isMapped = Boolean(activeMapping);
+                          const isProcessing =
+                            mappingInProgressId === res.id ||
+                            unmappingInProgressId === activeMapping?.id;
+
+                          return (
+                            <div
+                              key={res.id}
+                              className={cn(
+                                "p-3.5 rounded-xl border transition-all",
+                                isMapped
+                                  ? "bg-emerald-50/50 border-emerald-200 text-slate-900 shadow-2xs"
+                                  : "bg-amber-50/50 border-amber-200 text-slate-900 shadow-2xs"
+                              )}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    {isMapped ? (
+                                      <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                                        ✓ Connected to GA4
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 uppercase">
+                                        ⚠️ Ready to Connect
+                                      </span>
+                                    )}
+                                    <span className="text-xs font-bold text-slate-900 truncate">
+                                      {res.resourceName}
+                                    </span>
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 font-mono truncate">
+                                    {res.externalResourceId}
+                                  </div>
+                                  {isMapped && mappedBrand && (
+                                    <div className="text-xs text-slate-700 font-medium pt-1">
+                                      Linked to Brand: <strong className="text-slate-900 font-bold">{mappedBrand.name}</strong>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {isMapped && activeMapping && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleUnmap(activeMapping.id)}
+                                    disabled={isProcessing || !canManage}
+                                    className="text-xs text-slate-600 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 flex-shrink-0 cursor-pointer shadow-2xs"
+                                  >
+                                    <Unlink className="h-3 w-3 mr-1" />
+                                    Unlink
+                                  </Button>
+                                )}
+                              </div>
+
+                              {!isMapped && (
+                                <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-2">
+                                  <NiceSelect
+                                    label="BRAND:"
+                                    icon={<Tag className="w-3.5 h-3.5" />}
+                                    options={initialState.brands.map((b) => ({ id: b.id, name: b.name }))}
+                                    value={pendingBrandSelections[res.id] || initialState.brands[0]?.id || ""}
+                                    onChange={(val) =>
+                                      setPendingBrandSelections((prev) => ({
+                                        ...prev,
+                                        [res.id]: val,
+                                      }))
+                                    }
+                                    placeholder="Select Brand"
+                                  />
+
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleMapGa4(res.id)}
+                                    disabled={isProcessing || !canManage}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
+                                  >
+                                    {isProcessing && mappingInProgressId === res.id
+                                      ? "Connecting…"
+                                      : "Connect GA4"}
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

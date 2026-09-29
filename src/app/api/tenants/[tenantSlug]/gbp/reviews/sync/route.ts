@@ -81,9 +81,11 @@ export async function POST(
               const res = await GbpReviewSyncJob.execute(accessToken, {
                 type: 'GBP_REVIEW_SYNC',
                 tenantId: tenant.id,
+                connectionId: connection.id,
                 locationId: mapping.internalId,
                 accountId: cleanAccountId,
-                locationResourceName: mapping.resource.externalResourceId
+                locationResourceName: mapping.resource.externalResourceId,
+                businessKey: `${tenant.id}:gbp_reviews:${mapping.internalId}`,
               });
               totalProcessed += res.processed;
               googleResponseDetails = res;

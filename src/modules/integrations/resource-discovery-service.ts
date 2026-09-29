@@ -58,8 +58,31 @@ export class ResourceDiscoveryService {
       logger.warn({ err }, "Failed to discover GSC resources");
     }
 
-    if (gbpAccounts.length === 0 && gscSites.length === 0) {
-      logger.info({ tenantId, connectionId }, "No resources discovered from either GBP or GSC");
+    // 4b. Discover GA4 Properties (if connection has Google Analytics scope)
+    let ga4Accounts: DiscoveredResourceAccount[] = [];
+    const hasGa4Scope = GoogleOAuthService.hasAnalyticsScope(connection.grantedScopes);
+    if (hasGa4Scope) {
+      try {
+        logger.info({ tenantId, connectionId }, '[Discovery] Starting GA4 property discovery');
+        ga4Accounts = await GoogleApiClient.discoverGa4Resources(accessToken);
+        logger.info({
+          tenantId,
+          connectionId,
+          ga4AccountsCount: ga4Accounts.length,
+          ga4PropertiesCount: ga4Accounts.reduce((sum, a) => sum + a.resources.length, 0),
+        }, '[Discovery] GA4 discovery completed');
+      } catch (err: unknown) {
+        logger.warn({ err, tenantId, connectionId }, '[Discovery] Failed to discover GA4 resources, continuing');
+      }
+    } else {
+      logger.info(
+        { tenantId, connectionId, grantedScopes: connection.grantedScopes },
+        '[Discovery] Skipping GA4 property discovery - connection lacks analytics.readonly scope'
+      );
+    }
+
+    if (gbpAccounts.length === 0 && gscSites.length === 0 && ga4Accounts.length === 0) {
+      logger.info({ tenantId, connectionId }, "No resources discovered from GBP, GSC, or GA4");
     }
 
     // 5. Persist into tenant data plane in a single transaction
@@ -200,9 +223,83 @@ export class ResourceDiscoveryService {
           });
         }
       }
+
+      // Persist GA4 Accounts and Properties
+      for (const acc of ga4Accounts) {
+        const ga4Account = await tx.externalAccount.upsert({
+          where: {
+            uq_external_account_provider_id: {
+              tenantId,
+              provider: 'GOOGLE_ANALYTICS_4',
+              externalAccountId: acc.externalAccountId,
+            },
+          },
+          create: {
+            tenantId,
+            connectionId: connection.id,
+            provider: 'GOOGLE_ANALYTICS_4',
+            externalAccountId: acc.externalAccountId,
+            accountName: acc.accountName,
+          },
+          update: {
+            connectionId: connection.id,
+            accountName: acc.accountName,
+          },
+        });
+
+        for (const prop of acc.resources) {
+          const resource = await tx.externalResource.upsert({
+            where: {
+              uq_external_resource_provider_id: {
+                tenantId,
+                provider: 'GOOGLE_ANALYTICS_4',
+                externalResourceId: prop.externalResourceId,
+              },
+            },
+            create: {
+              tenantId,
+              accountId: ga4Account.id,
+              provider: 'GOOGLE_ANALYTICS_4',
+              externalResourceId: prop.externalResourceId,
+              resourceType: prop.resourceType,
+              resourceName: prop.resourceName,
+            },
+            update: {
+              accountId: ga4Account.id,
+              resourceName: prop.resourceName,
+            },
+          });
+
+          await tx.connectionResourceAccess.upsert({
+            where: {
+              uq_connection_resource_access: {
+                tenantId,
+                connectionId: connection.id,
+                resourceId: resource.id,
+              },
+            },
+            create: {
+              tenantId,
+              connectionId: connection.id,
+              resourceId: resource.id,
+              canAccess: true,
+              lastVerifiedAt: new Date(),
+            },
+            update: {
+              canAccess: true,
+              lastVerifiedAt: new Date(),
+            },
+          });
+        }
+      }
     });
 
-    logger.info({ tenantId, connectionId }, 'Resource discovery completed successfully');
+    const ga4PropsCount = ga4Accounts.reduce(
+      (sum: number, a: DiscoveredResourceAccount) => sum + a.resources.length,
+      0
+    );
+
+    logger.info({ tenantId, connectionId, ga4PropsCount }, 'Resource discovery completed successfully');
     return {
       gbpAccountsCount: gbpAccounts.length,
       gbpLocationsCount: gbpAccounts.reduce(
@@ -210,6 +307,7 @@ export class ResourceDiscoveryService {
         0
       ),
       gscPropertiesCount: gscSites.length,
+      ga4PropertiesCount: ga4PropsCount,
     };
   }
 }

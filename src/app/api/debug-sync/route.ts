@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { SyncWorkerService } from '@/modules/sync/sync-worker';
 import { prisma } from '@/shared/database/client';
 import { SyncQueueService } from '@/modules/sync/sync-queue';
 
@@ -19,6 +18,7 @@ export async function GET() {
     if (!account) return NextResponse.json({ error: 'no account' });
     
     const mapping = locMappings[0];
+    if (!mapping) return NextResponse.json({ error: 'no mapping' });
     const scheduled = await SyncQueueService.scheduleGbpReviewSync({
       tenantId: tenant.id,
       locationId: mapping.internalId,

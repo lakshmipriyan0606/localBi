@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
+import { SessionCookieManager } from '@/modules/auth/cookies';
+import { ContextResolver } from '@/modules/auth/context-resolver';
+import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { GoogleOAuthService } from '@/modules/integrations/google/google-oauth-service';
 import { CryptoEnvelopeService } from '@/shared/crypto/envelope';
 import { ResourceDiscoveryService } from '@/modules/integrations/resource-discovery-service';
@@ -29,7 +33,7 @@ export async function GET(request: NextRequest) {
   try {
     // 1. Verify and decode HMAC-signed state
     const state = GoogleOAuthService.verifyState(stateToken);
-    const { tenantId, returnUrl } = state;
+    const { tenantId, userId, returnUrl, nonce, sessionHash } = state;
 
     // 2. Fetch tenant
     const tenant = await prisma.tenant.findUnique({
@@ -41,7 +45,53 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant not found or inactive' }, { status: 404 });
     }
 
-    // 3. Exchange code for tokens
+    // 3. Authenticate session & enforce authorization
+    const cookieStore = await cookies();
+    const rawSessionToken = SessionCookieManager.getSessionToken(cookieStore);
+    if (!rawSessionToken) {
+      logger.warn({ tenantId, userId }, 'OAuth callback invoked without session cookie');
+      return NextResponse.redirect(new URL(`/client/${tenant.slug}/integrations?error=unauthorized`, request.url));
+    }
+
+    // Resolve tenant context to verify active membership
+    const { authorizedContext } = await ContextResolver.resolveTenantContext(rawSessionToken, tenant.slug);
+    if (!authorizedContext) {
+      return NextResponse.redirect(new URL(`/client/${tenant.slug}/integrations?error=unauthorized`, request.url));
+    }
+
+    // Verify callback was initiated by this user
+    if (authorizedContext.userId !== userId) {
+      logger.warn(
+        { stateUserId: userId, sessionUserId: authorizedContext.userId },
+        'OAuth callback user mismatch'
+      );
+      return NextResponse.redirect(new URL(`/client/${tenant.slug}/integrations?error=user_mismatch`, request.url));
+    }
+
+    // Verify browser session binding if present in state
+    if (sessionHash) {
+      const currentSessionHash = crypto
+        .createHash('sha256')
+        .update(rawSessionToken)
+        .digest('hex')
+        .slice(0, 16);
+      if (currentSessionHash !== sessionHash) {
+        logger.warn('OAuth callback session binding mismatch');
+        return NextResponse.redirect(new URL(`/client/${tenant.slug}/integrations?error=session_mismatch`, request.url));
+      }
+    }
+
+    // Assert user has permission to connect integrations
+    AuthorizationService.assertCan(authorizedContext, Action.INTEGRATION_CONNECT);
+
+    // 4. One-time nonce consumption (replay protection)
+    const nonceValid = await GoogleOAuthService.consumeNonce(nonce);
+    if (!nonceValid) {
+      logger.warn({ nonce }, 'OAuth callback state token replayed or already consumed');
+      return NextResponse.redirect(new URL(`/client/${tenant.slug}/integrations?error=state_replayed`, request.url));
+    }
+
+    // 5. Exchange code for tokens
     const tokens = await GoogleOAuthService.exchangeCodeForTokens(code);
 
     // 4. Check for existing connection under this tenant

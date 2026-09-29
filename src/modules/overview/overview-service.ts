@@ -327,10 +327,16 @@ export class OverviewService {
         trend: 0,
       }));
 
-      const totalWebClicks = gscClicks + gbpWebsiteClicks;
-      const hasWebData = totalWebClicks > 0 || gscImpressions > 0;
-      const estimatedSessions = Math.round(totalWebClicks * 1.35) || totalWebClicks;
-      const estimatedEngaged = Math.round(estimatedSessions * 0.62);
+      const ga4Mapping = await tx.internalResourceMapping.findFirst({
+        where: {
+          tenantId,
+          resource: {
+            provider: 'GOOGLE_ANALYTICS_4',
+          },
+        },
+      });
+
+      const hasWebData = Boolean(ga4Mapping);
 
       return {
         isDemo: false,
@@ -378,11 +384,11 @@ export class OverviewService {
           trendData: gscTrend,
         },
         web: {
-          users: totalWebClicks,
+          users: 0,
           usersDelta: 0,
-          sessions: estimatedSessions,
+          sessions: 0,
           sessionsDelta: 0,
-          engagedSessions: estimatedEngaged,
+          engagedSessions: 0,
           engagedSessionsDelta: 0,
           conversionRate: 0,
           conversionRateDelta: 0,

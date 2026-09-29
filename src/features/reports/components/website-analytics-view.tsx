@@ -24,7 +24,6 @@ import {
   ArrowUpRight,
   ExternalLink,
   Check,
-  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { ChartTooltipFrame } from '@/components/charts';
@@ -34,17 +33,17 @@ import type { Ga4RealPropertyData } from '@/modules/analytics/ga4-service';
 
 export interface Ga4RealKpi {
   users: number;
-  usersDelta: number;
+  usersDelta?: number | null | undefined;
   sessions: number;
-  sessionsDelta: number;
+  sessionsDelta?: number | null | undefined;
   engagedSessions: number;
-  engagedSessionsDelta: number;
+  engagedSessionsDelta?: number | null | undefined;
   conversionRate: number;
-  conversionRateDelta: number;
+  conversionRateDelta?: number | null | undefined;
   conversions: number;
-  conversionsDelta: number;
+  conversionsDelta?: number | null | undefined;
   newUsers?: number | undefined;
-  newUsersDelta?: number | undefined;
+  newUsersDelta?: number | null | undefined;
   avgEngagementTimeSeconds?: number | undefined;
   bounceRate?: number | undefined;
   eventCount?: number | undefined;
@@ -60,6 +59,7 @@ export interface Ga4TrendPoint {
   newUsers?: number | undefined;
   eventCount?: number | undefined;
   keyEvents?: number | undefined;
+  avgEngagementTimeSeconds?: number | undefined;
   peerBenchmark?: number | undefined;
   previousPeriod?: number | undefined;
 }
@@ -156,6 +156,7 @@ const DATE_RANGE_OPTIONS = [
 
 // SVG Sparkline component
 function Sparkline({ data, color = '#6366F1' }: { data: number[]; color?: string }) {
+  if (!data || data.length < 2) return null;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -184,8 +185,8 @@ function Sparkline({ data, color = '#6366F1' }: { data: number[]; color?: string
 
 export function WebsiteAnalyticsView({
   tenantSlug,
-  brandName = 'Lakshmi food',
-  locationName = 'Chennai',
+  brandName = 'All Brands',
+  locationName = 'All locations',
   brands,
   locations,
   storeCode,
@@ -199,8 +200,8 @@ export function WebsiteAnalyticsView({
   devices = [],
   pages = [],
   queries: _queries = [],
-  countries = [],
-  hasRealData = true,
+  countries: _countries = [],
+  hasRealData = false,
   ga4RealData,
 }: WebsiteAnalyticsViewProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
@@ -220,7 +221,7 @@ export function WebsiteAnalyticsView({
   const [selectedDateRange, setSelectedDateRange] = useState<string>('Last 30 days');
 
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
-  const [selectedBrand, setSelectedBrand] = useState<string>(brandName || 'Lakshmi food');
+  const [selectedBrand, setSelectedBrand] = useState<string>(brandName || 'All Brands');
 
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string>(locationName || 'All locations');
@@ -256,7 +257,7 @@ export function WebsiteAnalyticsView({
 
   const availableBrands = useMemo(() => {
     if (brands && brands.length > 0) return brands;
-    return [{ id: 'brand-1', name: brandName || 'Lakshmi food' }];
+    return [{ id: 'brand-1', name: brandName || 'Primary Brand' }];
   }, [brands, brandName]);
 
   const availableLocations = useMemo(() => {
@@ -273,63 +274,42 @@ export function WebsiteAnalyticsView({
     return list;
   }, [locations, locationName, storeCode]);
 
-  const activeDays = useMemo(() => {
-    const found = DATE_RANGE_OPTIONS.find((d) => d.label === selectedDateRange);
-    return found ? found.days : 30;
-  }, [selectedDateRange]);
-
-  const dateRatio = activeDays / 30;
-
   // 1. Metric Cards: Real GA4 Property Telemetry
   const activeUsers = useMemo(() => {
-    if (kpi?.users !== undefined) {
-      if (activeDays >= 30) return kpi.users;
-      return Math.max(1, Math.round(kpi.users * dateRatio));
-    }
-    if (ga4RealData?.activeUsers !== undefined) {
-      return ga4RealData.activeUsers;
-    }
-    return 14;
-  }, [kpi, ga4RealData, dateRatio, activeDays]);
+    return ga4RealData?.activeUsers ?? kpi?.users ?? 0;
+  }, [kpi, ga4RealData]);
 
   const activeUsersDelta = useMemo(() => {
+    if (ga4RealData?.activeUsersDelta !== undefined) return ga4RealData.activeUsersDelta;
     if (kpi?.usersDelta !== undefined) return kpi.usersDelta;
     return null;
-  }, [kpi]);
+  }, [kpi, ga4RealData]);
 
   const sessionsCount = useMemo(() => {
-    if (kpi?.sessions !== undefined) {
-      if (activeDays >= 30) return kpi.sessions;
-      return Math.max(1, Math.round(kpi.sessions * dateRatio));
-    }
-    if (ga4RealData?.sessions !== undefined) return ga4RealData.sessions;
-    return 22;
-  }, [kpi, ga4RealData, dateRatio, activeDays]);
+    return ga4RealData?.sessions ?? kpi?.sessions ?? 0;
+  }, [kpi, ga4RealData]);
 
   const sessionsDelta = useMemo(() => {
+    if (ga4RealData?.sessionsDelta !== undefined) return ga4RealData.sessionsDelta;
     if (kpi?.sessionsDelta !== undefined) return kpi.sessionsDelta;
     return null;
-  }, [kpi]);
+  }, [kpi, ga4RealData]);
 
   const newUsersCount = useMemo(() => {
-    if (kpi?.newUsers !== undefined) return kpi.newUsers;
-    if (ga4RealData?.newUsers !== undefined) return ga4RealData.newUsers;
-    return 15;
+    return ga4RealData?.newUsers ?? kpi?.newUsers ?? 0;
   }, [kpi, ga4RealData]);
 
   const eventCountTotal = useMemo(() => {
-    if (kpi?.eventCount !== undefined) return kpi.eventCount;
-    if (ga4RealData?.eventCount !== undefined) return ga4RealData.eventCount;
-    return 127;
+    return ga4RealData?.eventCount ?? kpi?.eventCount ?? 0;
   }, [kpi, ga4RealData]);
 
   const avgEngagementTimeStr = useMemo(() => {
-    const secs = kpi?.avgEngagementTimeSeconds ?? ga4RealData?.avgEngagementTimeSeconds ?? 6;
+    const secs = ga4RealData?.avgEngagementTimeSeconds ?? kpi?.avgEngagementTimeSeconds ?? 0;
     return `${secs}s`;
   }, [kpi, ga4RealData]);
 
   const bounceRateStr = useMemo(() => {
-    const rate = kpi?.bounceRate ?? ga4RealData?.bounceRate ?? 83.3;
+    const rate = ga4RealData?.bounceRate ?? kpi?.bounceRate ?? 0;
     return `${rate.toFixed(1)}%`;
   }, [kpi, ga4RealData]);
 
@@ -340,26 +320,17 @@ export function WebsiteAnalyticsView({
     if (kpi && kpi.sessions > 0) {
       return `${((kpi.engagedSessions / kpi.sessions) * 100).toFixed(1)}%`;
     }
-    return '16.7%';
+    return '0.0%';
   }, [kpi, ga4RealData]);
 
   const keyEventsCount = useMemo(() => {
-    if (kpi?.conversions !== undefined) {
-      if (activeDays >= 30) return kpi.conversions;
-      return Math.max(0, Math.round(kpi.conversions * dateRatio));
-    }
-    if (ga4RealData?.keyEvents !== undefined) return ga4RealData.keyEvents;
-    return 0;
-  }, [kpi, ga4RealData, dateRatio, activeDays]);
+    return ga4RealData?.keyEvents ?? kpi?.conversions ?? 0;
+  }, [kpi, ga4RealData]);
 
   // 2. Trend Data Filtering
   const activeTrend: Ga4TrendPoint[] = useMemo(() => {
-    if (trend.length > 0) {
-      if (activeDays >= 365) return trend;
-      return trend.slice(-activeDays);
-    }
     if (ga4RealData?.trend && ga4RealData.trend.length > 0) {
-      const converted: Ga4TrendPoint[] = ga4RealData.trend.map((t) => ({
+      return ga4RealData.trend.map((t) => ({
         date: t.date,
         clicks: t.activeUsers,
         impressions: t.eventCount,
@@ -371,11 +342,12 @@ export function WebsiteAnalyticsView({
         peerBenchmark: t.peerBenchmark,
         previousPeriod: t.previousPeriod,
       }));
-      if (activeDays >= 365) return converted;
-      return converted.slice(-activeDays);
+    }
+    if (trend.length > 0) {
+      return trend;
     }
     return [];
-  }, [trend, ga4RealData, activeDays]);
+  }, [trend, ga4RealData]);
 
   // 3. Multi-Metric Timeseries Chart Data (Matching Screenshot 2)
   const multiMetricChartData = useMemo(() => {
@@ -398,29 +370,19 @@ export function WebsiteAnalyticsView({
 
       // Determine value based on selected metric tab
       let currentVal = 0;
-      let prevVal = 0;
-      let benchmarkVal = t.peerBenchmark ?? 2.0;
+      let prevVal = t.previousPeriod ?? 0;
+      let benchmarkVal = t.peerBenchmark ?? 0;
 
       if (selectedMetric === 'activeUsers') {
-        currentVal = t.activeUsers ?? t.clicks ?? 0;
-        prevVal = t.previousPeriod ?? (currentVal > 0 ? Math.round(currentVal * 0.1) : 0);
-        benchmarkVal = t.peerBenchmark ?? 2.0;
+        currentVal = t.activeUsers ?? 0;
       } else if (selectedMetric === 'eventCount') {
-        currentVal = t.eventCount ?? (t.impressions || (t.activeUsers ? t.activeUsers * 8 : 0));
-        prevVal = currentVal > 0 ? Math.round(currentVal * 0.1) : 0;
-        benchmarkVal = Math.round((t.peerBenchmark ?? 2.0) * 1.2);
+        currentVal = t.eventCount ?? 0;
       } else if (selectedMetric === 'keyEvents') {
         currentVal = t.keyEvents ?? 0;
-        prevVal = 0;
-        benchmarkVal = 0;
       } else if (selectedMetric === 'newUsers') {
-        currentVal = t.newUsers ?? t.activeUsers ?? 0;
-        prevVal = 0;
-        benchmarkVal = t.peerBenchmark ?? 2.0;
+        currentVal = t.newUsers ?? 0;
       } else if (selectedMetric === 'sessions') {
-        currentVal = t.sessions ?? Math.round((t.activeUsers ?? 1) * 1.4);
-        prevVal = currentVal > 0 ? Math.round(currentVal * 0.2) : 0;
-        benchmarkVal = Math.round((t.peerBenchmark ?? 2.0) * 1.4);
+        currentVal = t.sessions ?? 0;
       }
 
       return {
@@ -449,7 +411,7 @@ export function WebsiteAnalyticsView({
     return Math.max(6, Math.ceil(highest));
   }, [multiMetricChartData, selectedMetric]);
 
-  // 4. First user primary channel group horizontal bars (Screenshot 4)
+  // 4. First user primary channel group horizontal bars
   const channelAcquisitionData = useMemo(() => {
     if (ga4RealData?.channels && ga4RealData.channels.length > 0) {
       return ga4RealData.channels.map((c) => ({
@@ -461,16 +423,16 @@ export function WebsiteAnalyticsView({
     }
     if (channels.length > 0) {
       return channels.map((c) => ({
-        channel: c.channel.replace(/\(.*?\)/g, '').trim(),
-        newUsers: c.newUsers ?? (c.channel === 'Direct' ? 11 : c.channel.includes('Organic') ? 3 : 1),
+        channel: c.channel,
+        newUsers: c.newUsers ?? 0,
         sessions: c.sessions,
-        pct: parseFloat(c.share.replace('%', '')) || 50,
+        pct: parseFloat(c.share.replace('%', '')) || 0,
       }));
     }
     return [];
   }, [ga4RealData, channels]);
 
-  // 5. Top Pages: Real pages list (Screenshot 3)
+  // 5. Top Pages: Real pages list
   const displayPages = useMemo(() => {
     if (ga4RealData?.pages && ga4RealData.pages.length > 0) {
       return ga4RealData.pages.map((p) => ({
@@ -484,23 +446,23 @@ export function WebsiteAnalyticsView({
       }));
     }
     if (pages.length > 0) {
-      return pages.slice(0, 5).map((p) => ({
-        pageTitle: p.pageTitle || 'Lakshmi Priyan - Portfolio',
+      return pages.map((p) => ({
+        pageTitle: p.pageTitle || p.url,
         url: p.url,
         views: p.views ?? p.sessions,
-        activeUsers: p.activeUsers ?? activeUsers,
-        eventCount: p.eventCount ?? (p.sessions * 4),
-        bounceRate: `${(p.bounceRate ?? 83.3).toFixed(1)}%`,
-        engagement: `${Math.min(95, Math.max(16, p.ctr || 16.7)).toFixed(1)}%`,
+        activeUsers: p.activeUsers ?? 0,
+        eventCount: p.eventCount ?? 0,
+        bounceRate: `${(p.bounceRate ?? 0).toFixed(1)}%`,
+        engagement: `${(100 - (p.bounceRate ?? 0)).toFixed(1)}%`,
       }));
     }
     return [];
-  }, [ga4RealData, pages, activeUsers]);
+  }, [ga4RealData, pages]);
 
-  // 6. Devices: Donut Chart (Screenshot 1)
+  // 6. Devices: Donut Chart
   const displayDevices = useMemo(() => {
     if (ga4RealData?.devices && ga4RealData.devices.length > 0) {
-      const colors = ['#2563EB', '#818CF8', '#CBD5E1'];
+      const colors = ['#2563EB', '#818CF8', '#CBD5E1', '#38BDF8'];
       return ga4RealData.devices.map((d, idx) => ({
         name: d.device,
         value: d.percentage,
@@ -509,10 +471,10 @@ export function WebsiteAnalyticsView({
       }));
     }
     if (devices.length > 0) {
-      const colors = ['#2563EB', '#818CF8', '#CBD5E1'];
-      return devices.slice(0, 2).map((d, idx) => ({
+      const colors = ['#2563EB', '#818CF8', '#CBD5E1', '#38BDF8'];
+      return devices.map((d, idx) => ({
         name: d.device,
-        value: parseInt(d.percent.replace('%', ''), 10) || 50,
+        value: parseInt(d.percent.replace('%', ''), 10) || 0,
         sessions: d.sessions,
         color: colors[idx % colors.length] || '#2563EB',
       }));
@@ -520,7 +482,7 @@ export function WebsiteAnalyticsView({
     return [];
   }, [ga4RealData, devices]);
 
-  // 7. Retention and Engagement Data (Screenshot 5)
+  // 7. Retention and Engagement Data
   const retentionCurveData = useMemo(() => {
     if (ga4RealData?.retention && ga4RealData.retention.length > 0) {
       return ga4RealData.retention.map((r) => {
@@ -532,19 +494,19 @@ export function WebsiteAnalyticsView({
           date: `${d < 10 ? '0' + d : d} ${monthNames[m]}`,
           rawDate: r.date,
           retentionRate: r.retentionRate,
-          benchmarkRetentionRate: r.benchmarkRetentionRate,
+          benchmarkRetentionRate: r.benchmarkRetentionRate ?? 0,
           engagementTimeSeconds: r.engagementTimeSeconds,
-          benchmarkEngagementTimeSeconds: r.benchmarkEngagementTimeSeconds,
+          benchmarkEngagementTimeSeconds: r.benchmarkEngagementTimeSeconds ?? 0,
         };
       });
     }
     return [];
   }, [ga4RealData]);
 
-  // Sparkline data
+  // Sparkline data from real activeTrend
   const sparklineData = useMemo(() => {
-    if (activeTrend.length >= 3) {
-      return activeTrend.slice(-9).map((t) => t.activeUsers ?? t.clicks ?? 0);
+    if (activeTrend.length >= 2) {
+      return activeTrend.map((t) => t.activeUsers ?? 0);
     }
     return [];
   }, [activeTrend]);
@@ -556,8 +518,8 @@ export function WebsiteAnalyticsView({
       ['Tenant', tenantSlug],
       ['Brand', selectedBrand],
       ['Location', selectedLocation],
-      ['Property', ga4RealData?.propertyName || 'Lakshmi Priyan - Portfolio'],
-      ['Property ID', ga4RealData?.propertyId || 'properties/460392819'],
+      ['Property', ga4RealData?.propertyName || 'GA4 Property'],
+      ['Property ID', ga4RealData?.propertyId || 'Not Configured'],
       ['Date Range', ga4RealData?.dateRange || selectedDateRange],
       ['Exported At', new Date().toISOString()],
       [],
@@ -618,7 +580,7 @@ export function WebsiteAnalyticsView({
         <span className="text-slate-800 font-semibold">Website</span>
         <span className="text-slate-400">/</span>
         <span className="text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md">
-          {ga4RealData?.propertyName || 'Lakshmi Priyan - Portfolio'}
+          {ga4RealData?.propertyName || 'GA4 Property'}
         </span>
       </div>
 
@@ -629,13 +591,37 @@ export function WebsiteAnalyticsView({
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
               Website analytics
             </h1>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Live GA4 Verified
-            </span>
+            {ga4RealData?.status === 'ready' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                Live GA4 Verified
+              </span>
+            ) : ga4RealData?.status === 'empty' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                Live GA4 Connected (0 Traffic)
+              </span>
+            ) : ga4RealData?.status === 'permission_required' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                Scope Missing
+              </span>
+            ) : ga4RealData?.status === 'error' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                GA4 Error
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                GA4 Not Configured
+              </span>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Property: <span className="font-semibold text-slate-700">{ga4RealData?.propertyName || 'Lakshmi Priyan - Portfolio'}</span> ({ga4RealData?.propertyId || 'properties/460392819'}) • Aug 30 - Sep 26, 2026
+            {ga4RealData?.isConfigured ? (
+              <>
+                Property: <span className="font-semibold text-slate-700">{ga4RealData.propertyName || ga4RealData.propertyId}</span> ({ga4RealData.propertyId}) • {ga4RealData.dateRange || selectedDateRange}
+              </>
+            ) : (
+              'No Google Analytics 4 property connected'
+            )}
           </p>
         </div>
 
@@ -759,6 +745,9 @@ export function WebsiteAnalyticsView({
                     onClick={() => {
                       setSelectedBrand(b.name);
                       setBrandDropdownOpen(false);
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set('brandId', b.id);
+                      router.push(`${pathname}?${params.toString()}`);
                     }}
                     className={cn(
                       "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer text-left",
@@ -812,6 +801,13 @@ export function WebsiteAnalyticsView({
                     onClick={() => {
                       setSelectedLocation(loc.name);
                       setLocationDropdownOpen(false);
+                      const params = new URLSearchParams(searchParams.toString());
+                      if (loc.id === 'all') {
+                        params.delete('locationId');
+                      } else {
+                        params.set('locationId', loc.id);
+                      }
+                      router.push(`${pathname}?${params.toString()}`);
                     }}
                     className={cn(
                       "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer text-left",
@@ -851,7 +847,7 @@ export function WebsiteAnalyticsView({
       {showDetails && (
         <div className="animate-in fade-in-50 duration-200">
           <Ga4StreamDetails
-            websiteUrl={websiteUrl || 'https://lakshmipriyan.dev'}
+            websiteUrl={websiteUrl}
             brandName={selectedBrand}
             locationName={selectedLocation}
             storeCode={storeCode}
@@ -861,6 +857,112 @@ export function WebsiteAnalyticsView({
           />
         </div>
       )}
+
+      {/* ── Status Guards: Gating when GA4 is not configured, permission required, or errored ── */}
+      {(!ga4RealData?.isConfigured || ga4RealData?.status === 'not_configured') && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-amber-100 p-3 text-amber-700">
+              <ExternalLink className="h-6 w-6" />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-200 text-amber-900">
+                  GA4_NOT_CONFIGURED
+                </span>
+                <h3 className="text-base font-bold text-amber-950">
+                  Google Analytics 4 Not Configured
+                </h3>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed max-w-3xl">
+                No verified GA4 property is linked to this brand or location. To display live traffic, engagement rates, page analytics, and conversion events, map your GA4 property under Integrations.
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Configure GA4 Mapping
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.status === 'permission_required' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <ExternalLink className="h-6 w-6" />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  GA4_PERMISSION_REQUIRED
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics Permission Required
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-3xl">
+                The connected Google OAuth account ({accountEmail || 'Connected Account'}) does not have the required Google Analytics scope (<code className="font-mono text-rose-900 bg-rose-100 px-1 py-0.5 rounded">https://www.googleapis.com/auth/analytics.readonly</code>). Please re-authorize your connection in Integrations to enable GA4 reporting.
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Reconnect Google Account
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {ga4RealData?.status === 'error' && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="rounded-xl bg-rose-100 p-3 text-rose-700">
+              <ExternalLink className="h-6 w-6" />
+            </div>
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-200 text-rose-900">
+                  {ga4RealData?.code || 'GA4_REPORT_FAILED'}
+                </span>
+                <h3 className="text-base font-bold text-rose-950">
+                  Google Analytics 4 Report Failed
+                </h3>
+              </div>
+              <p className="text-xs text-rose-800 leading-relaxed max-w-3xl">
+                {ga4RealData?.error || 'Google Analytics Data API returned an error for property ' + (ga4RealData?.propertyId || '') + '. Please verify property access and quotas in Google Analytics.'}
+              </p>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/settings/integrations`}
+              className="inline-flex items-center gap-2 text-xs font-bold text-rose-900 bg-white border border-rose-300 hover:bg-rose-50 px-4 py-2.5 rounded-xl shadow-xs transition-colors self-start sm:self-center"
+            >
+              Check Property Mapping
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Render Analytics Dashboard ONLY when GA4 is configured and status is ready or empty */}
+      {ga4RealData?.isConfigured && (ga4RealData?.status === 'ready' || ga4RealData?.status === 'empty') && (
+        <>
+          {/* Optional notice if status is real empty */}
+          {ga4RealData?.status === 'empty' && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-4 shadow-2xs">
+              <div className="flex items-center gap-2.5 text-xs text-blue-900">
+                <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span>
+                  <strong>Real Google Zero:</strong> Google Analytics Data API returned a successful report with zero recorded activity for property <strong>{ga4RealData?.propertyName || ga4RealData?.propertyId}</strong> in period {ga4RealData?.dateRange || selectedDateRange}.
+                </span>
+              </div>
+            </div>
+          )}
 
       {/* ── Horizontal Navigation Tabs (Overview, Acquisition, Pages, Engagement & Retention, Audience, Events) ── */}
       <div className="border-b border-slate-200">
@@ -930,7 +1032,7 @@ export function WebsiteAnalyticsView({
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                     {formatNumber(sessionsCount)}
                   </span>
-                  <Sparkline data={sparklineData.map((v) => Math.round(v * 1.4))} color="#2563EB" />
+                  <Sparkline data={activeTrend.map((t) => t.sessions ?? 0)} color="#2563EB" />
                 </div>
               </div>
               <div className="flex items-center gap-1 text-xs">
@@ -938,9 +1040,11 @@ export function WebsiteAnalyticsView({
                   <>
                     <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
                     <span className="font-bold text-emerald-600">+{sessionsDelta.toFixed(1)}%</span>
+                    <span className="text-slate-400 font-normal">vs previous period</span>
                   </>
-                ) : null}
-                <span className="text-slate-400 font-normal">vs previous period</span>
+                ) : (
+                  <span className="text-slate-400 font-normal">Period total</span>
+                )}
               </div>
             </div>
 
@@ -955,13 +1059,19 @@ export function WebsiteAnalyticsView({
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                     {avgEngagementTimeStr}
                   </span>
-                  <Sparkline data={activeTrend.length >= 3 ? activeTrend.slice(-10).map((t) => t.activeUsers ?? 0) : [0, 0, 0, 4, 8, 12, 10, 3, 4, 6]} color="#2563EB" />
+                  <Sparkline data={activeTrend.map((t) => t.avgEngagementTimeSeconds ?? 0)} color="#2563EB" />
                 </div>
               </div>
               <div className="flex items-center gap-1 text-xs">
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-                <span className="font-bold text-emerald-600">{engagementRateStr}</span>
-                <span className="text-slate-400 font-normal">vs previous period</span>
+                {ga4RealData?.avgEngagementTimeDelta != null ? (
+                  <>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                    <span className="font-bold text-emerald-600">+{ga4RealData.avgEngagementTimeDelta.toFixed(1)}%</span>
+                    <span className="text-slate-400 font-normal">vs previous period</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400 font-normal">Rate: {engagementRateStr}</span>
+                )}
               </div>
             </div>
 
@@ -970,19 +1080,25 @@ export function WebsiteAnalyticsView({
               <div>
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold mb-2">
                   <span>Event count</span>
-                  <span className="text-[10px] text-slate-400 font-mono">0 Key events</span>
+                  <span className="text-[10px] text-slate-400 font-mono">{keyEventsCount} Key events</span>
                 </div>
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                     {formatNumber(eventCountTotal)}
                   </span>
-                  <Sparkline data={activeTrend.length >= 3 ? activeTrend.slice(-10).map((t) => t.eventCount ?? 0) : [0, 0, 0, 6, 28, 18, 22, 12, 10, 16]} color="#2563EB" />
+                  <Sparkline data={activeTrend.map((t) => t.eventCount ?? 0)} color="#2563EB" />
                 </div>
               </div>
               <div className="flex items-center gap-1 text-xs">
-                <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
-                <span className="font-bold text-emerald-600">{eventCountTotal > 0 ? `+${eventCountTotal}` : '0'} events</span>
-                <span className="text-slate-400 font-normal">vs previous period</span>
+                {ga4RealData?.eventCountDelta != null ? (
+                  <>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                    <span className="font-bold text-emerald-600">+{ga4RealData.eventCountDelta.toFixed(1)}%</span>
+                    <span className="text-slate-400 font-normal">vs previous period</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400 font-normal">{keyEventsCount} key events</span>
+                )}
               </div>
             </div>
           </div>
@@ -999,15 +1115,8 @@ export function WebsiteAnalyticsView({
                       Traffic & Event Velocity
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Property activity vs Food &amp; Drink peer benchmark
+                      Real Google Analytics 4 timeseries metrics for {ga4RealData?.dateRange || selectedDateRange}
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                      <Award className="w-3 h-3 text-amber-500" />
-                      Food &amp; Drink Peer Median
-                    </span>
                   </div>
                 </div>
 
@@ -1112,26 +1221,24 @@ export function WebsiteAnalyticsView({
                       <Tooltip
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
+                          const items = [
+                            {
+                              label: 'Selected period',
+                              value: formatNumber(payload[0]?.value as number),
+                              color: '#2563EB',
+                            },
+                          ];
+                          if (payload[1]?.value !== undefined && Number(payload[1].value) > 0) {
+                            items.push({
+                              label: 'Previous period',
+                              value: formatNumber(payload[1]?.value as number),
+                              color: '#94A3B8',
+                            });
+                          }
                           return (
                             <ChartTooltipFrame
                               title={String(label)}
-                              items={[
-                                {
-                                  label: 'This month (Current)',
-                                  value: formatNumber(payload[0]?.value as number),
-                                  color: '#2563EB',
-                                },
-                                {
-                                  label: 'Previous period',
-                                  value: formatNumber(payload[1]?.value as number),
-                                  color: '#94A3B8',
-                                },
-                                {
-                                  label: 'Peer median: Food & Drink',
-                                  value: Number(payload[2]?.value || 0).toFixed(1),
-                                  color: '#06B6D4',
-                                },
-                              ]}
+                              items={items}
                             />
                           );
                         }}
@@ -1140,14 +1247,14 @@ export function WebsiteAnalyticsView({
                       <Area
                         type="monotone"
                         dataKey="current"
-                        name="This month"
+                        name="Selected period"
                         stroke="#2563EB"
                         strokeWidth={2.5}
                         fill="url(#multiMetricGradient)"
                         dot={false}
                         activeDot={{ r: 4, fill: '#2563EB', strokeWidth: 0 }}
                       />
-                      {/* 2. Dashed Slate Line: Previous Period */}
+                      {/* 2. Dashed Slate Line: Previous Period (real data only) */}
                       <Line
                         type="monotone"
                         dataKey="previous"
@@ -1157,32 +1264,19 @@ export function WebsiteAnalyticsView({
                         strokeDasharray="4 4"
                         dot={false}
                       />
-                      {/* 3. Cyan Line: Peer Benchmark (Food & Drink) */}
-                      <Line
-                        type="monotone"
-                        dataKey="peerBenchmark"
-                        name="Peer median and range: Food & Drink"
-                        stroke="#06B6D4"
-                        strokeWidth={2}
-                        dot={false}
-                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
 
-                {/* Bottom Legend (Matching Screenshot 2) */}
+                {/* Bottom Legend */}
                 <div className="flex flex-wrap items-center gap-5 mt-4 text-xs font-medium text-slate-600 pl-4">
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-0.5 bg-[#2563EB]" />
-                    <span className="font-semibold text-slate-800">This month</span>
+                    <span className="font-semibold text-slate-800">Selected period</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-500">
                     <span className="w-4 border-b-2 border-dashed border-slate-400" />
                     <span>Previous period</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-cyan-600">
-                    <span className="w-3 h-0.5 bg-[#06B6D4]" />
-                    <span className="font-semibold text-slate-700">Peer median and range: Food &amp; Drink</span>
                   </div>
                 </div>
               </div>
@@ -1369,35 +1463,41 @@ export function WebsiteAnalyticsView({
               <h3 className="text-base font-bold text-slate-900">Traffic Acquisition Channels</h3>
               <p className="text-xs text-slate-500">First user primary channel group driving visitors to your property</p>
             </div>
-            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
-              15 Verified New Users
-            </span>
+            {newUsersCount > 0 && (
+              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+                {formatNumber(newUsersCount)} Verified New Users
+              </span>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
-                  <th className="pb-3 font-semibold">Channel Group</th>
-                  <th className="pb-3 text-right font-semibold">New Users</th>
-                  <th className="pb-3 text-right font-semibold">Sessions</th>
-                  <th className="pb-3 text-right font-semibold">Traffic Share</th>
-                  <th className="pb-3 text-right font-semibold">Engagement Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {channelAcquisitionData.map((c) => (
-                  <tr key={c.channel} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 font-bold text-slate-900 text-sm">{c.channel}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{c.newUsers}</td>
-                    <td className="py-3.5 text-right font-mono font-semibold text-slate-700">{c.sessions}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-indigo-600 text-sm">{c.pct}%</td>
-                    <td className="py-3.5 text-right font-mono text-emerald-600 font-semibold">{engagementRateStr}</td>
+          {channelAcquisitionData.length === 0 ? (
+            <p className="text-xs text-slate-400 py-8 text-center">No acquisition channel traffic recorded by GA4 for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="pb-3 font-semibold">Channel Group</th>
+                    <th className="pb-3 text-right font-semibold">New Users</th>
+                    <th className="pb-3 text-right font-semibold">Sessions</th>
+                    <th className="pb-3 text-right font-semibold">Traffic Share</th>
+                    <th className="pb-3 text-right font-semibold">Engagement Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {channelAcquisitionData.map((c) => (
+                    <tr key={c.channel} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 font-bold text-slate-900 text-sm">{c.channel}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{c.newUsers}</td>
+                      <td className="py-3.5 text-right font-mono font-semibold text-slate-700">{c.sessions}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-indigo-600 text-sm">{c.pct}%</td>
+                      <td className="py-3.5 text-right font-mono text-emerald-600 font-semibold">{engagementRateStr}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1427,37 +1527,41 @@ export function WebsiteAnalyticsView({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
-                  <th className="pb-3 font-semibold">Page Title and Screen Class</th>
-                  <th className="pb-3 text-right font-semibold">Views</th>
-                  <th className="pb-3 text-right font-semibold">Active Users</th>
-                  <th className="pb-3 text-right font-semibold">Event Count</th>
-                  <th className="pb-3 text-right font-semibold">Bounce Rate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {displayPages.map((p) => (
-                  <tr key={p.url} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 pr-4">
-                      <div className="font-bold text-slate-900 text-sm">{p.pageTitle}</div>
-                      <div className="font-mono text-xs text-slate-400 mt-0.5">{p.url}</div>
-                    </td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.views)}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.activeUsers)}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.eventCount)}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{p.bounceRate}</td>
+          {displayPages.length === 0 ? (
+            <p className="text-xs text-slate-400 py-8 text-center">No page views recorded by GA4 for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="pb-3 font-semibold">Page Title and Screen Class</th>
+                    <th className="pb-3 text-right font-semibold">Views</th>
+                    <th className="pb-3 text-right font-semibold">Active Users</th>
+                    <th className="pb-3 text-right font-semibold">Event Count</th>
+                    <th className="pb-3 text-right font-semibold">Bounce Rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {displayPages.map((p) => (
+                    <tr key={p.url} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 pr-4">
+                        <div className="font-bold text-slate-900 text-sm">{p.pageTitle}</div>
+                        <div className="font-mono text-xs text-slate-400 mt-0.5">{p.url}</div>
+                      </td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.views)}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.activeUsers)}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{formatNumber(p.eventCount)}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">{p.bounceRate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── TAB 4: ENGAGEMENT & RETENTION (Screenshots 4 & 5 - Exact Dual Curves) ── */}
+      {/* ── TAB 4: ENGAGEMENT & RETENTION ── */}
       {activeTab === 'Engagement & Retention' && (
         <div className="space-y-5 animate-in fade-in-50 duration-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
@@ -1477,10 +1581,7 @@ export function WebsiteAnalyticsView({
                 <span>Open dedicated view</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
-              <span className="font-semibold text-slate-600">Cohort Window: Aug 30 - Sep 26</span>
-              <span className="px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 font-bold">
-                Peak: 70.0% Retention
-              </span>
+              <span className="font-semibold text-slate-600">Reporting Window: {ga4RealData?.dateRange || selectedDateRange}</span>
             </div>
           </div>
 
@@ -1498,83 +1599,71 @@ export function WebsiteAnalyticsView({
                       Daily cohort persistence rate
                     </p>
                   </div>
-                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                    Peak: 70.0% (Sep 18)
-                  </span>
+                  {retentionCurveData.length > 0 && Math.max(...retentionCurveData.map(r => r.retentionRate), 0) > 0 ? (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      Peak: {Math.max(...retentionCurveData.map(r => r.retentionRate)).toFixed(1)}%
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="h-[240px] w-full pt-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={retentionCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 11, fill: '#94A3B8' }}
-                        axisLine={{ stroke: '#E2E8F0' }}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        domain={[0, 80]}
-                        ticks={[0, 20, 40, 60, 80]}
-                        tickFormatter={(v) => `${v}%`}
-                        tick={{ fontSize: 11, fill: '#94A3B8' }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (!active || !payload?.length) return null;
-                          return (
-                            <ChartTooltipFrame
-                              title={String(label)}
-                              items={[
-                                {
-                                  label: 'Current cohort retention',
-                                  value: `${payload[0]?.value}%`,
-                                  color: '#2563EB',
-                                },
-                                {
-                                  label: 'Benchmark cohort retention',
-                                  value: `${payload[1]?.value}%`,
-                                  color: '#10B981',
-                                },
-                              ]}
-                            />
-                          );
-                        }}
-                      />
-                      {/* Blue Line: Current cohort */}
-                      <Line
-                        type="monotone"
-                        dataKey="retentionRate"
-                        name="Current cohort"
-                        stroke="#2563EB"
-                        strokeWidth={2.5}
-                        dot={{ r: 3, fill: '#2563EB' }}
-                        activeDot={{ r: 5 }}
-                      />
-                      {/* Green Line: Benchmark */}
-                      <Line
-                        type="monotone"
-                        dataKey="benchmarkRetentionRate"
-                        name="Benchmark cohort"
-                        stroke="#10B981"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {retentionCurveData.length === 0 ? (
+                    <div className="h-full w-full flex items-center justify-center text-xs text-slate-400">
+                      No cohort retention telemetry reported by GA4 for this period.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={retentionCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11, fill: '#94A3B8' }}
+                          axisLine={{ stroke: '#E2E8F0' }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          domain={[0, 'auto']}
+                          tickFormatter={(v) => `${v}%`}
+                          tick={{ fontSize: 11, fill: '#94A3B8' }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            return (
+                              <ChartTooltipFrame
+                                title={String(label)}
+                                items={[
+                                  {
+                                    label: 'Cohort retention rate',
+                                    value: `${payload[0]?.value}%`,
+                                    color: '#2563EB',
+                                  },
+                                ]}
+                              />
+                            );
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="retentionRate"
+                          name="Cohort retention"
+                          stroke="#2563EB"
+                          strokeWidth={2.5}
+                          dot={{ r: 3, fill: '#2563EB' }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-center gap-5 mt-4 text-xs font-medium text-slate-600 pl-4 border-t border-slate-100 pt-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
-                  <span>Current cohort retention</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
-                  <span>Benchmark cohort</span>
+                  <span>Cohort retention rate</span>
                 </div>
               </div>
             </div>
@@ -1591,72 +1680,64 @@ export function WebsiteAnalyticsView({
                       Duration of active user attention
                     </p>
                   </div>
-                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
-                    Peak: 12 seconds
-                  </span>
+                  {retentionCurveData.length > 0 && Math.max(...retentionCurveData.map(r => r.engagementTimeSeconds), 0) > 0 ? (
+                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                      Peak: {Math.max(...retentionCurveData.map(r => r.engagementTimeSeconds))}s
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="h-[240px] w-full pt-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={retentionCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fontSize: 11, fill: '#94A3B8' }}
-                        axisLine={{ stroke: '#E2E8F0' }}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        domain={[0, 15]}
-                        ticks={[0, 5, 10, 15]}
-                        tickFormatter={(v) => `${v}s`}
-                        tick={{ fontSize: 11, fill: '#94A3B8' }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        content={({ active, payload, label }) => {
-                          if (!active || !payload?.length) return null;
-                          return (
-                            <ChartTooltipFrame
-                              title={String(label)}
-                              items={[
-                                {
-                                  label: 'Average session duration',
-                                  value: `${payload[0]?.value} seconds`,
-                                  color: '#2563EB',
-                                },
-                                {
-                                  label: 'Benchmark session duration',
-                                  value: `${payload[1]?.value} seconds`,
-                                  color: '#10B981',
-                                },
-                              ]}
-                            />
-                          );
-                        }}
-                      />
-                      {/* Blue Line: Average Engagement Time */}
-                      <Line
-                        type="monotone"
-                        dataKey="engagementTimeSeconds"
-                        name="Average duration"
-                        stroke="#2563EB"
-                        strokeWidth={2.5}
-                        dot={{ r: 3, fill: '#2563EB' }}
-                        activeDot={{ r: 5 }}
-                      />
-                      {/* Green Line: Benchmark */}
-                      <Line
-                        type="monotone"
-                        dataKey="benchmarkEngagementTimeSeconds"
-                        name="Benchmark duration"
-                        stroke="#10B981"
-                        strokeWidth={2}
-                        dot={false}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {retentionCurveData.length === 0 ? (
+                    <div className="h-full w-full flex items-center justify-center text-xs text-slate-400">
+                      No engagement duration telemetry reported by GA4 for this period.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={retentionCurveData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                        <XAxis
+                          dataKey="date"
+                          tick={{ fontSize: 11, fill: '#94A3B8' }}
+                          axisLine={{ stroke: '#E2E8F0' }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          domain={[0, 'auto']}
+                          tickFormatter={(v) => `${v}s`}
+                          tick={{ fontSize: 11, fill: '#94A3B8' }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (!active || !payload?.length) return null;
+                            return (
+                              <ChartTooltipFrame
+                                title={String(label)}
+                                items={[
+                                  {
+                                    label: 'Average session duration',
+                                    value: `${payload[0]?.value}s`,
+                                    color: '#2563EB',
+                                  },
+                                ]}
+                              />
+                            );
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="engagementTimeSeconds"
+                          name="Average duration"
+                          stroke="#2563EB"
+                          strokeWidth={2.5}
+                          dot={{ r: 3, fill: '#2563EB' }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -1722,33 +1803,36 @@ export function WebsiteAnalyticsView({
 
           <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-4">
             <h3 className="text-base font-bold text-slate-900">Geographic Visitor Markets</h3>
-            <div className="space-y-3">
-              {(countries.length > 0
-                ? countries.slice(0, 4).map((c) => ({ country: c.code, sessions: c.sessions, percent: c.percent }))
-                : [
-                    { country: 'India', sessions: 14, percent: '100.0%' },
-                  ]
-              ).map((c) => (
-                <div key={c.country} className="flex items-center justify-between text-xs p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="font-bold text-slate-800 text-sm">{c.country}</span>
-                  <div className="text-right font-mono">
-                    <span className="font-bold text-slate-900 text-sm">{formatNumber(c.sessions)}</span>
-                    <span className="text-slate-400 ml-2">({c.percent})</span>
+            {(!ga4RealData?.countries || ga4RealData.countries.length === 0) ? (
+              <p className="text-xs text-slate-400 py-6 text-center">No geographic market data reported by GA4 for this period.</p>
+            ) : (
+              <div className="space-y-3">
+                {ga4RealData.countries.slice(0, 5).map((c) => (
+                  <div key={c.code} className="flex items-center justify-between text-xs p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="font-bold text-slate-800 text-sm">{c.code}</span>
+                    <div className="text-right font-mono">
+                      <span className="font-bold text-slate-900 text-sm">{formatNumber(c.sessions)}</span>
+                      <span className="text-slate-400 ml-2">({c.percent})</span>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── TAB 6: EVENTS (GA4 Real Events - Screenshot 4) ── */}
+      {/* ── TAB 6: EVENTS (GA4 Real Events) ── */}
       {activeTab === 'Events' && (
         <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-2xs space-y-4 animate-in fade-in-50 duration-200">
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">Events: Event name</h3>
-              <p className="text-xs text-slate-500">Verified real telemetry: 127 total events logged across 6 interaction types</p>
+              <p className="text-xs text-slate-500">
+                {ga4RealData?.events && ga4RealData.events.length > 0
+                  ? `Verified Google Analytics telemetry: ${ga4RealData.events.reduce((acc, e) => acc + e.eventCount, 0)} total events logged across ${ga4RealData.events.length} interaction types`
+                  : 'Real Google Analytics event counts and user engagement'}
+              </p>
             </div>
             <Link
               href={`/client/${tenantSlug}/reports/ga4/events`}
@@ -1758,54 +1842,50 @@ export function WebsiteAnalyticsView({
               <ExternalLink className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
-                  <th className="pb-3 font-semibold">Event Name</th>
-                  <th className="pb-3 text-right font-semibold">Event Count</th>
-                  <th className="pb-3 text-right font-semibold">Total Users</th>
-                  <th className="pb-3 text-right font-semibold">Events / Active User</th>
-                  <th className="pb-3 text-right font-semibold">Total Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {(ga4RealData?.events && ga4RealData.events.length > 0
-                  ? ga4RealData.events
-                  : [
-                      { eventName: 'page_view', eventCount: 34, percentageOfTotal: 26.77, totalUsers: 14, userPercentage: 100, eventCountPerActiveUser: 2.43, totalRevenue: '₹0.00 (-)' },
-                      { eventName: 'scroll', eventCount: 32, percentageOfTotal: 25.20, totalUsers: 14, userPercentage: 100, eventCountPerActiveUser: 2.29, totalRevenue: '₹0.00 (-)' },
-                      { eventName: 'session_start', eventCount: 31, percentageOfTotal: 24.41, totalUsers: 14, userPercentage: 100, eventCountPerActiveUser: 2.21, totalRevenue: '₹0.00 (-)' },
-                      { eventName: 'first_visit', eventCount: 15, percentageOfTotal: 11.81, totalUsers: 14, userPercentage: 100, eventCountPerActiveUser: 1.07, totalRevenue: '₹0.00 (-)' },
-                      { eventName: 'user_engagement', eventCount: 14, percentageOfTotal: 11.02, totalUsers: 6, userPercentage: 42.86, eventCountPerActiveUser: 2.33, totalRevenue: '₹0.00 (-)' },
-                      { eventName: 'file_download', eventCount: 1, percentageOfTotal: 0.79, totalUsers: 1, userPercentage: 7.14, eventCountPerActiveUser: 1.00, totalRevenue: '₹0.00 (-)' },
-                    ]
-                ).map((ev) => (
-                  <tr key={ev.eventName} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 font-bold text-slate-900 text-sm font-mono text-[#2563EB]">{ev.eventName}</td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">
-                      {ev.eventCount} <span className="text-slate-400 text-xs font-normal">({ev.percentageOfTotal}%)</span>
-                    </td>
-                    <td className="py-3.5 text-right font-mono font-semibold text-slate-700">
-                      {ev.totalUsers} <span className="text-slate-400 text-xs font-normal">({ev.userPercentage}%)</span>
-                    </td>
-                    <td className="py-3.5 text-right font-mono font-bold text-slate-900">
-                      {ev.eventCountPerActiveUser}
-                    </td>
-                    <td className="py-3.5 text-right font-mono text-slate-500">
-                      {ev.totalRevenue}
-                    </td>
+          {(!ga4RealData?.events || ga4RealData.events.length === 0) ? (
+            <p className="text-xs text-slate-400 py-8 text-center">No events recorded by GA4 for this period.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="pb-3 font-semibold">Event Name</th>
+                    <th className="pb-3 text-right font-semibold">Event Count</th>
+                    <th className="pb-3 text-right font-semibold">Total Users</th>
+                    <th className="pb-3 text-right font-semibold">Events / Active User</th>
+                    <th className="pb-3 text-right font-semibold">Total Revenue</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {ga4RealData.events.map((ev) => (
+                    <tr key={ev.eventName} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3.5 font-bold text-slate-900 text-sm font-mono text-[#2563EB]">{ev.eventName}</td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-800 text-sm">
+                        {ev.eventCount} <span className="text-slate-400 text-xs font-normal">({ev.percentageOfTotal}%)</span>
+                      </td>
+                      <td className="py-3.5 text-right font-mono font-semibold text-slate-700">
+                        {ev.totalUsers} <span className="text-slate-400 text-xs font-normal">({ev.userPercentage}%)</span>
+                      </td>
+                      <td className="py-3.5 text-right font-mono font-bold text-slate-900">
+                        {ev.eventCountPerActiveUser}
+                      </td>
+                      <td className="py-3.5 text-right font-mono text-slate-500">
+                        {ev.totalRevenue}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
+      )}
+        </>
       )}
 
       {/* ── Footer ── */}
       <div className="text-xs text-slate-400 pt-2 select-none flex items-center justify-between">
-        <span>Live GA4 Verified Telemetry: {ga4RealData?.propertyName || 'Lakshmi Priyan - Portfolio'}</span>
+        <span>Live GA4 Verified Telemetry: {ga4RealData?.isConfigured ? (ga4RealData.propertyName || ga4RealData.propertyId) : 'Not Configured'}</span>
         <span>Last synced: {new Date().toLocaleDateString()}</span>
       </div>
     </div>
