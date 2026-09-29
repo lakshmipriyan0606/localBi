@@ -132,8 +132,31 @@ export function IntegrationsManager({
   const isStep1Complete = isAuthorized && initialState.brands.length > 0;
 
   // Separate discovered resources into GSC properties and GBP locations
-  const gscResources = initialState.externalResources.filter((r) => r.resourceType === "PROPERTY");
-  const gbpResources = initialState.externalResources.filter((r) => r.resourceType === "LOCATION");
+  // Deduplicate by externalResourceId — keep the entry that has a mapping, or the first occurrence
+  const mappedResourceIdsSet = new Set(initialState.internalMappings.map((m) => m.resourceId));
+
+  function deduplicateResources<T extends { id: string; externalResourceId: string }>(resources: T[]): T[] {
+    const seen = new Map<string, T>();
+    for (const r of resources) {
+      const key = r.externalResourceId.toLowerCase().replace(/\/$/, '');
+      if (!seen.has(key)) {
+        seen.set(key, r);
+      } else {
+        // Prefer the one that has an active mapping
+        if (mappedResourceIdsSet.has(r.id) && !mappedResourceIdsSet.has(seen.get(key)!.id)) {
+          seen.set(key, r);
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }
+
+  const gscResources = deduplicateResources(
+    initialState.externalResources.filter((r) => r.resourceType === "PROPERTY")
+  );
+  const gbpResources = deduplicateResources(
+    initialState.externalResources.filter((r) => r.resourceType === "LOCATION")
+  );
   const virtualMappings = initialState.internalMappings;
 
   // Mapped vs Unmapped tracking
@@ -734,8 +757,9 @@ export function IntegrationsManager({
                       notify.success(`Service Account successfully linked! You are ready to sync.`);
                       router.refresh();
                       setActiveStep(3);
-                    } catch (error) {
-                      notify.error("Failed to save connection to database.");
+                    } catch (error: unknown) {
+                      const msg = (error as { message?: string })?.message || '';
+                      notify.error(msg || "Failed to save connection to database.");
                     }
                   }}
                 />

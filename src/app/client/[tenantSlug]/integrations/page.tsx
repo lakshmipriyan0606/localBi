@@ -48,6 +48,22 @@ export default async function TenantIntegrationsPage({
     authorizedContext
   );
 
+  // Deduplicate external resources by (provider + externalResourceId) — prefer mapped entries
+  const mappedResIds = new Set(mappingState.internalMappings.map((m) => m.resourceId));
+  const deduplicatedResources = (() => {
+    const seen = new Map<string, (typeof mappingState.externalResources)[0]>();
+    for (const r of mappingState.externalResources) {
+      const key = `${r.provider}::${r.externalResourceId.toLowerCase().replace(/\/$/, '')}`;
+      if (!seen.has(key)) {
+        seen.set(key, r);
+      } else if (mappedResIds.has(r.id) && !mappedResIds.has(seen.get(key)!.id)) {
+        // Replace with the mapped version
+        seen.set(key, r);
+      }
+    }
+    return Array.from(seen.values());
+  })();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -71,7 +87,7 @@ export default async function TenantIntegrationsPage({
             createdAt: c.createdAt.toISOString(),
             lastUsedAt: c.lastUsedAt ? c.lastUsedAt.toISOString() : null,
           })),
-          externalResources: mappingState.externalResources.map((r) => ({
+          externalResources: deduplicatedResources.map((r) => ({
             id: r.id,
             provider: r.provider,
             externalResourceId: r.externalResourceId,

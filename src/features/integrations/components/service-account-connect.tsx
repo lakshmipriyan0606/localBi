@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Loader2, CheckCircle2, XCircle, Key, LogIn, Save } from 'lucide-react';
+import { Loader2, CheckCircle2, XCircle, Key, LogIn, Save, AlertCircle } from 'lucide-react';
 
 export interface GoogleIntegrationConnectProps {
   /** Callback fired when the connection is successfully verified and saved */
@@ -17,6 +17,7 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }:
   const [ga4Id, setGa4Id] = useState('');
   const [gscUrl, setGscUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [results, setResults] = useState<{
     ga4?: { success: boolean; message: string };
     gsc?: { success: boolean; message: string };
@@ -28,6 +29,7 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }:
   const handleServiceAccountVerify = async () => {
     setIsLoading(true);
     setResults(null);
+    setErrorMessage(null);
     try {
       // 1. Verify the connection using our verify API
       const verifyResponse = await fetch('/api/integrations/google/verify', {
@@ -36,28 +38,38 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }:
         body: JSON.stringify({ ga4PropertyId: ga4Id, gscSiteUrl: gscUrl }),
       });
       const data = await verifyResponse.json();
-      
-      if (data.success) {
-        setResults(data.results);
-        
-        // 2. If it succeeds, save it to your database
-        if (brandId) {
-          // Example: Replace this with your actual API endpoint to update the Brand
-          // await browserClient.patch(`/api/brands/${brandId}`, { 
-          //   ga4PropertyId: ga4Id, 
-          //   gscSiteUrl: gscUrl 
-          // });
-        }
 
-        // 3. Trigger callback for the parent component to close modals or show success state
-        if (onSuccess) {
-          onSuccess({ ga4PropertyId: ga4Id, gscSiteUrl: gscUrl });
-        }
-      } else {
-        alert('Error verifying connections: ' + data.error);
+      if (!data.success) {
+        setErrorMessage('Verification request failed: ' + (data.error || 'Unknown error'));
+        return;
+      }
+
+      setResults(data.results);
+
+      // 2. Block saving if GA4 validation failed
+      if (ga4Id && data.results?.ga4 && !data.results.ga4.success) {
+        setErrorMessage(
+          `GA4 Property ID "${ga4Id}" is not valid or the service account does not have access. ` +
+          `Please check the ID and make sure you have added the service account email as a Viewer in Google Analytics.`
+        );
+        return;
+      }
+
+      // 3. Block saving if GSC validation failed
+      if (gscUrl && data.results?.gsc && !data.results.gsc.success) {
+        setErrorMessage(
+          `GSC Site URL "${gscUrl}" could not be verified. ` +
+          `Please check the URL and make sure the service account has access in Google Search Console.`
+        );
+        return;
+      }
+
+      // 4. All validations passed — trigger save callback
+      if (onSuccess) {
+        onSuccess({ ga4PropertyId: ga4Id, gscSiteUrl: gscUrl });
       }
     } catch (error) {
-      alert('Network error occurred while trying to verify.');
+      setErrorMessage('Network error occurred while trying to verify. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -153,14 +165,27 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }:
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
                   GA4 Property ID
+                  <span className="ml-1 text-xs text-slate-400 font-normal">(numbers only, e.g. 123456789)</span>
                 </label>
                 <input
                   type="text"
-                  className="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className={`w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none ${
+                    ga4Id && !/^\d+$/.test(ga4Id)
+                      ? 'border-red-400 bg-red-50 focus:ring-red-400'
+                      : 'border-slate-300'
+                  }`}
                   placeholder="e.g. 123456789"
                   value={ga4Id}
-                  onChange={(e) => setGa4Id(e.target.value)}
+                  onChange={(e) => { setGa4Id(e.target.value); setErrorMessage(null); setResults(null); }}
                 />
+                {ga4Id && !/^\d+$/.test(ga4Id) && (
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    GA4 Property ID must contain numbers only
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -178,12 +203,23 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }:
 
             <button
               onClick={handleServiceAccountVerify}
-              disabled={isLoading || (!ga4Id && !gscUrl)}
+              disabled={isLoading || (!ga4Id && !gscUrl) || (!!ga4Id && !/^\d+$/.test(ga4Id))}
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isLoading ? 'Verifying & Saving...' : 'Verify & Save Connection'}
             </button>
+
+            {/* Error Banner */}
+            {errorMessage && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-bold text-red-800">Validation Failed — Not Saved</p>
+                  <p className="text-sm text-red-700 mt-0.5">{errorMessage}</p>
+                </div>
+              </div>
+            )}
 
             {/* Results Section */}
             {results && (

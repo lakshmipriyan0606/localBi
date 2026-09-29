@@ -6,6 +6,7 @@ import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { handleRouteError } from '@/shared/errors';
+import { getGA4Client } from '@/shared/lib/google-auth';
 
 export async function POST(
   request: NextRequest,
@@ -32,6 +33,41 @@ export async function POST(
 
     if (!brandId) {
       return NextResponse.json({ error: 'Brand ID is required' }, { status: 400 });
+    }
+
+    // Validate GA4 Property ID format (must be numeric)
+    if (ga4PropertyId) {
+      if (!/^\d+$/.test(String(ga4PropertyId).trim())) {
+        return NextResponse.json(
+          { error: `GA4 Property ID must contain only digits. Received: "${ga4PropertyId}"` },
+          { status: 400 }
+        );
+      }
+
+      // Validate that the property actually exists and is accessible via the service account
+      try {
+        const ga4Client = await getGA4Client();
+        await ga4Client.properties.runReport({
+          property: `properties/${ga4PropertyId}`,
+          requestBody: {
+            dateRanges: [{ startDate: 'today', endDate: 'today' }],
+            dimensions: [{ name: 'date' }],
+            metrics: [{ name: 'sessions' }],
+            limit: 1,
+          },
+        });
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        const isNotFound = msg.includes('404') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('permission');
+        return NextResponse.json(
+          {
+            error: isNotFound
+              ? `GA4 Property "${ga4PropertyId}" was not found or the service account does not have access. Please check the property ID and ensure the service account has been added as a Viewer in Google Analytics.`
+              : `GA4 Property "${ga4PropertyId}" could not be verified: ${msg}`,
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Hardcoded service account email - should match your google-credentials.json client_email
@@ -95,23 +131,24 @@ export async function POST(
         });
 
         if (location) {
-          const ga4Resource = await tx.externalResource.upsert({
-            where: {
-              uq_external_resource_provider_id: {
-                tenantId: tenant.id,
-                provider: 'GOOGLE_BUSINESS_PROFILE',
-                externalResourceId: ga4PropertyId
-              }
-            },
-            update: {
-              resourceName: `GA4 Property: ${ga4PropertyId}`,
-              accountId: externalAccount.id
-            },
-            create: {
+          // Remove any previously registered GA4 resources for this tenant
+          // so that re-submitting with a new property ID replaces the old one
+          const oldGa4Resources = await tx.externalResource.findMany({
+            where: { tenantId: tenant.id, provider: 'GOOGLE_ANALYTICS_4' },
+            include: { internalMappings: true }
+          });
+          for (const old of oldGa4Resources) {
+            await tx.internalResourceMapping.deleteMany({ where: { tenantId: tenant.id, resourceId: old.id } });
+            await tx.connectionResourceAccess.deleteMany({ where: { resourceId: old.id } });
+            await tx.externalResource.delete({ where: { id: old.id } });
+          }
+
+          const ga4Resource = await tx.externalResource.create({
+            data: {
               tenantId: tenant.id,
-              provider: 'GOOGLE_BUSINESS_PROFILE',
+              provider: 'GOOGLE_ANALYTICS_4',
               externalResourceId: ga4PropertyId,
-              resourceType: 'LOCATION',
+              resourceType: 'PROPERTY',
               resourceName: `GA4 Property: ${ga4PropertyId}`,
               accountId: externalAccount.id
             }
@@ -136,6 +173,7 @@ export async function POST(
           });
         }
       }
+
 
       // 3. Map GSC URL to the Brand
       if (gscSiteUrl) {
