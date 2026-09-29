@@ -135,7 +135,7 @@ export class OverviewService {
         select: { id: true, name: true, slug: true },
       });
 
-      const [locs, brs, conns] = await Promise.all([
+      const [locs, brs, conns, aggReviews] = await Promise.all([
         tx.location.findMany({
           where: { tenantId, isArchived: false },
           select: {
@@ -158,7 +158,13 @@ export class OverviewService {
           select: { id: true, externalEmail: true },
           take: 1,
         }),
+        tx.gbpLocationAggregate.aggregate({
+          where: { tenantId },
+          _sum: { totalReviewCount: true }
+        }),
       ]);
+
+      const totalReviews = aggReviews._sum.totalReviewCount || 0;
 
       const mappedCount = await tx.internalResourceMapping.count({ where: { tenantId } });
 
@@ -351,11 +357,11 @@ export class OverviewService {
           callsDelta: hasGbpData ? 0 : 0,
           directions: gbpDirections,
           directionsDelta: hasGbpData ? 0 : 0,
-          reviews: 0,
+          reviews: totalReviews,
           reviewsDelta: 0,
           photoViews: gbpWebsiteClicks,
           photoViewsDelta: 0,
-          hasData: hasGbpData,
+          hasData: hasGbpData || totalReviews > 0,
         },
         gsc: {
           clicks: gscClicks,

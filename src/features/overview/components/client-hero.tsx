@@ -24,14 +24,11 @@ export function ClientHero({
   locationsCount,
   categoriesCount = 0,
   brandTagline = 'Local search visibility, store performance, and customer analytics.',
-  storeBadgeName,
-  storeBadgeIcon = '🏢',
-  marketingQuote,
   growthPercent,
   isConnected = false,
   isDataReady = false,
 }: ClientHeroProps) {
-  const displayBadgeName = storeBadgeName || tenantName.toUpperCase().slice(0, 16);
+
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-indigo-100/60 bg-gradient-to-br from-[#FAFAFF] to-[#F5F5FA] p-4 shadow-sm">

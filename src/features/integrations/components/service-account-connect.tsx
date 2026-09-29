@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Loader2, CheckCircle2, XCircle, Key, LogIn, Save, AlertCircle } from 'lucide-react';
 
 export interface GoogleIntegrationConnectProps {
@@ -8,11 +8,9 @@ export interface GoogleIntegrationConnectProps {
   onSuccess?: (config: { ga4PropertyId: string; gscSiteUrl: string }) => void;
   /** Callback fired when the user clicks 'Sign in with Google' */
   onOAuthConnect?: () => void;
-  /** Optional Brand ID if you want to automatically save to the database */
-  brandId?: string;
 }
 
-export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect, brandId }: GoogleIntegrationConnectProps = {}) {
+export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect }: GoogleIntegrationConnectProps = {}) {
   const [activeTab, setActiveTab] = useState<'oauth' | 'service'>('oauth');
   const [ga4Id, setGa4Id] = useState('');
   const [gscUrl, setGscUrl] = useState('');

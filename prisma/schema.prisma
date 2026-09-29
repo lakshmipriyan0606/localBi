@@ -46,6 +46,10 @@ model Tenant {
   gscDailyPages        GscDailyPageMetric[]
   gscDailyQueries      GscDailyQueryMetric[]
   gbpDailyMetrics      GbpDailyMetric[]
+  gbpReviews           GbpReview[]
+  gbpLocationAggregates GbpLocationAggregate[]
+  gbpPosts             GbpPost[]
+  gbpMedia             GbpMedia[]
   syncRuns             SyncRun[]
   syncCursors          SyncCursor[]
   auditLogs            AuditLog[]
@@ -262,6 +266,10 @@ model Location {
   scopes           LocationAccessScope[]
   productLocations ProductLocation[]
   gbpMetrics       GbpDailyMetric[]
+  gbpReviews       GbpReview[]
+  gbpAggregate     GbpLocationAggregate?
+  gbpPosts         GbpPost[]
+  gbpMedia         GbpMedia[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -661,4 +669,85 @@ model AuditLog {
   @@index([actorId, createdAt], name: "idx_audit_logs_actor_created")
   @@index([resourceType, resourceId], name: "idx_audit_logs_resource")
   @@map("audit_logs")
+}
+
+model GbpReview {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  locationId     String    @map("location_id")
+  reviewId       String    @map("review_id")
+  reviewerName   String    @map("reviewer_name")
+  rating         Int
+  comment        String?   @db.Text
+  replyComment   String?   @db.Text
+  replyUpdatedAt DateTime? @map("reply_updated_at")
+  createTime     DateTime  @map("create_time")
+  updateTime     DateTime  @map("update_time")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location       Location  @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, reviewId], name: "uq_gbp_review")
+  @@index([tenantId, locationId, updateTime(sort: Desc)], name: "idx_gbp_reviews_location_updated")
+  @@index([tenantId, locationId, rating], name: "idx_gbp_reviews_location_rating")
+  @@map("gbp_reviews")
+}
+
+model GbpLocationAggregate {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  locationId       String   @map("location_id")
+  averageRating    Float?   @map("average_rating")
+  totalReviewCount Int      @default(0) @map("total_review_count")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location         Location @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, locationId], name: "uq_gbp_location_aggregate")
+  @@map("gbp_location_aggregates")
+}
+
+model GbpPost {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  locationId     String    @map("location_id")
+  postId         String    @map("post_id")
+  topicType      String    @map("topic_type") // STANDARD, EVENT, OFFER
+  languageCode   String    @map("language_code")
+  summary        String    @db.Text
+  callToAction   Json?     @map("call_to_action") // { actionType, url }
+  event          Json?     // { title, schedule }
+  offer          Json?     // { couponCode, redeemOnlineUrl, termsConditions }
+  state          String    // LIVE, REJECTED, PENDING
+  createTime     DateTime  @map("create_time")
+  updateTime     DateTime  @map("update_time")
+  
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location       Location  @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, postId], name: "uq_gbp_post")
+  @@index([tenantId, locationId, updateTime(sort: Desc)], name: "idx_gbp_posts_location_updated")
+  @@map("gbp_posts")
+}
+
+model GbpMedia {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  locationId     String    @map("location_id")
+  mediaKey       String    @map("media_key") // Google's mediaItem name
+  mediaFormat    String    @map("media_format") // PHOTO, VIDEO
+  sourceUrl      String    @map("source_url")
+  thumbnailUrl   String?   @map("thumbnail_url")
+  category       String    // EXTERIOR, INTERIOR, PRODUCT, COVER, LOGO
+  createTime     DateTime  @map("create_time")
+  
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location       Location  @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, mediaKey], name: "uq_gbp_media")
+  @@index([tenantId, locationId], name: "idx_gbp_media_location")
+  @@map("gbp_media")
 }

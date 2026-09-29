@@ -53,7 +53,7 @@ export async function POST(
             dateRanges: [{ startDate: 'today', endDate: 'today' }],
             dimensions: [{ name: 'date' }],
             metrics: [{ name: 'sessions' }],
-            limit: 1,
+            limit: '1',
           },
         });
       } catch (err: any) {
@@ -85,7 +85,13 @@ export async function POST(
         },
         update: {
           lastUsedAt: new Date(),
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          encryptedRefreshToken: 'service-account-mock-token',
+          grantedScopes: [
+            'service-account',
+            'https://www.googleapis.com/auth/business.manage',
+            'https://www.googleapis.com/auth/webmasters.readonly'
+          ]
         },
         create: {
           tenantId: tenant.id,

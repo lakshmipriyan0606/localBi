@@ -22,7 +22,7 @@ export async function POST(request: Request) {
             dateRanges: [{ startDate: 'today', endDate: 'today' }],
             dimensions: [{ name: 'date' }],
             metrics: [{ name: 'sessions' }],
-            limit: 1,
+            limit: '1',
           },
         });
         results.ga4 = { success: true, message: 'Connected to GA4 successfully!' };
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
         await gscClient.searchanalytics.query({
           siteUrl: gscSiteUrl,
           requestBody: {
-            startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days ago
-            endDate: new Date().toISOString().split('T')[0],
+            startDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] as string, // 3 days ago
+            endDate: new Date().toISOString().split('T')[0] as string,
             dimensions: ['device'],
             rowLimit: 1,
           },

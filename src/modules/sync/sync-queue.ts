@@ -28,7 +28,16 @@ export interface GbpSyncJobData {
   businessKey: string;
 }
 
-export type SyncJobData = GscSyncJobData | GbpSyncJobData;
+export interface GbpReviewSyncJobData {
+  type: 'GBP_REVIEW_SYNC';
+  tenantId: string;
+  locationId: string;
+  locationResourceName: string;
+  accountId: string; // Needed for v4 GBP API
+  businessKey: string;
+}
+
+export type SyncJobData = GscSyncJobData | GbpSyncJobData | GbpReviewSyncJobData;
 
 let syncQueueInstance: Queue<SyncJobData> | null = null;
 
@@ -187,10 +196,65 @@ export class SyncQueueService {
   }
 
   /**
+   * Schedules a GBP Review synchronization job for a location.
+   */
+  public static async scheduleGbpReviewSync(params: {
+    tenantId: string;
+    locationId: string;
+    locationResourceName: string;
+    accountId: string;
+  }) {
+    const queue = getSyncQueue();
+    const businessKey = `${params.tenantId}:gbp_reviews:${params.locationId}`;
+    const { jobId } = this.generateJobId('gbp-review-sync', businessKey);
+
+    await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+      await tx.syncRun.upsert({
+        where: {
+          uq_sync_run_business_key: {
+            tenantId: params.tenantId,
+            businessKey,
+          },
+        },
+        create: {
+          tenantId: params.tenantId,
+          provider: 'GBP_REVIEWS',
+          resourceId: params.locationId,
+          businessKey,
+          status: 'RUNNING',
+          startedAt: new Date(),
+        },
+        update: {
+          status: 'RUNNING',
+          startedAt: new Date(),
+          completedAt: null,
+          errorCode: null,
+        },
+      });
+    });
+
+    const job = await queue.add(
+      'gbp-review-sync',
+      {
+        type: 'GBP_REVIEW_SYNC',
+        tenantId: params.tenantId,
+        locationId: params.locationId,
+        locationResourceName: params.locationResourceName,
+        accountId: params.accountId,
+        businessKey,
+      },
+      { jobId }
+    );
+
+    logger.info({ jobId, businessKey }, 'Enqueued GBP Review synchronization job');
+    return { jobId, businessKey, id: job.id };
+  }
+
+  /**
    * Enqueues initial or manual synchronization for all mapped resources of a tenant.
    */
   public static async scheduleTenantFullSync(tenantId: string) {
-    const { properties, locations } = await TenantContextService.withTenantContext(
+    const { properties, locations, accounts } = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
       async (tx) => {
@@ -203,7 +267,11 @@ export class SyncQueueService {
           include: { resource: true },
         });
 
-        return { properties: props, locations: locMappings };
+        const extAccounts = await tx.externalAccount.findMany({
+          where: { tenantId },
+        });
+
+        return { properties: props, locations: locMappings, accounts: extAccounts };
       }
     );
 
@@ -229,15 +297,30 @@ export class SyncQueueService {
     }
 
     // Schedule GBP for each mapped location
+    const enableGbpSync = process.env['ENABLE_GBP_SYNC'] !== 'false';
     for (const mapping of locations) {
-      const scheduled = await this.scheduleGbpSync({
-        tenantId,
-        locationId: mapping.internalId,
-        locationResourceName: mapping.resource.externalResourceId,
-        startDate,
-        endDate,
-      });
-      jobs.push(scheduled);
+      if (enableGbpSync) {
+        const scheduled = await this.scheduleGbpSync({
+          tenantId,
+          locationId: mapping.internalId,
+          locationResourceName: mapping.resource.externalResourceId,
+          startDate,
+          endDate,
+        });
+        jobs.push(scheduled);
+      }
+
+      // Find associated account for Reviews Sync
+      const account = accounts.find((a) => a.id === mapping.resource.accountId);
+      if (account) {
+        const scheduledReviews = await this.scheduleGbpReviewSync({
+          tenantId,
+          locationId: mapping.internalId,
+          locationResourceName: mapping.resource.externalResourceId,
+          accountId: account.externalAccountId.replace('accounts/', ''),
+        });
+        jobs.push(scheduledReviews);
+      }
     }
 
     return {

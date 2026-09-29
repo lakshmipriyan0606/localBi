@@ -470,10 +470,16 @@ export async function DELETE(
         throw createResourceNotFoundError("ExternalResource", resourceId);
       }
 
-      // Do not allow deleting resources that are actively mapped
+      // Cascade delete internal mappings and connection access
       if (extRes.internalMappings.length > 0) {
-        throw createValidationError("Cannot delete a resource that is currently mapped to a brand.");
+        await tx.internalResourceMapping.deleteMany({
+          where: { resourceId },
+        });
       }
+
+      await tx.connectionResourceAccess.deleteMany({
+        where: { resourceId },
+      });
 
       await tx.externalResource.delete({
         where: { id: resourceId },

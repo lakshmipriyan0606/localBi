@@ -98,10 +98,12 @@ export class ReportContextService {
           where: { tenantId: tenant.id, status: 'ACTIVE' },
         });
 
+        const isServiceAccount = activeConnection?.encryptedRefreshToken === '' || activeConnection?.encryptedRefreshToken === 'service-account-mock-token';
+
         const hasGbpScope =
-          activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/business.manage') ?? false;
+          isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/business.manage') ?? false);
         const hasGscScope =
-          activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false;
+          isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false);
 
         const mappings = await tx.internalResourceMapping.findMany({
           where: { tenantId: tenant.id },

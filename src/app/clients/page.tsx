@@ -26,10 +26,13 @@ export default async function TenantsPage() {
   } catch {
     redirect('/login');
   }
+  if (!user) {
+    redirect('/login');
+  }
 
   const tenants = await TenantService.listUserTenants(user.id);
 
-  if (tenants.length === 1) {
+  if (tenants.length === 1 && tenants[0]) {
     redirect(`/client/${tenants[0].slug}`);
   }
 

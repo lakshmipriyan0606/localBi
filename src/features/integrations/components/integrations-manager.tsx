@@ -91,7 +91,7 @@ export function IntegrationsManager({
   const router = useRouter();
 
   // Async action states
-  const [isConnecting, setIsConnecting] = useState(false);
+  // Async action states
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAutoMapping, setIsAutoMapping] = useState(false);
@@ -182,7 +182,6 @@ export function IntegrationsManager({
 
   // Handler: Initiate Google OAuth
   const handleConnect = async () => {
-    setIsConnecting(true);
     try {
       const res = await browserClient.get<{
         success: boolean;
@@ -195,7 +194,6 @@ export function IntegrationsManager({
       notify.error(
         (err as Error).message || "Failed to initiate Google authorization",
       );
-      setIsConnecting(false);
     }
   };
 
@@ -742,7 +740,7 @@ export function IntegrationsManager({
               /* Not Connected: Show Tabbed Connection UI */
               <div className="pt-2">
                 <GoogleIntegrationConnect 
-                  brandId={initialState.brands[0]?.id}
+                  {...(initialState.brands[0]?.id ? { brandId: initialState.brands[0]?.id } : {})}
                   onOAuthConnect={handleConnect} 
                   onSuccess={async (config) => {
                     try {
@@ -986,31 +984,17 @@ export function IntegrationsManager({
                                   </Button>
 
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => handleDeleteResource(res.id)}
                                     disabled={isProcessing || !canManage}
-                                    className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 px-2 py-1.5 cursor-pointer flex-shrink-0"
-                                    title="Hide this discovered website"
+                                    className="text-slate-500 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 text-xs px-3 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
+                                    title="Delete this discovered website"
                                   >
-                                    {isProcessing &&
-                                    unmappingInProgressId === res.id ? (
-                                      <RefreshCw className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <svg
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M6 18L18 6M6 6l12 12"
-                                        />
-                                      </svg>
-                                    )}
+                                    {isProcessing && unmappingInProgressId === res.id ? (
+                                      <RefreshCw className="h-4 w-4 animate-spin mr-1.5" />
+                                    ) : null}
+                                    Delete
                                   </Button>
                                 </div>
                               )}
@@ -1262,16 +1246,32 @@ export function IntegrationsManager({
                                 placeholder="Select Location"
                               />
 
-                              <Button
-                                size="sm"
-                                onClick={() => handleMapLocation(res.id)}
-                                disabled={isProcessing || !canManage}
-                                className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
-                              >
-                                {isProcessing
-                                  ? "Connecting…"
-                                  : "Connect Store Location"}
-                              </Button>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-amber-200/70 sm:border-0">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleMapLocation(res.id)}
+                                  disabled={isProcessing || !canManage}
+                                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-4 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
+                                >
+                                  {isProcessing
+                                    ? "Connecting…"
+                                    : "Connect Store Location"}
+                                </Button>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteResource(res.id)}
+                                  disabled={isProcessing || !canManage}
+                                  className="text-slate-500 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-200 text-xs px-3 py-1.5 flex-shrink-0 cursor-pointer shadow-xs"
+                                  title="Delete this discovered store location"
+                                >
+                                  {isProcessing && unmappingInProgressId === res.id ? (
+                                    <RefreshCw className="h-4 w-4 animate-spin mr-1.5" />
+                                  ) : null}
+                                  Delete
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>

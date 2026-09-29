@@ -621,7 +621,7 @@ export function DrilldownVisualAnalytics<T>({
 
       {/* ── 3. VISITOR COUNTRIES CHARTS ────────────────────── */}
       {activeVariant === 'countries' && countriesData && (() => {
-        const { countriesList, barChartData, bubbleData, topCountry } = countriesData;
+        const { countriesList, barChartData, bubbleData } = countriesData;
         return (
           <div className="space-y-3.5">
             {/* Row 1: World Map (50%) + Top Countries by Clicks Ranked List (50%) */}
@@ -666,7 +666,7 @@ export function DrilldownVisualAnalytics<T>({
                         valueSuffix="clicks"
                         size="responsive"
                         data={countriesList.map(c => ({
-                          country: (c.code || '').toLowerCase(),
+                          country: (c.code || '').toLowerCase() as any,
                           value: c.clicks
                         }))}
                         backgroundColor="transparent"

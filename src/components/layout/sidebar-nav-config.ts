@@ -19,6 +19,10 @@ import {
   Settings,
   Fingerprint,
   Network,
+  Star,
+  Image,
+  MessageSquare,
+  Settings2,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -91,6 +95,26 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'Customer Search Keywords',
         href: `/client/${slug}/reports/gbp/search-terms`,
         icon: SearchCode,
+      },
+      {
+        label: 'Reviews',
+        href: `/client/${slug}/reports/gbp/reviews`,
+        icon: Star,
+      },
+      {
+        label: 'Profile Editor',
+        href: `/client/${slug}/reports/gbp/profile`,
+        icon: Settings2,
+      },
+      {
+        label: 'Photos',
+        href: `/client/${slug}/reports/gbp/photos`,
+        icon: Image,
+      },
+      {
+        label: 'Posts',
+        href: `/client/${slug}/reports/gbp/posts`,
+        icon: MessageSquare,
       },
       {
         label: 'Manage Store Locations',

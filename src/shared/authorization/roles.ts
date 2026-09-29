@@ -38,6 +38,7 @@ export const Action = {
   INTEGRATION_MAP: 'integration:map',
   DASHBOARD_VIEW: 'dashboard:view',
   DASHBOARD_EXPORT: 'dashboard:export',
+  GBP_WRITE: 'gbp:write',
 } as const;
 
 export type ActionType = typeof Action[keyof typeof Action];
@@ -73,6 +74,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.INTEGRATION_MAP,
     Action.DASHBOARD_VIEW,
     Action.DASHBOARD_EXPORT,
+    Action.GBP_WRITE,
   ]),
   BRAND_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -84,6 +86,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.INTEGRATION_MAP,
     Action.DASHBOARD_VIEW,
     Action.DASHBOARD_EXPORT,
+    Action.GBP_WRITE,
   ]),
   LOCATION_MANAGER: new Set([
     Action.TENANT_VIEW,

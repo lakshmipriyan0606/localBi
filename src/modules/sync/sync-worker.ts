@@ -5,7 +5,8 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleApiClient, GbpDailyMetricEntry } from '../integrations/google/google-api-client';
 import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
-import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData } from './sync-queue';
+import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData, GbpReviewSyncJobData } from './sync-queue';
+import { GbpReviewSyncJob } from './jobs/gbp-review-sync-job';
 import { logger } from '@/shared/observability/logger';
 
 export class SyncWorkerService {
@@ -92,11 +93,25 @@ export class SyncWorkerService {
 
     try {
       // 2. Refresh or resolve valid access token
-      const accessToken = await GoogleOAuthService.refreshAccessToken(
-        activeConnection.encryptedRefreshToken,
-        tenantId,
-        activeConnection.id
-      );
+      let accessToken: string;
+      if (activeConnection.encryptedRefreshToken && activeConnection.encryptedRefreshToken !== 'service-account-mock-token') {
+        try {
+          accessToken = await GoogleOAuthService.refreshAccessToken(
+            activeConnection.encryptedRefreshToken,
+            tenantId,
+            activeConnection.id
+          );
+        } catch (err) {
+          logger.error({ err, tenantId }, 'Failed to refresh access token for background sync');
+          throw err;
+        }
+      } else {
+        const { getAuthenticatedGoogleClient } = await import('@/shared/lib/google-auth');
+        const auth = getAuthenticatedGoogleClient();
+        const token = await auth.getAccessToken();
+        if (!token) throw new Error('Failed to get access token from service account');
+        accessToken = token;
+      }
 
       let rowsIngested = 0;
 
@@ -104,6 +119,9 @@ export class SyncWorkerService {
         rowsIngested = await this.processGscJob(data, accessToken);
       } else if (data.type === 'GBP_SYNC') {
         rowsIngested = await this.processGbpJob(data, accessToken);
+      } else if (data.type === 'GBP_REVIEW_SYNC') {
+        const result = await GbpReviewSyncJob.execute(accessToken, data as GbpReviewSyncJobData);
+        rowsIngested = result.processed;
       }
 
       // 3. Mark SyncRun SUCCESS
@@ -505,11 +523,25 @@ export class SyncWorkerService {
       return { gscRows: 0, gbpRows: 0 };
     }
 
-    const accessToken = await GoogleOAuthService.refreshAccessToken(
-      activeConnection.encryptedRefreshToken,
-      tenantId,
-      activeConnection.id
-    );
+    let accessToken: string;
+    if (activeConnection.encryptedRefreshToken && activeConnection.encryptedRefreshToken !== 'service-account-mock-token') {
+      try {
+        accessToken = await GoogleOAuthService.refreshAccessToken(
+          activeConnection.encryptedRefreshToken,
+          tenantId,
+          activeConnection.id
+        );
+      } catch (err) {
+        logger.error({ err, tenantId }, 'Failed to refresh access token for direct sync');
+        throw err;
+      }
+    } else {
+      const { getAuthenticatedGoogleClient } = await import('@/shared/lib/google-auth');
+      const auth = getAuthenticatedGoogleClient();
+      const token = await auth.getAccessToken();
+      if (!token) throw new Error('Failed to get access token from service account');
+      accessToken = token;
+    }
 
     const today = new Date();
     const thirtyDaysAgo = new Date();
