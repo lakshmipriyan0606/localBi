@@ -30,6 +30,8 @@ export class ResourceDiscoveryService {
       throw createResourceNotFoundError('IntegrationConnection', connectionId);
     }
 
+    logger.info({ tenantId, connectionId, email: connection.externalEmail }, '[Discovery] Starting resource discovery - fetching Google access token');
+
     // 2. Refresh or obtain access token using encrypted refresh token
     const accessToken = await GoogleOAuthService.refreshAccessToken(
       connection.encryptedRefreshToken,
@@ -37,12 +39,15 @@ export class ResourceDiscoveryService {
       connection.id
     );
 
+    logger.info({ tenantId }, '[Discovery] Access token obtained successfully');
+
     // 3. Discover GBP Accounts and Locations
     let gbpAccounts: DiscoveredResourceAccount[] = [];
     try {
       gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken);
+      logger.info({ tenantId, accountsFound: gbpAccounts.length, locations: gbpAccounts.map(a => ({ account: a.externalAccountId, locations: a.resources.map(r => r.resourceName) })) }, '[Discovery] GBP discovery result');
     } catch (err: unknown) {
-      logger.warn({ err }, "Failed to discover GBP resources, continuing with GSC");
+      logger.warn({ err }, '[Discovery] Failed to discover GBP resources, continuing with GSC');
     }
 
     // 4. Discover GSC Properties

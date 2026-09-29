@@ -37,7 +37,8 @@ export interface GbpDailyMetricEntry {
 
 interface RawGbpLocation {
   name: string;
-  title?: string;
+  title?: string;          // v1 API field
+  locationName?: string;   // v4 API field (legacy)
   storeCode?: string;
   storefrontAddress?: {
     addressLines?: string[];
@@ -101,11 +102,9 @@ export class GoogleApiClient {
         type?: string; // PERSONAL, LOCATION_GROUP, ORGANIZATION, USER_GROUP
       }>;
 
+      logger.info({ accountsCount: topLevelAccounts.length }, "GBP top-level accounts discovered");
+
       // 2. Expand ORGANIZATION accounts into their child location-group sub-accounts.
-      //    Business Manager accounts (type === 'ORGANIZATION') do not own locations
-      //    directly — their child LOCATION_GROUP accounts do. The old code silently
-      //    skipped these via the `continue` on a failed locations fetch, which is
-      //    why "Lakshmi food" (under a Business Manager org) was never discovered.
       const expandedAccounts: Array<{ name: string; accountName?: string }> = [];
 
       for (const acc of topLevelAccounts) {
@@ -126,7 +125,6 @@ export class GoogleApiClient {
             }>;
             expandedAccounts.push(...subAccounts);
           } else {
-            // Could not fetch sub-accounts; fall back to querying the org directly
             logger.warn(
               { account: acc.name, status: subRes.status },
               "Failed to fetch sub-accounts for ORGANIZATION; falling back to direct query",
@@ -138,8 +136,10 @@ export class GoogleApiClient {
         }
       }
 
-      // 3. Prepend wildcard account to capture directly managed locations that
-      //    may not appear under any formal location group.
+      // 3. Always include the wildcard "accounts/-" endpoint which lists ALL locations
+      //    the authenticated user has access to, regardless of account ownership level.
+      //    This is critical for users who are Owner (not Primary Owner) — the accounts 
+      //    list API may return empty for them, but accounts/- always returns their locations.
       expandedAccounts.unshift({
         name: "accounts/-",
         accountName: "Directly Managed Locations",
@@ -153,26 +153,44 @@ export class GoogleApiClient {
         return true;
       });
 
+      logger.info({ totalAccounts: uniqueAccounts.length }, "GBP accounts to query for locations");
+
       // 4. Fetch locations for each resolved account and deduplicate by location name
       const result: DiscoveredResourceAccount[] = [];
       const seenLocationNames = new Set<string>();
 
       for (const acc of uniqueAccounts) {
-        const locRes = await fetch(
+        // Try v1 Business Information API first (preferred, returns rich metadata)
+        let locRes = await fetch(
           `https://mybusinessbusinessinformation.googleapis.com/v1/${acc.name}/locations?readMask=name,title,storeCode,storefrontAddress,metadata`,
           { headers: { Authorization: `Bearer ${accessToken}` } },
         );
 
+        // Fallback: some accounts only work with the older v4 endpoint
         if (!locRes.ok) {
           logger.warn(
             { account: acc.name, status: locRes.status },
-            "Failed to list locations for account",
+            "v1 locations endpoint failed; trying legacy v4",
+          );
+          locRes = await fetch(
+            `https://mybusiness.googleapis.com/v4/${acc.name}/locations`,
+            { headers: { Authorization: `Bearer ${accessToken}` } },
+          );
+        }
+
+        if (!locRes.ok) {
+          logger.warn(
+            { account: acc.name, status: locRes.status },
+            "Failed to list locations for account on both v1 and v4",
           );
           continue;
         }
 
         const locData = await locRes.json();
+        // v1 returns `locations`, v4 returns `locations` too but with different shape
         const locations = (locData.locations || []) as RawGbpLocation[];
+
+        logger.info({ account: acc.name, count: locations.length }, "Locations found for account");
 
         // Filter out locations already seen from another account (deduplication)
         const uniqueLocations = locations.filter((loc) => {
@@ -193,7 +211,7 @@ export class GoogleApiClient {
             return {
               externalResourceId: String(loc.name),
               resourceType: "LOCATION" as const,
-              resourceName: String(loc.title || "Untitled Location"),
+              resourceName: String(loc.title || loc.locationName || "Untitled Location"),
               address: addressLines.join(", "),
               city: addressObj.locality,
               state: addressObj.administrativeArea,
