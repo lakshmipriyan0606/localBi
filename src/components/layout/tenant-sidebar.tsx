@@ -35,7 +35,6 @@ function SidebarContent({ tenant, user, tenants, onNavigate }: TenantSidebarProp
             </span>
           </div>
         </div>
-        <SidebarTenantSwitcher tenant={tenant} userRole={user.role} tenants={tenants} onNavigate={onNavigate} />
       </div>
 
       <SidebarNavList groups={groups} onNavigate={onNavigate} />
