@@ -40,13 +40,78 @@ const isTestEnv = process.env['NODE_ENV'] === 'test' || Boolean(process.env['VIT
 const DATA_DIR = path.join(process.cwd(), '.data');
 const MICROSITES_FILE = path.join(DATA_DIR, 'microsites.json');
 
+const SEED_MICROSITES: MicrositeConfig[] = [
+  {
+    tagline: 'Authentic South Indian Specialties & Fresh Delicacies',
+    aboutStory: 'Lakshmi Food Flagship brings premium products, trusted expertise, and dedicated customer support to our local community.',
+    primaryColor: '#4F46E5',
+    phone: '+91 98401 23456',
+    whatsapp: '+919840123456',
+    address: 'Khan St, Thiruvenkatapuram, Choolaimedu',
+    city: 'Chennai',
+    hours: '8:00 AM - 10:00 PM',
+    googleRating: 4.9,
+    reviewCount: 1,
+    googleMapsUrl: 'https://maps.google.com/?q=Lakshmi%20Food%20Flagship',
+    heroImageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+    menuItems: [
+      {
+        id: 'item-1',
+        name: 'Special Masala Dosa',
+        category: 'Tiffin & Breakfast',
+        price: 110,
+        description: 'Crispy golden crepe with potato masala and fresh coconut chutney',
+        isVeg: true,
+      },
+    ],
+    published: true,
+    industry: 'FOOD',
+    subdomain: 'lakshmi-food',
+    tenantSlug: 'lakshmi-food',
+    brandName: 'Lakshmi Food Flagship',
+  },
+  {
+    tagline: 'Authentic South Indian Specialties & Fresh Delicacies',
+    aboutStory: 'Lakshmi Food Store 001 brings premium products, trusted expertise, and dedicated customer support to our local community.',
+    primaryColor: '#4F46E5',
+    phone: '+91 98401 23456',
+    whatsapp: '+919840123456',
+    address: 'Khan St, Thiruvenkatapuram, Choolaimedu',
+    city: 'Chennai',
+    hours: '8:00 AM - 10:00 PM',
+    googleRating: 4.9,
+    reviewCount: 1,
+    googleMapsUrl: 'https://maps.google.com/?q=Lakshmi%20Food%20Store%20001',
+    heroImageUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80',
+    menuItems: [
+      {
+        id: 'item-1',
+        name: 'Special Masala Dosa',
+        category: 'Tiffin & Breakfast',
+        price: 110,
+        description: 'Crispy golden crepe with potato masala and fresh coconut chutney',
+        isVeg: true,
+      },
+    ],
+    published: true,
+    industry: 'FOOD',
+    subdomain: 'lakshmi-food-001',
+    tenantSlug: 'lakshmi-food',
+    brandName: 'Lakshmi Food Store 001',
+  },
+];
+
 function initMicrositeStore() {
+  if (micrositeStore.size === 0) {
+    for (const item of SEED_MICROSITES) {
+      micrositeStore.set(item.subdomain, item);
+    }
+  }
   if (isTestEnv) return;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    micrositeStore.clear();
     if (fs.existsSync(MICROSITES_FILE)) {
       const raw = fs.readFileSync(MICROSITES_FILE, 'utf-8');
       if (raw.trim()) {
@@ -79,7 +144,22 @@ initMicrositeStore();
 export class MicrositeService {
   static async getMicrositeBySubdomain(subdomain: string): Promise<MicrositeConfig | null> {
     initMicrositeStore();
-    return micrositeStore.get(subdomain) || null;
+    const site = micrositeStore.get(subdomain);
+    if (site) return site;
+
+    // Fallback: if subdomain has a numeric suffix (e.g., lakshmi-food-001), match to base slug
+    const baseSlug = subdomain.replace(/-\d+$/, '');
+    if (baseSlug !== subdomain) {
+      const baseSite = micrositeStore.get(baseSlug);
+      if (baseSite) {
+        return {
+          ...baseSite,
+          subdomain,
+        };
+      }
+    }
+
+    return null;
   }
 
   static async getAllMicrosites(tenantSlug: string): Promise<MicrositeConfig[]> {

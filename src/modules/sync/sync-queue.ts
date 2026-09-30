@@ -111,28 +111,31 @@ export class SyncQueueService {
 
     // Register SyncRun record in database
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
-      await tx.syncRun.upsert({
-        where: {
-          uq_sync_run_business_key: {
-            tenantId: params.tenantId,
-            businessKey,
-          },
-        },
-        create: {
-          tenantId: params.tenantId,
-          provider: 'GSC',
-          resourceId: params.propertyId,
-          businessKey,
-          status: 'RUNNING',
-          startedAt: new Date(),
-        },
-        update: {
-          status: 'RUNNING',
-          startedAt: new Date(),
-          completedAt: null,
-          errorCode: null,
-        },
+      const existing = await tx.syncRun.findFirst({
+        where: { tenantId: params.tenantId, businessKey },
       });
+      if (existing) {
+        await tx.syncRun.update({
+          where: { id: existing.id },
+          data: {
+            status: 'RUNNING',
+            startedAt: new Date(),
+            completedAt: null,
+            errorCode: null,
+          },
+        });
+      } else {
+        await tx.syncRun.create({
+          data: {
+            tenantId: params.tenantId,
+            provider: 'GSC',
+            resourceId: params.propertyId,
+            businessKey,
+            status: 'RUNNING',
+            startedAt: new Date(),
+          },
+        });
+      }
     });
 
     const job = await queue.add(
@@ -183,28 +186,31 @@ export class SyncQueueService {
     }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
-      await tx.syncRun.upsert({
-        where: {
-          uq_sync_run_business_key: {
-            tenantId: params.tenantId,
-            businessKey,
-          },
-        },
-        create: {
-          tenantId: params.tenantId,
-          provider: 'GBP',
-          resourceId: params.locationId,
-          businessKey,
-          status: 'RUNNING',
-          startedAt: new Date(),
-        },
-        update: {
-          status: 'RUNNING',
-          startedAt: new Date(),
-          completedAt: null,
-          errorCode: null,
-        },
+      const existing = await tx.syncRun.findFirst({
+        where: { tenantId: params.tenantId, businessKey },
       });
+      if (existing) {
+        await tx.syncRun.update({
+          where: { id: existing.id },
+          data: {
+            status: 'RUNNING',
+            startedAt: new Date(),
+            completedAt: null,
+            errorCode: null,
+          },
+        });
+      } else {
+        await tx.syncRun.create({
+          data: {
+            tenantId: params.tenantId,
+            provider: 'GBP',
+            resourceId: params.locationId,
+            businessKey,
+            status: 'RUNNING',
+            startedAt: new Date(),
+          },
+        });
+      }
     });
 
     const job = await queue.add(
@@ -253,28 +259,31 @@ export class SyncQueueService {
     }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
-      await tx.syncRun.upsert({
-        where: {
-          uq_sync_run_business_key: {
-            tenantId: params.tenantId,
-            businessKey,
-          },
-        },
-        create: {
-          tenantId: params.tenantId,
-          provider: 'GBP_REVIEWS',
-          resourceId: params.locationId,
-          businessKey,
-          status: 'RUNNING',
-          startedAt: new Date(),
-        },
-        update: {
-          status: 'RUNNING',
-          startedAt: new Date(),
-          completedAt: null,
-          errorCode: null,
-        },
+      const existing = await tx.syncRun.findFirst({
+        where: { tenantId: params.tenantId, businessKey },
       });
+      if (existing) {
+        await tx.syncRun.update({
+          where: { id: existing.id },
+          data: {
+            status: 'RUNNING',
+            startedAt: new Date(),
+            completedAt: null,
+            errorCode: null,
+          },
+        });
+      } else {
+        await tx.syncRun.create({
+          data: {
+            tenantId: params.tenantId,
+            provider: 'GBP_REVIEWS',
+            resourceId: params.locationId,
+            businessKey,
+            status: 'RUNNING',
+            startedAt: new Date(),
+          },
+        });
+      }
     });
 
     const job = await queue.add(

@@ -405,14 +405,14 @@ export class ResourceMappingService {
             tenantId,
             internalType: 'BRAND',
             internalId: internalBrandId,
-            resourceId: externalResourceId,
+            resourceId: extRes.id,
           },
         },
         create: {
           tenantId,
           internalType: 'BRAND',
           internalId: internalBrandId,
-          resourceId: externalResourceId,
+          resourceId: extRes.id,
         },
         update: {},
       });
