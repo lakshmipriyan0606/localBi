@@ -294,7 +294,6 @@ export function IntegrationsManager({
             onConnect={handleConnect}
             onContinue={() => setActiveStep(2)}
             onChangeAccount={() => setShowDisconnectModal(true)}
-            onRefresh={handleRefresh}
           />
         )}
 

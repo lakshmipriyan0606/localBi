@@ -8,7 +8,6 @@ interface ConnectGoogleStepProps {
   onConnect: () => void;
   onContinue: () => void;
   onChangeAccount: () => void;
-  onRefresh?: () => Promise<void>;
 }
 
 export function ConnectGoogleStep({
@@ -18,7 +17,6 @@ export function ConnectGoogleStep({
   onConnect,
   onContinue,
   onChangeAccount,
-  onRefresh,
 }: ConnectGoogleStepProps) {
   return (
     <div className="max-w-5xl mx-auto w-full">
