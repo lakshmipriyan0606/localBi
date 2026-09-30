@@ -9,6 +9,8 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { handleRouteError } from '@/shared/errors';
 
+export const maxDuration = 60;
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string }> }

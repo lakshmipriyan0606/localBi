@@ -193,8 +193,8 @@ export function IntegrationsManager({
         )
       ]);
 
-      // 3. Trigger Sync
-      await browserClient.post(`/tenants/${tenantSlug}/sync`, {});
+      // 3. Trigger Sync (allow up to 60s for full initial Google ingestion)
+      await browserClient.post(`/tenants/${tenantSlug}/sync`, {}, { timeout: 60000 });
 
       notify.success("Integrations updated! Data sync started in the background.");
       router.refresh();

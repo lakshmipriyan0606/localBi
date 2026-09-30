@@ -23,7 +23,7 @@ declare module 'axios' {
  */
 export const browserClient: AxiosInstance = axios.create({
   baseURL: '/api',
-  timeout: 15000,
+  timeout: 45000,
   withCredentials: true,
   headers: {
     Accept: 'application/json',
