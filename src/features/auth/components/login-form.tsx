@@ -42,7 +42,7 @@ export function LoginForm() {
     }
 
     // Replace history to prevent navigation back to login
-    router.replace('/clients');
+    router.replace('/dashboard');
     router.refresh();
   };
 
