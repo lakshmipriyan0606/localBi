@@ -132,7 +132,6 @@ export function IntegrationsManager({
       notify.success("Resources refreshed successfully.");
     } catch (err: unknown) {
       notify.error((err as Error).message || "Failed to refresh resources");
-    } finally {
     }
   };
 
@@ -156,8 +155,8 @@ export function IntegrationsManager({
     try {
       // 1. Calculate diff
       const existingMappings = new Map(initialState.internalMappings.map(m => [m.resourceId, m]));
-      const additions: any[] = [];
-      const removals: any[] = [];
+      const additions: Array<{ type: 'GA4_PROPERTY' | 'BRAND' | 'LOCATION'; internalId: string; externalResourceId: string }> = [];
+      const removals: string[] = [];
 
       // Check for additions/updates
       Object.entries(draftSelections).forEach(([resourceId, draft]) => {
@@ -166,7 +165,7 @@ export function IntegrationsManager({
             // Addition
             const type = draft.resourceType === 'GA4' ? 'GA4_PROPERTY' : draft.resourceType === 'GSC' ? 'BRAND' : 'LOCATION';
             const internalId = draft.target.locationId || draft.target.brandId;
-            additions.push({ type, internalId, externalResourceId: draft.externalResourceId });
+            additions.push({ type, internalId, externalResourceId: resourceId });
           }
         } else {
           if (existingMappings.has(resourceId)) {
@@ -237,7 +236,12 @@ export function IntegrationsManager({
     });
   };
 
-  const handleSelectAll = (resourceType: 'GSC' | 'GBP' | 'GA4', selected: boolean, resources: any[], targetBrandId: string) => {
+  const handleSelectAll = (
+    resourceType: 'GSC' | 'GBP' | 'GA4',
+    selected: boolean,
+    resources: Array<{ id: string; externalResourceId: string }>,
+    targetBrandId: string
+  ) => {
     setDraftSelections(prev => {
       const next = { ...prev };
       resources.forEach(r => {

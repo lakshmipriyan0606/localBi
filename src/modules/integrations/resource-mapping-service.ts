@@ -106,12 +106,14 @@ export class ResourceMappingService {
       AuthorizationService.assertBrandAccess(context, internalLoc.brandId);
 
       // 2. Validate external resource belongs to this tenant and is GBP LOCATION
-      const extRes = await tx.externalResource.findUnique({
+      const extRes = await tx.externalResource.findFirst({
         where: {
-          uq_external_resource_tenant_id: {
-            tenantId,
-            id: externalResourceId,
-          },
+          tenantId,
+          resourceType: 'LOCATION',
+          OR: [
+            { id: externalResourceId },
+            { externalResourceId: externalResourceId },
+          ],
         },
       });
 
@@ -359,12 +361,15 @@ export class ResourceMappingService {
       }
 
       // 2. Fetch GSC external resource
-      const extRes = await tx.externalResource.findUnique({
+      const extRes = await tx.externalResource.findFirst({
         where: {
-          uq_external_resource_tenant_id: {
-            tenantId,
-            id: externalResourceId,
-          },
+          tenantId,
+          provider: 'GOOGLE_SEARCH_CONSOLE',
+          resourceType: 'PROPERTY',
+          OR: [
+            { id: externalResourceId },
+            { externalResourceId: externalResourceId },
+          ],
         },
       });
 
@@ -481,12 +486,14 @@ export class ResourceMappingService {
       }
 
       // 2. Fetch GA4 external resource
-      const extRes = await tx.externalResource.findUnique({
+      const extRes = await tx.externalResource.findFirst({
         where: {
-          uq_external_resource_tenant_id: {
-            tenantId,
-            id: externalResourceId,
-          },
+          tenantId,
+          provider: 'GOOGLE_ANALYTICS_4',
+          OR: [
+            { id: externalResourceId },
+            { externalResourceId: externalResourceId },
+          ],
         },
       });
 
