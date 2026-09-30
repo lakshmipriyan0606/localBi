@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { LocalBiMark } from '@/components/brand/localbi-mark';
 import { SafeTenantNavDto, SafeUserNavDto, AuthorizedTenantDto, getNavGroups } from './sidebar-nav-config';
-import { SidebarTenantSwitcher } from './sidebar-tenant-switcher';
 import { SidebarNavList } from './sidebar-nav-list';
 import { SidebarUserFooter } from './sidebar-user-footer';
 
@@ -18,7 +17,7 @@ export interface TenantSidebarProps {
   onCloseMobile?: (() => void) | undefined;
 }
 
-function SidebarContent({ tenant, user, tenants, onNavigate }: TenantSidebarProps & { onNavigate?: () => void }) {
+function SidebarContent({ tenant, user, onNavigate }: TenantSidebarProps & { onNavigate?: () => void }) {
   const groups = useMemo(() => getNavGroups(tenant.slug), [tenant.slug]);
 
   return (
@@ -46,7 +45,6 @@ function SidebarContent({ tenant, user, tenants, onNavigate }: TenantSidebarProp
 export function TenantSidebar({
   tenant,
   user,
-  tenants,
   mobileOpen: controlledMobileOpen,
   onCloseMobile,
 }: TenantSidebarProps) {
@@ -57,7 +55,7 @@ export function TenantSidebar({
   return (
     <>
       <aside className="hidden lg:flex w-72 flex-shrink-0 flex-col border-r border-slate-200/90 bg-white min-h-screen">
-        <SidebarContent tenant={tenant} user={user} tenants={tenants} />
+        <SidebarContent tenant={tenant} user={user} />
       </aside>
 
       {isMobileOpen && (
@@ -75,7 +73,7 @@ export function TenantSidebar({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <SidebarContent tenant={tenant} user={user} tenants={tenants} onNavigate={closeMobile} />
+            <SidebarContent tenant={tenant} user={user} onNavigate={closeMobile} />
           </aside>
         </>
       )}

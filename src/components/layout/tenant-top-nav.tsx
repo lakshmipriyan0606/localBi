@@ -7,26 +7,27 @@ import { TopNavDatePicker } from './top-nav-date-picker';
 import { TopNavBrandSelector, BrandOption } from './top-nav-brand-selector';
 import { TopNavUserMenu } from './top-nav-user-menu';
 import { TopNavTenantSwitcher } from './top-nav-tenant-switcher';
+import { SafeTenantNavDto, SafeUserNavDto, AuthorizedTenantDto } from './sidebar-nav-config';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Action } from '@/shared/authorization/roles';
 
-export interface AuthorizedTenantDto {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
-  role: string;
-}
+export type { AuthorizedTenantDto };
 
 interface TenantTopNavProps {
-  tenant: { id: string; name: string; slug: string; plan: string };
-  user: { id: string; email: string; fullName?: string | null | undefined; role: string };
+  tenant: SafeTenantNavDto;
+  user: SafeUserNavDto;
   brands: BrandOption[];
   tenants?: AuthorizedTenantDto[] | undefined;
   onToggleMobileSidebar?: () => void;
 }
 
-export function TenantTopNav({ tenant, user, brands, onToggleMobileSidebar }: TenantTopNavProps) {
+export function TenantTopNav({
+  tenant,
+  user,
+  brands,
+  tenants,
+  onToggleMobileSidebar,
+}: TenantTopNavProps) {
   const { can } = usePermissions(user.role);
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-slate-200/90 bg-white px-4 sm:px-5 shadow-xs">

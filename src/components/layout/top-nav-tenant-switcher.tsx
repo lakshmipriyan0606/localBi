@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Building2, ChevronsUpDown, Check, Search, Plus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
 import { cn } from '@/lib/cn';
 import { SafeTenantNavDto, AuthorizedTenantDto } from './sidebar-nav-config';
