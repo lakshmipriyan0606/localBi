@@ -26,7 +26,7 @@ const configSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
 
   // Feature Flags
-  ENABLE_GBP_SYNC: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
+  ENABLE_GBP_SYNC: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(true),
   ENABLE_REGISTRATION: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(true),
 
   // Observability

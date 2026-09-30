@@ -4,6 +4,7 @@ import { getConfig } from '@/shared/config';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { logger } from '@/shared/observability/logger';
+import { GoogleConnectionResolver } from '@/modules/integrations/google/google-connection-resolver';
 
 export const SYNC_QUEUE_NAME = 'localbi-sync-queue';
 
@@ -171,13 +172,14 @@ export class SyncQueueService {
 
     let resolvedConnectionId = params.connectionId;
     if (!resolvedConnectionId) {
-      const activeConn = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
-        return tx.integrationConnection.findFirst({
-          where: { tenantId: params.tenantId, status: 'ACTIVE' },
-          select: { id: true },
+      try {
+        const resolved = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+          return GoogleConnectionResolver.resolveForLocation(tx, params.tenantId, params.locationId);
         });
-      });
-      resolvedConnectionId = activeConn?.id;
+        resolvedConnectionId = resolved.connectionId;
+      } catch (err) {
+        logger.warn({ err, locationId: params.locationId }, 'Could not resolve specific Google connection for GBP sync');
+      }
     }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
@@ -240,13 +242,14 @@ export class SyncQueueService {
 
     let resolvedConnectionId = params.connectionId;
     if (!resolvedConnectionId) {
-      const activeConn = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
-        return tx.integrationConnection.findFirst({
-          where: { tenantId: params.tenantId, status: 'ACTIVE' },
-          select: { id: true },
+      try {
+        const resolved = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+          return GoogleConnectionResolver.resolveForLocation(tx, params.tenantId, params.locationId);
         });
-      });
-      resolvedConnectionId = activeConn?.id;
+        resolvedConnectionId = resolved.connectionId;
+      } catch (err) {
+        logger.warn({ err, locationId: params.locationId }, 'Could not resolve specific Google connection for GBP review sync');
+      }
     }
 
     await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
@@ -350,7 +353,6 @@ export class SyncQueueService {
       if (enableGbpSync) {
         const scheduled = await this.scheduleGbpSync({
           tenantId,
-          connectionId: activeConnection?.id,
           locationId: mapping.internalId,
           locationResourceName: mapping.resource.externalResourceId,
           startDate,
@@ -364,7 +366,6 @@ export class SyncQueueService {
       if (account) {
         const scheduledReviews = await this.scheduleGbpReviewSync({
           tenantId,
-          connectionId: activeConnection?.id,
           locationId: mapping.internalId,
           locationResourceName: mapping.resource.externalResourceId,
           accountId: account.externalAccountId.replace('accounts/', ''),

@@ -3,6 +3,7 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { AuthorizedContext, AuthorizationService, Action } from '@/shared/authorization/policy';
 import { GbpWriteClient } from '@/modules/integrations/google/gbp-write-client';
 import { GoogleOAuthService } from '@/modules/integrations/google/google-oauth-service';
+import { GoogleConnectionResolver } from '@/modules/integrations/google/google-connection-resolver';
 import { SyncQueueService } from '@/modules/sync/sync-queue';
 import { AppError } from '@/shared/errors';
 import { Prisma } from '@prisma/client';
@@ -145,6 +146,8 @@ export class GbpReviewsService {
       });
       if (!review) throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Review not found', statusCode: 404 });
 
+      const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenantId, review.locationId);
+
       const mapping = await tx.internalResourceMapping.findFirst({
         where: {
           tenantId,
@@ -158,24 +161,16 @@ export class GbpReviewsService {
         throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Location is not properly mapped to a Google account', statusCode: 404 });
       }
 
-      const connection = await tx.integrationConnection.findFirst({
-        where: { tenantId, status: 'ACTIVE' },
-      });
-
-      if (!connection) {
-        throw new AppError({ code: 'TENANT_ACCESS_DENIED', message: 'Google integration is not connected', statusCode: 403 });
-      }
-
       // 2. Refresh Token
       const accessToken = await GoogleOAuthService.refreshAccessToken(
-        connection.encryptedRefreshToken,
+        resolved.encryptedRefreshToken,
         tenantId,
-        connection.id
+        resolved.connectionId
       );
 
       // 3. Call Google API
       const accountId = mapping.resource.account.externalAccountId.replace('accounts/', '');
-      const locationId = mapping.resource.externalResourceId.replace('locations/', '');
+      const locationId = resolved.externalResourceId.replace('locations/', '');
       
       const oldValues = { replyComment: review.replyComment, replyUpdatedAt: review.replyUpdatedAt };
 
@@ -236,6 +231,8 @@ export class GbpReviewsService {
         throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Review or reply not found', statusCode: 404 });
       }
 
+      const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenantId, review.locationId);
+
       const mapping = await tx.internalResourceMapping.findFirst({
         where: {
           tenantId,
@@ -249,22 +246,14 @@ export class GbpReviewsService {
         throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Location is not properly mapped to a Google account', statusCode: 404 });
       }
 
-      const connection = await tx.integrationConnection.findFirst({
-        where: { tenantId, status: 'ACTIVE' },
-      });
-
-      if (!connection) {
-        throw new AppError({ code: 'TENANT_ACCESS_DENIED', message: 'Google integration is not connected', statusCode: 403 });
-      }
-
       const accessToken = await GoogleOAuthService.refreshAccessToken(
-        connection.encryptedRefreshToken,
+        resolved.encryptedRefreshToken,
         tenantId,
-        connection.id
+        resolved.connectionId
       );
 
       const accountId = mapping.resource.account.externalAccountId.replace('accounts/', '');
-      const locationId = mapping.resource.externalResourceId.replace('locations/', '');
+      const locationId = resolved.externalResourceId.replace('locations/', '');
 
       const oldValues = { replyComment: review.replyComment, replyUpdatedAt: review.replyUpdatedAt };
 

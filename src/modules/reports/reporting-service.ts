@@ -32,6 +32,9 @@ export interface PerformanceSummaryDto {
     averagePosition: number;
   };
   gbp: {
+    status?: 'ready' | 'empty' | 'not_configured' | 'partial' | undefined;
+    mappedLocationsCount?: number | undefined;
+    totalLocationsCount?: number | undefined;
     totalSearchViews: number;
     totalMapsViews: number;
     totalViews: number;
@@ -161,7 +164,7 @@ export class ReportingService {
       const prevStart = new Date(start.getTime() - durationMs);
       const prevEnd = new Date(start.getTime());
 
-      const [currentGscTotals, currentGbpMetrics, prevGscTotals, prevGbpMetrics] = await Promise.all([
+      const [currentGscTotals, currentGbpMetrics, prevGscTotals, prevGbpMetrics, gbpLocationMappings] = await Promise.all([
         propertyIds.length > 0
           ? tx.gscDailyPropertyTotal.findMany({
               where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
@@ -180,6 +183,16 @@ export class ReportingService {
         allowedLocationIds.length > 0
           ? tx.gbpDailyMetric.findMany({
               where: { tenantId, locationId: { in: allowedLocationIds }, date: { gte: prevStart, lte: prevEnd } },
+            })
+          : Promise.resolve([]),
+        allowedLocationIds.length > 0
+          ? tx.internalResourceMapping.findMany({
+              where: {
+                tenantId,
+                internalType: 'LOCATION',
+                internalId: { in: allowedLocationIds },
+                resource: { provider: 'GOOGLE_BUSINESS_PROFILE' },
+              },
             })
           : Promise.resolve([]),
       ]);
@@ -262,7 +275,6 @@ export class ReportingService {
         }
       }
 
-
       const totalViews = searchViews + mapsViews;
       const prevTotalViews = prevSearchViews + prevMapsViews;
 
@@ -273,6 +285,16 @@ export class ReportingService {
         return Math.round(((curr - prev) / prev) * 1000) / 10;
       };
 
+      const mappedLocationIds = new Set(gbpLocationMappings.map((m) => m.internalId));
+      let gbpStatus: 'ready' | 'empty' | 'not_configured' | 'partial' = 'ready';
+      if (mappedLocationIds.size === 0) {
+        gbpStatus = 'not_configured';
+      } else if (mappedLocationIds.size < allowedLocationIds.length) {
+        gbpStatus = 'partial';
+      } else if (currentGbpMetrics.length === 0) {
+        gbpStatus = 'empty';
+      }
+
       return {
         period: { startDate, endDate },
         gsc: {
@@ -282,6 +304,9 @@ export class ReportingService {
           averagePosition: Math.round(averagePosition * 10) / 10,
         },
         gbp: {
+          status: gbpStatus,
+          mappedLocationsCount: mappedLocationIds.size,
+          totalLocationsCount: allowedLocationIds.length,
           totalSearchViews: searchViews,
           totalMapsViews: mapsViews,
           totalViews,

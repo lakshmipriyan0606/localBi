@@ -18,19 +18,16 @@ export async function GET(
     if (!tenant || !authorizedContext) throw new Error('Tenant context not found');
 
     const { searchParams } = new URL(request.url);
-    const locationId = searchParams.get('locationId') || undefined;
-    const brandId = searchParams.get('brandId') || undefined;
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    const locationId = searchParams.get('locationId');
+    if (!locationId) {
+      throw new AppError({ code: 'VALIDATION_FAILED', message: 'locationId is required', statusCode: 400 });
+    }
 
-    const data = await GbpPostsService.listPosts({
-      tenantId: tenant.id,
-      ...(locationId ? { locationId } : {}),
-      ...(brandId ? { brandId } : {}),
-      page,
-      pageSize,
-      context: authorizedContext,
-    });
+    const data = await GbpPostsService.listPosts(
+      authorizedContext,
+      tenant.id,
+      locationId
+    );
 
     return NextResponse.json(data);
   } catch (error) {

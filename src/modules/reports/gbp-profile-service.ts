@@ -3,46 +3,26 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { AuthorizedContext, AuthorizationService, Action } from '@/shared/authorization/policy';
 import { GbpWriteClient } from '@/modules/integrations/google/gbp-write-client';
 import { GoogleOAuthService } from '@/modules/integrations/google/google-oauth-service';
-import { AppError } from '@/shared/errors';
+import { GoogleConnectionResolver } from '@/modules/integrations/google/google-connection-resolver';
 
 export class GbpProfileService {
   /**
    * Fetches the GBP profile data for a specific location directly from Google APIs.
+   * Deterministically resolves the authorized Google connection through the location's mapping.
    */
   public static async getProfile(context: AuthorizedContext, tenantId: string, locationId: string) {
     AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // 1. Validate mapping
-      const mapping = await tx.internalResourceMapping.findFirst({
-        where: {
-          tenantId,
-          internalType: 'LOCATION',
-          internalId: locationId,
-        },
-        include: { resource: { include: { account: true } } },
-      });
+      const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenantId, locationId);
 
-      if (!mapping || !mapping.resource.account) {
-        throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Location is not properly mapped to a Google account', statusCode: 404 });
-      }
-
-      const connection = await tx.integrationConnection.findFirst({
-        where: { tenantId, status: 'ACTIVE' },
-      });
-
-      if (!connection) {
-        throw new AppError({ code: 'TENANT_ACCESS_DENIED', message: 'Google integration is not connected', statusCode: 403 });
-      }
-
-      // 2. Auth & Fetch
       const accessToken = await GoogleOAuthService.refreshAccessToken(
-        connection.encryptedRefreshToken,
+        resolved.encryptedRefreshToken,
         tenantId,
-        connection.id
+        resolved.connectionId
       );
 
-      const profileData = await GbpWriteClient.getProfile(accessToken, mapping.resource.externalResourceId);
+      const profileData = await GbpWriteClient.getProfile(accessToken, resolved.externalResourceId);
       return profileData;
     });
   }
@@ -55,43 +35,22 @@ export class GbpProfileService {
     AuthorizationService.assertCan(context, Action.GBP_WRITE);
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // 1. Validate mapping
-      const mapping = await tx.internalResourceMapping.findFirst({
-        where: {
-          tenantId,
-          internalType: 'LOCATION',
-          internalId: locationId,
-        },
-        include: { resource: { include: { account: true } } },
-      });
+      const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenantId, locationId);
 
-      if (!mapping || !mapping.resource.account) {
-        throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Location is not properly mapped to a Google account', statusCode: 404 });
-      }
-
-      const connection = await tx.integrationConnection.findFirst({
-        where: { tenantId, status: 'ACTIVE' },
-      });
-
-      if (!connection) {
-        throw new AppError({ code: 'TENANT_ACCESS_DENIED', message: 'Google integration is not connected', statusCode: 403 });
-      }
-
-      // 2. Auth & Update
       const accessToken = await GoogleOAuthService.refreshAccessToken(
-        connection.encryptedRefreshToken,
+        resolved.encryptedRefreshToken,
         tenantId,
-        connection.id
+        resolved.connectionId
       );
 
       const updatedData = await GbpWriteClient.updateProfile(
         accessToken,
-        mapping.resource.externalResourceId,
+        resolved.externalResourceId,
         updateMask,
         data
       );
 
-      // 3. Audit Logging
+      // Audit Logging
       await tx.auditLog.create({
         data: {
           tenantId,
@@ -99,7 +58,7 @@ export class GbpProfileService {
           actorRole: context.role,
           action: 'GBP_PROFILE_UPDATE',
           resourceType: 'GBP_LOCATION',
-          resourceId: mapping.resource.externalResourceId,
+          resourceId: resolved.externalResourceId,
           newValues: { updateMask, data },
           ipAddress: 'INTERNAL',
           userAgent: 'INTERNAL',
@@ -114,30 +73,15 @@ export class GbpProfileService {
     AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const mapping = await tx.internalResourceMapping.findFirst({
-        where: { tenantId, internalType: 'LOCATION', internalId: locationId },
-        include: { resource: { include: { account: true } } },
-      });
-
-      if (!mapping || !mapping.resource.account) {
-        throw new AppError({ code: 'RESOURCE_NOT_FOUND', message: 'Location is not properly mapped to a Google account', statusCode: 404 });
-      }
-
-      const connection = await tx.integrationConnection.findFirst({
-        where: { tenantId, status: 'ACTIVE' },
-      });
-
-      if (!connection) {
-        throw new AppError({ code: 'TENANT_ACCESS_DENIED', message: 'Google integration is not connected', statusCode: 403 });
-      }
+      const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenantId, locationId);
 
       const accessToken = await GoogleOAuthService.refreshAccessToken(
-        connection.encryptedRefreshToken,
+        resolved.encryptedRefreshToken,
         tenantId,
-        connection.id
+        resolved.connectionId
       );
 
-      return GbpWriteClient.getVerificationState(accessToken, mapping.resource.externalResourceId);
+      return GbpWriteClient.getVerificationState(accessToken, resolved.externalResourceId);
     });
   }
 }

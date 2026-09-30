@@ -29,6 +29,10 @@ export function ReportsGbpSection({
   const directions = gbp?.directionRequests ?? 0;
   const websiteClicks = gbp?.websiteClicks ?? 0;
 
+  const gbpStatus = gbp?.status;
+  const mappedCount = gbp?.mappedLocationsCount ?? 0;
+  const totalCount = gbp?.totalLocationsCount ?? 0;
+
   return (
     <section className="rounded-2xl border border-[#C5E8D8] bg-[#EBF7F2] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
       {/* Header */}
@@ -45,6 +49,11 @@ export function ReportsGbpSection({
               <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800">
                 ✓ Local Presence & Customer Reach
               </span>
+              {gbpStatus === 'partial' && (
+                <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                  {mappedCount} of {totalCount} Locations Mapped
+                </span>
+              )}
             </div>
             <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
               Customer calls, driving directions, and local interactions across all locations
@@ -101,15 +110,24 @@ export function ReportsGbpSection({
         />
       </div>
 
-      {!hasGbpData && !isLoading && (
+      {gbpStatus === 'not_configured' && !isLoading && (
         <div className="p-3 bg-white/80 border border-emerald-200/70 rounded-xl flex items-center justify-between gap-3 text-xs text-emerald-900">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-            <span>Connected to Google Business Profile. Link your store locations in Connections.</span>
+            <span>No store locations mapped to Google Business Profile for this brand. Link locations in Connections.</span>
           </div>
           <Link href={`/client/${tenantSlug}/integrations`} className="font-semibold underline hover:text-emerald-950 flex-shrink-0">
             Manage Connections
           </Link>
+        </div>
+      )}
+
+      {gbpStatus === 'empty' && !isLoading && (
+        <div className="p-3 bg-white/80 border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs text-slate-600">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-slate-500 flex-shrink-0" />
+            <span>No customer calls, directions, or profile views recorded by Google for this date range.</span>
+          </div>
         </div>
       )}
     </section>

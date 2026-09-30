@@ -101,6 +101,25 @@ export function GbpSection({ tenantSlug, data, isConnected = false }: GbpSection
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
+      ) : !data?.hasData ? (
+        <div className="bg-white/60 border border-dashed border-emerald-300 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 mb-3 shadow-sm">
+            <MapPin className="w-6 h-6" />
+          </div>
+          <h3 className="text-[14px] font-bold text-slate-900 mb-1">
+            No GBP Data Synchronized Yet
+          </h3>
+          <p className="text-[12px] text-slate-500 max-w-md mb-4">
+            Google connection is active. Ensure your store locations are mapped under Integrations and sync has run to view performance metrics.
+          </p>
+          <Link
+            href={`/client/${tenantSlug}/integrations`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[12px] font-semibold shadow-sm transition-colors"
+          >
+            <span>Check Location Mappings</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
           {gbpCards.map((card) => (

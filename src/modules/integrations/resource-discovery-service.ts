@@ -43,19 +43,31 @@ export class ResourceDiscoveryService {
 
     // 3. Discover GBP Accounts and Locations
     let gbpAccounts: DiscoveredResourceAccount[] = [];
+    let gbpError: { code: string; message: string } | undefined = undefined;
     try {
       gbpAccounts = await GoogleApiClient.discoverGbpResources(accessToken);
       logger.info({ tenantId, accountsFound: gbpAccounts.length, locations: gbpAccounts.map(a => ({ account: a.externalAccountId, locations: a.resources.map(r => r.resourceName) })) }, '[Discovery] GBP discovery result');
     } catch (err: unknown) {
-      logger.warn({ err }, '[Discovery] Failed to discover GBP resources, continuing with GSC');
+      const errObj = err as any;
+      gbpError = {
+        code: errObj.code || 'GBP_DISCOVERY_FAILED',
+        message: errObj.message || 'Failed to discover Google Business Profile resources',
+      };
+      logger.warn({ err: gbpError }, '[Discovery] Failed to discover GBP resources, continuing with GSC');
     }
 
     // 4. Discover GSC Properties
     let gscSites: DiscoveredResourceItem[] = [];
+    let gscError: { code: string; message: string } | undefined = undefined;
     try {
       gscSites = await GoogleApiClient.discoverGscResources(accessToken);
     } catch (err: unknown) {
-      logger.warn({ err }, "Failed to discover GSC resources");
+      const errObj = err as any;
+      gscError = {
+        code: errObj.code || 'GSC_DISCOVERY_FAILED',
+        message: errObj.message || 'Failed to discover GSC resources',
+      };
+      logger.warn({ err: gscError }, "Failed to discover GSC resources");
     }
 
     // 4b. Discover GA4 Properties (if connection has Google Analytics scope)
@@ -308,6 +320,8 @@ export class ResourceDiscoveryService {
       ),
       gscPropertiesCount: gscSites.length,
       ga4PropertiesCount: ga4PropsCount,
+      gbpError,
+      gscError,
     };
   }
 }

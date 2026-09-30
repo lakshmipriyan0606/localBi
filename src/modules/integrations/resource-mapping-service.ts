@@ -11,6 +11,7 @@ import {
   createValidationError,
 } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
+import { getRedisClient } from '@/shared/database/redis-client';
 
 export interface LocationMatchSuggestion {
   internalLocationId: string;
@@ -120,29 +121,66 @@ export class ResourceMappingService {
         );
       }
 
-      // 3. Upsert internal resource mapping
+      // 3. Enforce 1:1 mapping:
+      // Check if this specific GBP resource is ALREADY mapped to a different location in this tenant
+      const existingMappingForResource = await tx.internalResourceMapping.findFirst({
+        where: {
+          tenantId,
+          internalType: 'LOCATION',
+          resourceId: extRes.id,
+          internalId: { not: internalLocationId },
+        },
+      });
+
+      if (existingMappingForResource) {
+        throw createValidationError(
+          `This Google Business Profile location is already mapped to another store in your organization. Please unmap it first before reassigning.`
+        );
+      }
+
+      // Remove any existing GBP mapping for this internal location
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          internalType: 'LOCATION',
+          internalId: internalLocationId,
+          resource: {
+            provider: 'GOOGLE_BUSINESS_PROFILE',
+          },
+        },
+      });
+
+      // 4. Upsert internal resource mapping
       const mapping = await tx.internalResourceMapping.upsert({
         where: {
           uq_internal_resource_mapping: {
             tenantId,
             internalType: 'LOCATION',
             internalId: internalLocationId,
-            resourceId: externalResourceId,
+            resourceId: extRes.id,
           },
         },
         create: {
           tenantId,
           internalType: 'LOCATION',
           internalId: internalLocationId,
-          resourceId: externalResourceId,
+          resourceId: extRes.id,
         },
         update: {},
       });
 
       logger.info(
-        { tenantId, internalLocationId, externalResourceId, mappingId: mapping.id },
+        { tenantId, internalLocationId, externalResourceId: extRes.externalResourceId, mappingId: mapping.id },
         'Mapped GBP Location to internal Location'
       );
+
+      // Invalidate Redis profile/report cache for this location
+      try {
+        const redis = getRedisClient();
+        await redis.del(`gbp:profile:${tenantId}:${internalLocationId}`);
+      } catch {
+        // Redis optional
+      }
 
       return mapping;
     });
@@ -594,6 +632,21 @@ export class ResourceMappingService {
       await tx.internalResourceMapping.delete({
         where: { id: mappingId },
       });
+
+      logger.info(
+        { tenantId, mappingId, internalType: mapping.internalType, internalId: mapping.internalId },
+        'Unmapped resource'
+      );
+
+      // Invalidate relevant Redis caches
+      try {
+        const redis = getRedisClient();
+        if (mapping.internalType === 'LOCATION') {
+          await redis.del(`gbp:profile:${tenantId}:${mapping.internalId}`);
+        }
+      } catch {
+        // Redis optional
+      }
 
       return { success: true };
     });

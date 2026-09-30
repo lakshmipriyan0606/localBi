@@ -4,6 +4,7 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 import { GbpReviewsService } from '@/modules/reports/gbp-reviews-service';
 import { handleRouteError } from '@/shared/errors';
+import { logger } from '@/shared/observability/logger';
 
 export async function POST(
   request: NextRequest,
@@ -37,58 +38,38 @@ export async function POST(
         const { prisma } = await import('@/shared/database/client');
         const { GbpReviewSyncJob } = await import('@/modules/sync/jobs/gbp-review-sync-job');
         const { GoogleOAuthService } = await import('@/modules/integrations/google/google-oauth-service');
+        const { GoogleConnectionResolver } = await import('@/modules/integrations/google/google-connection-resolver');
         const { TenantContextService } = await import('@/shared/database/tenant-context');
         
         return await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
           const locMappings = await tx.internalResourceMapping.findMany({
             where: { tenantId: tenant.id, internalType: 'LOCATION', ...(locationId ? { internalId: locationId } : {}) },
-            include: { resource: true }
+            include: { resource: { include: { account: true } } }
           });
-          const accounts = await tx.externalAccount.findMany({ where: { tenantId: tenant.id } });
-          const connection = await tx.integrationConnection.findFirst({ where: { tenantId: tenant.id, status: 'ACTIVE' } });
-          
-          if (!connection) throw new Error('No active connection');
-          
-          let accessToken: string;
-          if (connection.encryptedRefreshToken && connection.encryptedRefreshToken !== 'service-account-mock-token') {
-            accessToken = await GoogleOAuthService.refreshAccessToken(connection.encryptedRefreshToken, tenant.id, connection.id);
-          } else {
-            const { getAuthenticatedGoogleClient } = await import('@/shared/lib/google-auth');
-            const auth = getAuthenticatedGoogleClient();
-            const token = await auth.getAccessToken();
-            if (!token) throw new Error('No service account token');
-            accessToken = token;
-          }
 
           let totalProcessed = 0;
           let googleResponseDetails: any = null;
           let rawGoogleReviews: any = null;
-          for (const mapping of locMappings) {
-            const account = accounts.find(a => a.id === mapping.resource.accountId);
-            if (account) {
-              const cleanAccountId = account.externalAccountId.replace('accounts/', '');
-              const cleanLocationId = mapping.resource.externalResourceId.replace('locations/', '');
-              
-              // Raw fetch for debugging
-              const url = `https://mybusiness.googleapis.com/v4/accounts/${cleanAccountId}/locations/${cleanLocationId}/reviews?pageSize=50`;
-              const rawRes = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-              if (rawRes.ok) {
-                rawGoogleReviews = await rawRes.json();
-              } else {
-                rawGoogleReviews = { error: await rawRes.text(), status: rawRes.status };
-              }
 
+          for (const mapping of locMappings) {
+            try {
+              const resolved = await GoogleConnectionResolver.resolveForLocation(tx, tenant.id, mapping.internalId);
+              const accessToken = await GoogleOAuthService.refreshAccessToken(resolved.encryptedRefreshToken, tenant.id, resolved.connectionId);
+
+              const cleanAccountId = mapping.resource.account?.externalAccountId.replace('accounts/', '') || '';
               const res = await GbpReviewSyncJob.execute(accessToken, {
                 type: 'GBP_REVIEW_SYNC',
                 tenantId: tenant.id,
-                connectionId: connection.id,
+                connectionId: resolved.connectionId,
                 locationId: mapping.internalId,
                 accountId: cleanAccountId,
-                locationResourceName: mapping.resource.externalResourceId,
+                locationResourceName: resolved.externalResourceId,
                 businessKey: `${tenant.id}:gbp_reviews:${mapping.internalId}`,
               });
               totalProcessed += res.processed;
               googleResponseDetails = res;
+            } catch (syncErr) {
+              logger.warn({ syncErr, locationId: mapping.internalId }, 'Failed review sync for location');
             }
           }
           return NextResponse.json({ success: true, inline: true, processed: totalProcessed, details: googleResponseDetails, rawGoogleReviews });

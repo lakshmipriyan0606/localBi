@@ -5,6 +5,7 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleApiClient, GbpDailyMetricEntry } from '../integrations/google/google-api-client';
 import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
+import { GoogleConnectionResolver } from '../integrations/google/google-connection-resolver';
 import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData, GbpReviewSyncJobData } from './sync-queue';
 import { GbpReviewSyncJob } from './jobs/gbp-review-sync-job';
 import { logger } from '@/shared/observability/logger';
@@ -87,6 +88,20 @@ export class SyncWorkerService {
           return tx.integrationConnection.findUnique({
             where: { id: data.connectionId },
           });
+        }
+        if ((data as any).locationId) {
+          try {
+            const resolved = await GoogleConnectionResolver.resolveForLocation(
+              tx,
+              tenantId,
+              (data as any).locationId
+            );
+            return tx.integrationConnection.findUnique({
+              where: { id: resolved.connectionId },
+            });
+          } catch {
+            return null;
+          }
         }
         return tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
@@ -594,15 +609,27 @@ export class SyncWorkerService {
     if (config.ENABLE_GBP_SYNC) {
       for (const loc of locations) {
         try {
+          const resolved = await TenantContextService.withTenantContext(
+            prisma,
+            tenantId,
+            async (tx) => GoogleConnectionResolver.resolveForLocation(tx, tenantId, loc.internalId)
+          );
+
+          const locToken = await GoogleOAuthService.refreshAccessToken(
+            resolved.encryptedRefreshToken,
+            tenantId,
+            resolved.connectionId
+          );
+
           const rows = await this.processGbpJob({
             type: 'GBP_SYNC',
             tenantId,
             locationId: loc.internalId,
-            locationResourceName: loc.resource.externalResourceId,
+            locationResourceName: resolved.externalResourceId,
             startDate,
             endDate,
             businessKey: `${tenantId}:gbp:${loc.internalId}:${startDate}:${endDate}`,
-          }, accessToken);
+          }, locToken);
           gbpRows += rows;
         } catch (err) {
           logger.warn({ err, locationId: loc.internalId }, 'Direct GBP sync failed or disabled');

@@ -324,11 +324,9 @@ export function IntegrationsManager({
 
   // Handler: Map a single GBP location to an Internal Location
   const handleMapLocation = async (externalResourceId: string) => {
-    const locationId =
-      pendingLocationSelections[externalResourceId] ||
-      initialState.locations[0]?.id;
+    const locationId = pendingLocationSelections[externalResourceId];
     if (!locationId) {
-      notify.warning("Please select a store location to connect.");
+      notify.warning("Please select a specific store location before connecting.");
       return;
     }
     setMappingInProgressId(externalResourceId);
@@ -386,10 +384,10 @@ export function IntegrationsManager({
     }
   };
 
-  // Handler: Auto-link all GBP locations to primary brand
-  const handleAutoMapBrand = async () => {
-    const defaultBrand = initialState.brands[0];
-    if (!defaultBrand) {
+  // Handler: Auto-link all GBP locations to specified or primary brand
+  const handleAutoMapBrand = async (targetBrandId?: string) => {
+    const brand = (targetBrandId ? initialState.brands.find((b) => b.id === targetBrandId) : null) || initialState.brands[0];
+    if (!brand) {
       notify.warning("No brand found to auto-map locations to.");
       return;
     }
@@ -399,14 +397,14 @@ export function IntegrationsManager({
         success: boolean;
         data: { mappedCount: number };
       }>(`/tenants/${tenantSlug}/integrations/google/mappings`, {
-        action: "AUTO_MAP_BRAND",
-        brandId: defaultBrand.id,
+        type: "AUTO_BRAND",
+        brandId: brand.id,
       });
 
       const count = res.data?.data?.mappedCount ?? 0;
       if (count > 0) {
         notify.success(
-          `Successfully auto-linked ${count} location(s) for ${defaultBrand.name}!`,
+          `Successfully auto-linked ${count} location(s) for ${brand.name}!`,
         );
       } else {
         notify.info(
@@ -1244,7 +1242,7 @@ export function IntegrationsManager({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleAutoMapBrand}
+                        onClick={() => handleAutoMapBrand()}
                         disabled={isAutoMapping}
                         className="text-xs font-semibold text-teal-700 border-teal-200 hover:bg-teal-50 gap-1.5 cursor-pointer shadow-2xs"
                       >

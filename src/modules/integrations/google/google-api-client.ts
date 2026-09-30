@@ -1,5 +1,5 @@
 import { logger } from "@/shared/observability/logger";
-import { createGoogleRateLimitedError, ErrorCode, createGa4Error } from "@/shared/errors";
+import { createGoogleRateLimitedError, ErrorCode, createGa4Error, AppError } from "@/shared/errors";
 
 export interface DiscoveredResourceAccount {
   externalAccountId: string;
@@ -76,31 +76,7 @@ export class GoogleApiClient {
   public static async discoverGbpResources(
     accessToken: string,
   ): Promise<DiscoveredResourceAccount[]> {
-
     try {
-      if (accessToken.startsWith("mock_")) {
-        return [
-          {
-            externalAccountId: "accounts/mock-123",
-            accountName: "Mock Test Account",
-            provider: "GOOGLE_BUSINESS_PROFILE",
-            resources: [
-              {
-                externalResourceId: "locations/293847192837",
-                resourceType: "LOCATION" as const,
-                resourceName: "Chennai - Anna Nagar",
-                address: "12 2nd Avenue, Anna Nagar",
-                city: "Chennai",
-                state: "Tamil Nadu",
-                postalCode: "600040",
-                country: "IN",
-                storeCode: "CHN-AN-01",
-              },
-            ],
-          },
-        ];
-      }
-
       // 1. Fetch top-level accounts with pagination
       let pageToken: string | undefined = undefined;
       const topLevelAccounts: Array<{
@@ -119,13 +95,46 @@ export class GoogleApiClient {
         });
 
         if (!accountsRes.ok) {
+          const errText = await accountsRes.text().catch(() => "");
+          logger.error(
+            { status: accountsRes.status, errText: errText.slice(0, 300) },
+            "GBP account management API returned error"
+          );
+
+          if (accountsRes.status === 401) {
+            throw new AppError({
+              code: "GOOGLE_AUTH_REQUIRED",
+              message: "Google OAuth token has expired or is invalid. Please reconnect Google.",
+              statusCode: 401,
+              isOperational: true,
+            });
+          }
+
+          if (accountsRes.status === 403) {
+            throw new AppError({
+              code: "GBP_PERMISSION_REQUIRED",
+              message: "Google Business Profile management permission denied. Please re-authenticate with business.manage scope.",
+              statusCode: 403,
+              isOperational: true,
+            });
+          }
+
           if (accountsRes.status === 429) {
+            if (errText.includes('quota_limit_value": "0"') || errText.includes("RESOURCE_EXHAUSTED")) {
+              throw new AppError({
+                code: "GBP_API_QUOTA_REQUIRED",
+                message: "Google Business Profile API quota is 0 requests/min. Your Google Cloud project requires Business Profile API approval/quota from Google.",
+                statusCode: 429,
+                isOperational: true,
+              });
+            }
             throw createGoogleRateLimitedError(
               "Google is temporarily limiting requests. Please wait a moment, then click Refresh again.",
             );
           }
+
           throw new Error(
-            `Failed to fetch GBP accounts: ${accountsRes.statusText}`,
+            `Failed to fetch GBP accounts (${accountsRes.status}): ${accountsRes.statusText}`,
           );
         }
 
@@ -332,25 +341,6 @@ export class GoogleApiClient {
     dimensions: string[] = ["date"],
     searchType: string = "WEB",
   ): Promise<GscSearchAnalyticsRow[]> {
-    if (accessToken.startsWith("mock_")) {
-      return [
-        {
-          keys: [startDate, "best dentist near me", "DESKTOP"],
-          clicks: 12,
-          impressions: 140,
-          ctr: 0.0857,
-          position: 2.4,
-        },
-        {
-          keys: [startDate, "emergency dental clinic", "MOBILE"],
-          clicks: 5,
-          impressions: 60,
-          ctr: 0.0833,
-          position: 1.8,
-        },
-      ];
-    }
-
     const encodedSiteUrl = encodeURIComponent(propertyUrl);
     const rowLimit = 25000;
     let startRow = 0;
@@ -408,26 +398,6 @@ export class GoogleApiClient {
     startDate: string,
     endDate: string,
   ): Promise<GbpDailyMetricEntry[]> {
-    if (accessToken.startsWith("mock_")) {
-      return [
-        {
-          date: startDate,
-          metricType: "CALL_CLICKS",
-          value: 5,
-        },
-        {
-          date: startDate,
-          metricType: "WEBSITE_CLICKS",
-          value: 18,
-        },
-        {
-          date: startDate,
-          metricType: "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
-          value: 120,
-        },
-      ];
-    }
-
     const url = new URL(
       `https://businessprofileperformance.googleapis.com/v1/${locationResourceName}:fetchMultiDailyMetricsTimeSeries`,
     );
@@ -464,6 +434,47 @@ export class GoogleApiClient {
 
     if (!response.ok) {
       const err = await response.text();
+      logger.error(
+        { status: response.status, locationResourceName },
+        "GBP Performance query failed"
+      );
+
+      if (response.status === 401) {
+        throw new AppError({
+          code: "GOOGLE_AUTH_REQUIRED",
+          message: "Google OAuth token has expired or is invalid.",
+          statusCode: 401,
+          isOperational: true,
+        });
+      }
+      if (response.status === 403) {
+        throw new AppError({
+          code: "GBP_PERMISSION_REQUIRED",
+          message: "Google Business Profile performance permission denied.",
+          statusCode: 403,
+          isOperational: true,
+        });
+      }
+      if (response.status === 404) {
+        throw new AppError({
+          code: "GBP_LOCATION_NOT_FOUND",
+          message: `Google location ${locationResourceName} was not found on Google Business Profile.`,
+          statusCode: 404,
+          isOperational: true,
+        });
+      }
+      if (response.status === 429) {
+        if (err.includes('quota_limit_value": "0"') || err.includes("RESOURCE_EXHAUSTED")) {
+          throw new AppError({
+            code: "GBP_API_QUOTA_REQUIRED",
+            message: "Google Business Profile Performance API quota is 0. Access must be enabled in Google Cloud Console.",
+            statusCode: 429,
+            isOperational: true,
+          });
+        }
+        throw createGoogleRateLimitedError();
+      }
+
       throw new Error(
         `GBP Performance query failed (${response.status}): ${err}`,
       );
