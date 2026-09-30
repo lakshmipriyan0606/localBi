@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "test": "vitest run",
     "test:unit": "vitest run spikes tests/phase1-foundation.test.ts tests/components/login-form.test.tsx tests/unit/metric-registry-and-drilldown.test.ts tests/unit/notify.test.ts tests/unit/ga4-analytics.test.ts",
