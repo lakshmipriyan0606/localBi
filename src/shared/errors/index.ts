@@ -81,7 +81,7 @@ export class AppError extends Error {
     return {
       error: {
         code: this.code,
-        message: this.isOperational ? this.message : 'An unexpected internal error occurred.',
+        message: this.message, // Expose exact error message
         ...(this.requestId ? { requestId: this.requestId } : {}),
         ...(this.details && this.isOperational ? { details: this.details } : {}),
       },
@@ -265,7 +265,7 @@ export function handleRouteError(
     return Response.json({
       error: {
         code: appErr.code || ErrorCode.INTERNAL_SERVER_ERROR,
-        message: isOperational ? appErr.message : 'An unexpected internal server error occurred.',
+        message: appErr.message, // Expose exact error message
         requestId: appErr.requestId,
         details: isOperational ? appErr.details : undefined,
       }
@@ -308,8 +308,7 @@ export function handleRouteError(
     {
       error: {
         code: ErrorCode.INTERNAL_SERVER_ERROR,
-        message: fallbackMessage,
-        // Internal details are logged server-side only — never sent to clients
+        message: actualError, // Expose exact error message globally
       },
     },
     { status: 500 }
