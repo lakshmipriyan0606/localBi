@@ -67,14 +67,13 @@ export function IntegrationsManager({
   const router = useRouter();
 
   // Async action states
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
 
   // Connection info
   const activeConnection = initialState.connections[0];
   const isAuthorized = Boolean(activeConnection);
-  
+
   // Base resources
   const gscResources = initialState.externalResources.filter(r => r.resourceType === "PROPERTY" && r.provider === "GOOGLE_SEARCH_CONSOLE");
   const ga4Resources = initialState.externalResources.filter(r => r.provider === "GOOGLE_ANALYTICS_4");
@@ -93,7 +92,7 @@ export function IntegrationsManager({
   // Initialize draft selections from backend mappings
   const [draftSelections, setDraftSelections] = useState<Record<string, ResourceSelection>>(() => {
     const drafts: Record<string, ResourceSelection> = {};
-    
+
     // Auto-fill existing mappings
     initialState.internalMappings.forEach(mapping => {
       const resourceType = mapping.provider === "GOOGLE_SEARCH_CONSOLE" ? 'GSC' : mapping.provider === "GOOGLE_ANALYTICS_4" ? 'GA4' : 'GBP';
@@ -127,7 +126,6 @@ export function IntegrationsManager({
   };
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
     try {
       await browserClient.post(`/tenants/${tenantSlug}/integrations/google/resources`, {});
       router.refresh();
@@ -135,7 +133,6 @@ export function IntegrationsManager({
     } catch (err: unknown) {
       notify.error((err as Error).message || "Failed to refresh resources");
     } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -189,20 +186,20 @@ export function IntegrationsManager({
 
       // 2. Perform API calls
       await Promise.allSettled([
-        ...additions.map(add => 
+        ...additions.map(add =>
           browserClient.post(`/tenants/${tenantSlug}/integrations/google/mappings`, add)
         ),
-        ...removals.map(removeId => 
+        ...removals.map(removeId =>
           browserClient.delete(`/tenants/${tenantSlug}/integrations/google/mappings?mappingId=${removeId}`)
         )
       ]);
 
       // 3. Trigger Sync
       await browserClient.post(`/tenants/${tenantSlug}/sync`, {});
-      
+
       notify.success("Integrations updated! Data sync started in the background.");
       router.refresh();
-      
+
     } catch (err: unknown) {
       notify.error((err as Error).message || "Failed to start sync");
     } finally {
@@ -283,7 +280,7 @@ export function IntegrationsManager({
 
   return (
     <div className="min-h-screen bg-[#F6F8FC] -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pt-10">
-      
+
       {/* Stepper Header */}
       <GoogleIntegrationStepper activeStep={activeStep} />
 

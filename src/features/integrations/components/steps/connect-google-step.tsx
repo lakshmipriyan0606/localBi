@@ -1,4 +1,3 @@
-import React from "react";
 import { Check, ShieldCheck, Zap, Layers } from "lucide-react";
 import { GoogleProductIcon } from "../google-product-icon";
 
@@ -9,7 +8,6 @@ interface ConnectGoogleStepProps {
   onConnect: () => void;
   onContinue: () => void;
   onChangeAccount: () => void;
-  onRefresh: () => void;
 }
 
 export function ConnectGoogleStep({
@@ -19,7 +17,6 @@ export function ConnectGoogleStep({
   onConnect,
   onContinue,
   onChangeAccount,
-  onRefresh,
 }: ConnectGoogleStepProps) {
   return (
     <div className="max-w-5xl mx-auto w-full">

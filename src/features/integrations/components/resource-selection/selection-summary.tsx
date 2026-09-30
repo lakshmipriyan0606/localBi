@@ -1,5 +1,4 @@
-import React from "react";
-import { RefreshCw, Info, ExternalLink } from "lucide-react";
+import { RefreshCw, Info } from "lucide-react";
 import { GoogleProductIcon } from "../google-product-icon";
 
 interface SelectionSummaryProps {

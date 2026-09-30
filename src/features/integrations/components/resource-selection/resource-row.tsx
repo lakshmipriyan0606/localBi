@@ -1,5 +1,4 @@
-import React from "react";
-import { Check, ExternalLink } from "lucide-react";
+import { Check } from "lucide-react";
 import { GoogleProductIcon, GoogleProduct } from "../google-product-icon";
 import { IntegrationStatusBadge, IntegrationStatus } from "../integration-status-badge";
 import { cn } from "@/lib/cn";
