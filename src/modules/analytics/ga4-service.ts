@@ -3,7 +3,8 @@ import { GoogleOAuthService } from '../integrations/google/google-oauth-service'
 import { prisma } from '@/shared/database/client';
 import { logger } from '@/shared/observability/logger';
 import { getRedisClient } from '@/shared/database/redis-client';
-
+import { TenantContextService } from '@/shared/database/tenant-context';
+import { Prisma } from '@prisma/client';
 export type Ga4ReportStatus =
   | 'ready'
   | 'empty'
@@ -279,38 +280,51 @@ export class Ga4AnalyticsService {
         return Ga4AnalyticsService.getEmptyGa4Data(tenantSlug, '', '', 'not_configured', 'Tenant not found');
       }
 
-      // 1. Resolve explicit internal resource mapping for GA4
-      const ga4Mapping = await prisma.internalResourceMapping.findFirst({
-        where: {
-          tenantId: tenant.id,
-          resource: {
-            provider: 'GOOGLE_ANALYTICS_4',
+      const { effectiveMapping, connection } = await TenantContextService.withTenantContext(prisma, tenant.id, async (tx: Prisma.TransactionClient) => {
+        // 1. Resolve explicit internal resource mapping for GA4
+        const ga4Mapping = await tx.internalResourceMapping.findFirst({
+          where: {
+            tenantId: tenant.id,
+            resource: {
+              provider: 'GOOGLE_ANALYTICS_4',
+            },
+            ...(brandId
+              ? { internalType: 'BRAND', internalId: brandId }
+              : locationId
+              ? { internalType: 'LOCATION', internalId: locationId }
+              : {}),
           },
-          ...(brandId
-            ? { internalType: 'BRAND', internalId: brandId }
-            : locationId
-            ? { internalType: 'LOCATION', internalId: locationId }
-            : {}),
-        },
-        include: {
-          resource: true,
-        },
-      });
+          include: {
+            resource: true,
+          },
+        });
 
-      // If no mapping found for this brand/location, check if tenant has any mapped GA4 property
-      const effectiveMapping = ga4Mapping || (!brandId && !locationId
-        ? await prisma.internalResourceMapping.findFirst({
-            where: {
-              tenantId: tenant.id,
-              resource: {
-                provider: 'GOOGLE_ANALYTICS_4',
+        // If no mapping found for this brand/location, check if tenant has any mapped GA4 property
+        const effectiveMapping = ga4Mapping || (!brandId && !locationId
+          ? await tx.internalResourceMapping.findFirst({
+              where: {
+                tenantId: tenant.id,
+                resource: {
+                  provider: 'GOOGLE_ANALYTICS_4',
+                },
               },
-            },
-            include: {
-              resource: true,
-            },
-          })
-        : null);
+              include: {
+                resource: true,
+              },
+            })
+          : null);
+
+        // 2. Resolve active Google OAuth Connection for this tenant
+        const connection = await tx.integrationConnection.findFirst({
+          where: {
+            tenantId: tenant.id,
+            provider: 'GOOGLE',
+            status: 'ACTIVE',
+          },
+        });
+
+        return { effectiveMapping, connection };
+      });
 
       if (!effectiveMapping || !effectiveMapping.resource) {
         logger.info({ tenantSlug, brandId, locationId }, 'ga4.mapping.missing: No GA4 property mapped');
@@ -325,15 +339,6 @@ export class Ga4AnalyticsService {
 
       const ga4Resource = effectiveMapping.resource;
       const cleanPropertyId = ga4Resource.externalResourceId.replace(/^properties\//, '');
-
-      // 2. Resolve active Google OAuth Connection for this tenant
-      const connection = await prisma.integrationConnection.findFirst({
-        where: {
-          tenantId: tenant.id,
-          provider: 'GOOGLE',
-          status: 'ACTIVE',
-        },
-      });
 
       if (!connection) {
         logger.warn({ tenantSlug, propertyId: ga4Resource.externalResourceId }, 'ga4.auth.missing: No active Google connection');

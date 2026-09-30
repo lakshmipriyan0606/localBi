@@ -84,6 +84,7 @@ export default async function TenantIntegrationsPage({
             id: c.id,
             provider: c.provider,
             externalEmail: c.externalEmail,
+            grantedScopes: c.grantedScopes,
             createdAt: c.createdAt.toISOString(),
             lastUsedAt: c.lastUsedAt ? c.lastUsedAt.toISOString() : null,
           })),

@@ -54,6 +54,20 @@ export class GoogleOAuthService {
   private static inMemoryTokenCache = new Map<string, { token: string; expiresAt: number }>();
 
   /**
+   * Invalidates any cached access tokens for the given connection ID.
+   * This is critical to call upon re-authorization to prevent stale tokens from failing new scope discoveries.
+   */
+  public static async invalidateTokenCache(connectionId: string): Promise<void> {
+    this.inMemoryTokenCache.delete(connectionId);
+    try {
+      const redis = getRedisClient();
+      await redis.del(`google:access_token:${connectionId}`);
+    } catch {
+      // Redis offline/disabled
+    }
+  }
+
+  /**
    * Generates a tamper-proof, HMAC-SHA256 signed state parameter binding the initiating
    * user and tenant context, with optional browser session hash binding to prevent CSRF,
    * tenant-switch confusion, and cross-browser injection.

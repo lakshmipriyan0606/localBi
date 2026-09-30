@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
 
     // 6. Trigger automatic resource discovery
     try {
+      await GoogleOAuthService.invalidateTokenCache(connection.id);
       await ResourceDiscoveryService.discoverAndSyncResources(tenant.id, connection.id);
     } catch (discErr) {
       logger.error({ discErr }, 'Automatic resource discovery following OAuth failed');
