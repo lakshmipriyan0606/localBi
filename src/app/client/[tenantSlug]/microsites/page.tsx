@@ -232,13 +232,13 @@ export default function TenantMicrositesPage({
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(' ');
     
-    setNewStoreName(`${formattedTenantName} Flagship`);
+    setNewStoreName(`${formattedTenantName} Store`);
     setNewStoreSubdomain(tenantSlug);
-    setNewStoreIndustry('FOOD');
-    setNewStoreCity('Chennai');
-    setNewStoreAddress('Khan St, Thiruvenkatapuram, Choolaimedu, Chennai, Tamil Nadu 600094');
-    setNewStorePhone('+91 98401 23456');
-    setNewStoreWhatsapp('+919840123456');
+    setNewStoreIndustry('RETAIL');
+    setNewStoreCity('');
+    setNewStoreAddress('');
+    setNewStorePhone('');
+    setNewStoreWhatsapp('');
     setHasManuallyEditedSlug(true);
     addToast('Auto-filled with registered business details!', 'info');
   };
@@ -259,13 +259,13 @@ export default function TenantMicrositesPage({
           subdomain: tenantSlug,
           tenantSlug,
           brandName: `${formattedTenantName} Store`,
-          address: 'Khan St, Thiruvenkatapuram, Choolaimedu, Chennai, Tamil Nadu 600094',
-          city: 'Chennai',
-          phone: '+91 98401 23456',
-          whatsapp: '+919840123456',
-          industry: 'FOOD',
-          hours: '9:00 AM - 10:00 PM',
-          tagline: 'Authentic taste & handcrafted freshness prepared daily.',
+          address: '',
+          city: '',
+          phone: '',
+          whatsapp: '',
+          industry: 'RETAIL',
+          hours: '9:00 AM - 9:00 PM',
+          tagline: 'Leading destination for quality and service.',
         }),
       });
 
@@ -628,7 +628,7 @@ export default function TenantMicrositesPage({
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Zap className="w-4 h-4 text-amber-300" />
-                  <span>{isCreating ? 'Deploying...' : '1-Click Launch with Lakshmi Food'}</span>
+                  <span>{isCreating ? 'Deploying...' : '1-Click Launch Storefront'}</span>
                 </button>
 
                 <button
@@ -993,7 +993,7 @@ export default function TenantMicrositesPage({
                         required
                         value={brandName}
                         onChange={(e) => setBrandName(e.target.value)}
-                        placeholder="e.g. Lakshmi Food Anna Nagar"
+                        placeholder="e.g. Downtown Flagship Store"
                         className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-900 font-medium focus:outline-none focus:border-indigo-600"
                       />
                     </div>
@@ -1319,7 +1319,7 @@ export default function TenantMicrositesPage({
                   <h3 className="font-bold text-base text-slate-900">Custom Domain & CNAME Routing</h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Connect your branch directly to your primary website domain (e.g. <span className="font-mono font-bold text-slate-800">annanagar.lakshmifood.com</span> or <span className="font-mono font-bold text-slate-800">store.yourbrand.com</span>).
+                  Connect your branch directly to your primary website domain (e.g. <span className="font-mono font-bold text-slate-800">downtown.yourbrand.com</span> or <span className="font-mono font-bold text-slate-800">store.yourbrand.com</span>).
                 </p>
               </div>
 
@@ -1329,7 +1329,7 @@ export default function TenantMicrositesPage({
                     <label className="text-xs font-semibold text-slate-700">Custom Subdomain FQDN</label>
                     <input
                       type="text"
-                      placeholder="e.g. annanagar.lakshmifood.com"
+                      placeholder="e.g. downtown.yourbrand.com"
                       value={customDomain}
                       onChange={(e) => setCustomDomain(e.target.value.toLowerCase())}
                       className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-white border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-indigo-600"
@@ -1492,7 +1492,7 @@ export default function TenantMicrositesPage({
             <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-bold text-indigo-950">Auto-fill from Business Profile</p>
-                <p className="text-[10px] text-indigo-600 truncate">Quick-fill with Lakshmi Food brand details</p>
+                <p className="text-[10px] text-indigo-600 truncate">Quick-fill with business profile details</p>
               </div>
               <button
                 type="button"
@@ -1510,7 +1510,7 @@ export default function TenantMicrositesPage({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Lakshmi Food Anna Nagar"
+                  placeholder="e.g. Downtown Flagship Store"
                   value={newStoreName}
                   onChange={(e) => handleStoreNameChange(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl text-xs border border-slate-200 text-slate-900 focus:outline-none focus:border-indigo-600"
@@ -1612,7 +1612,7 @@ export default function TenantMicrositesPage({
                 <label className="text-xs font-semibold text-slate-700">Custom Subdomain CNAME (Optional)</label>
                 <input
                   type="text"
-                  placeholder="e.g. annanagar.lakshmifood.com"
+                  placeholder="e.g. downtown.yourbrand.com"
                   value={newStoreCustomDomain}
                   onChange={(e) => setNewStoreCustomDomain(e.target.value.toLowerCase())}
                   className="w-full px-3 py-2 rounded-xl text-xs border border-slate-200 text-slate-900 font-mono focus:outline-none focus:border-indigo-600"

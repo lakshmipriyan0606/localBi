@@ -4,7 +4,10 @@ import { MicrositeService, MicrositeConfig } from '@/modules/microsites/microsit
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const tenantSlug = searchParams.get('tenantSlug') || 'lakshmi-food';
+    const tenantSlug = searchParams.get('tenantSlug');
+    if (!tenantSlug) {
+      return NextResponse.json({ error: 'Missing tenantSlug query parameter' }, { status: 400 });
+    }
 
     const sites = await MicrositeService.getAllMicrosites(tenantSlug);
     return NextResponse.json({ microsites: sites });
@@ -19,23 +22,23 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { subdomain, tenantSlug, brandName, address, phone, whatsapp, industry, customDomain } = body;
 
-    if (!subdomain || !brandName) {
-      return NextResponse.json({ error: 'Subdomain and Brand Name are required' }, { status: 400 });
+    if (!subdomain || !brandName || !tenantSlug) {
+      return NextResponse.json({ error: 'Subdomain, Brand Name, and tenantSlug are required' }, { status: 400 });
     }
 
     const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
 
     const newConfig: MicrositeConfig = {
       subdomain: cleanSubdomain,
-      tenantSlug: tenantSlug || 'lakshmi-food',
+      tenantSlug,
       brandName: brandName.trim(),
       tagline: body.tagline || 'Leading brand destination for quality and service.',
       aboutStory: body.aboutStory || `${brandName} brings premium products, trusted expertise, and dedicated customer support to our local community.`,
-      primaryColor: '#4F46E5',
+      primaryColor: body.primaryColor || '#4F46E5',
       phone: phone || '',
       whatsapp: whatsapp || '',
       address: address || '',
-      city: body.city || 'Chennai',
+      city: body.city || '',
       hours: body.hours || '9:00 AM - 9:00 PM',
       googleRating: body.googleRating ?? 0,
       reviewCount: body.reviewCount ?? 0,

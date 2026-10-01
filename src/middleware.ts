@@ -30,7 +30,7 @@ export default function middleware(req: NextRequest) {
   ];
 
   // Check if current host is a subdomain
-  // e.g. "lakshmi-food.localhost" or "lakshmi-food.localbi.app"
+  // e.g. "store1.localhost" or "store1.localbi.app"
   let subdomain: string | null = null;
 
   if (currentHost.endsWith('.localhost')) {

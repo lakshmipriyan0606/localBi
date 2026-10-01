@@ -4,8 +4,13 @@ import { getAuthenticatedGoogleClient } from '../shared/lib/google-auth';
 
 async function main() {
   try {
-    const tenant = await prisma.tenant.findUnique({ where: { slug: 'lakshmi-food' } });
-    if (!tenant) throw new Error('no tenant');
+    const slug = process.argv[2];
+    if (!slug) {
+      console.error('Usage: tsx src/scripts/run-review-sync.ts <tenantSlug>');
+      process.exit(1);
+    }
+    const tenant = await prisma.tenant.findUnique({ where: { slug } });
+    if (!tenant) throw new Error(`No tenant found with slug: ${slug}`);
     
     const locMappings = await prisma.internalResourceMapping.findMany({
       where: { tenantId: tenant.id, internalType: 'LOCATION' },

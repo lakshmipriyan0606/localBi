@@ -1457,8 +1457,8 @@ export const puckConfig: Config<PuckComponentProps> = {
         headline: 'Craving Authentic South Indian Food?',
         subheading: 'Order directly from our kitchen on WhatsApp for instant priority delivery & catering inquiries.',
         buttonLabel: 'Chat & Order on WhatsApp',
-        whatsappNumber: '+919840123456',
-        prefilledMessage: 'Hi Lakshmi Food, I would like to place an order.',
+        whatsappNumber: '',
+        prefilledMessage: 'Hi, I would like to place an order.',
       },
       render: (props) => <WhatsAppCTAComponent {...props} />,
     },
@@ -1477,11 +1477,11 @@ export const puckConfig: Config<PuckComponentProps> = {
       defaultProps: {
         backgroundColor: '#ffffff',
         textColor: '#0f172a',
-        storeName: 'Lakshmi Food - Anna Nagar Flagship',
-        address: '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040',
-        hours: '7:00 AM - 10:30 PM (Mon - Sun)',
-        phone: '+91 98401 23456',
-        googleMapsUrl: 'https://maps.google.com/?q=Anna+Nagar+Chennai',
+        storeName: 'Branch Flagship Store',
+        address: '123 Main Street, Suite 100',
+        hours: '9:00 AM - 9:00 PM (Mon - Sun)',
+        phone: '+1 555-0199',
+        googleMapsUrl: 'https://maps.google.com',
       },
       render: (props) => <LocationMapCardComponent {...props} />,
     },
@@ -1495,14 +1495,14 @@ export const puckConfig: Config<PuckComponentProps> = {
           backgroundColor={props.backgroundColor}
           textColor={props.textColor}
           badge={`⭐ ${props.googleRating || 4.9} Star Rating · ${(props.reviewCount || 1480).toLocaleString()}+ Google Reviews`}
-          heading={props.brandName || 'Lakshmi Food & Pure Ghee Delights'}
-          description={props.tagline || 'Authentic Traditional South Indian Flavors Crafted with Heritage & Pure Ingredients'}
-          primaryCtaText={props.ctaText || 'Order on WhatsApp'}
-          whatsappNumber={props.whatsappNumber || '+919840123456'}
+          heading={props.brandName || 'Store & Showroom'}
+          description={props.tagline || 'Welcome to our official store and service location.'}
+          primaryCtaText={props.ctaText || 'Order Online'}
+          whatsappNumber={props.whatsappNumber || ''}
           secondaryCtaText="Call Store"
-          phone={props.phone || '+91 98401 23456'}
-          hours={props.hours || '7:00 AM - 10:30 PM (Daily)'}
-          address={props.address || '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040'}
+          phone={props.phone || ''}
+          hours={props.hours || '9:00 AM - 9:00 PM (Daily)'}
+          address={props.address || '123 Main Street, Suite 100'}
         />
       ),
     },
@@ -1515,14 +1515,14 @@ export const puckConfig: Config<PuckComponentProps> = {
           backgroundColor={props.backgroundColor}
           textColor={props.textColor}
           badge={`⭐ ${props.googleRating || 4.9} Star Rating · ${(props.reviewCount || 1480).toLocaleString()}+ Google Reviews`}
-          heading={props.restaurantName || props.brandName || 'Lakshmi Food & Pure Ghee Delights'}
-          description={props.tagline || 'Authentic Traditional South Indian Flavors Crafted with Heritage'}
-          primaryCtaText="Order on WhatsApp"
-          whatsappNumber={props.whatsappNumber || '+919840123456'}
+          heading={props.restaurantName || props.brandName || 'Gourmet Kitchen & Dining'}
+          description={props.tagline || 'Fresh dishes crafted with heritage recipes and quality ingredients'}
+          primaryCtaText="Order Online"
+          whatsappNumber={props.whatsappNumber || ''}
           secondaryCtaText="Call Store"
-          phone={props.phone || '+91 98401 23456'}
-          hours={props.hours || '7:00 AM - 10:30 PM (Daily)'}
-          address={props.address || '14, 2nd Avenue, Near Roundtana, Anna Nagar, Chennai - 600040'}
+          phone={props.phone || ''}
+          hours={props.hours || '9:00 AM - 10:00 PM (Daily)'}
+          address={props.address || '123 Main Street, Suite 100'}
         />
       ),
     },

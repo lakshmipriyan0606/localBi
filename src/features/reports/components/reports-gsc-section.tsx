@@ -56,6 +56,12 @@ export function ReportsGscSection({
   const ctr = gsc?.ctr ? Number((gsc.ctr * 100).toFixed(1)) : 0;
   const position = gsc?.averagePosition ? Number(gsc.averagePosition.toFixed(1)) : 0;
 
+  const lagDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  })();
+
   return (
     <section className="rounded-2xl border border-[#DCE2F6] bg-[#F1F3FB] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
       {/* Header */}
@@ -82,10 +88,10 @@ export function ReportsGscSection({
         <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
           <div
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/90 border border-amber-200/80 text-[11px] font-medium text-amber-800"
-            title="Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is up to September 24."
+            title={`Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is up to ${lagDate}.`}
           >
             <Clock className="w-3 h-3 text-amber-600 shrink-0" />
-            <span>Google Data: Through Sep 24 (48h processing lag)</span>
+            <span>Google Data: Through {lagDate} (48h processing lag)</span>
           </div>
 
           <Link

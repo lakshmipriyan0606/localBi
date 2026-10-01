@@ -278,6 +278,8 @@ export class SyncWorkerService {
         });
 
         const latestDate = new Date(endDate);
+        const sumPositionImpressions = Number(((row.position || 0) * (row.impressions || 0)).toFixed(2)) || 0;
+
         await tx.gscDailyQueryMetric.upsert({
           where: {
             uq_gsc_query_metric: {
@@ -294,14 +296,14 @@ export class SyncWorkerService {
             date: latestDate,
             searchType,
             queryId: gscQuery.id,
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
           update: {
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
         });
         totalRows++;
@@ -332,6 +334,8 @@ export class SyncWorkerService {
         });
 
         const latestDate = new Date(endDate);
+        const sumPositionImpressions = Number(((row.position || 0) * (row.impressions || 0)).toFixed(2)) || 0;
+
         await tx.gscDailyPageMetric.upsert({
           where: {
             uq_gsc_page_metric: {
@@ -348,14 +352,14 @@ export class SyncWorkerService {
             date: latestDate,
             searchType,
             pageId: gscPage.id,
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
           update: {
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
         });
         totalRows++;
@@ -365,6 +369,7 @@ export class SyncWorkerService {
       for (const row of deviceRows) {
         const device = (row.keys?.[0] || 'DESKTOP').toUpperCase();
         const latestDate = new Date(endDate);
+        const sumPositionImpressions = Number(((row.position || 0) * (row.impressions || 0)).toFixed(2)) || 0;
 
         await tx.gscDailyDeviceMetric.upsert({
           where: {
@@ -382,14 +387,14 @@ export class SyncWorkerService {
             date: latestDate,
             searchType,
             device,
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
           update: {
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
         });
         totalRows++;
@@ -400,6 +405,7 @@ export class SyncWorkerService {
         const country = (row.keys?.[0] || 'ZZZ').toUpperCase();
         if (country.length > 3) continue; // Safety check
         const latestDate = new Date(endDate);
+        const sumPositionImpressions = Number(((row.position || 0) * (row.impressions || 0)).toFixed(2)) || 0;
 
         await tx.gscDailyCountryMetric.upsert({
           where: {
@@ -417,40 +423,45 @@ export class SyncWorkerService {
             date: latestDate,
             searchType,
             country,
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
           update: {
-            clicks: row.clicks,
-            impressions: row.impressions,
-            sumPositionImpressions: row.position * row.impressions,
+            clicks: row.clicks || 0,
+            impressions: row.impressions || 0,
+            sumPositionImpressions,
           },
         });
         totalRows++;
       }
 
-      // 6. Update SyncCursor
-      await tx.syncCursor.upsert({
+      // 6. Update SyncCursor safely (avoids Postgres 42P10 constraint mismatch)
+      const existingCursor = await tx.syncCursor.findFirst({
         where: {
-          uq_sync_cursor: {
-            tenantId,
-            provider: 'GSC',
-            resourceId: propertyId,
-            cursorKey: 'last_synced_date',
-          },
-        },
-        create: {
           tenantId,
           provider: 'GSC',
           resourceId: propertyId,
           cursorKey: 'last_synced_date',
-          cursorValue: endDate,
-        },
-        update: {
-          cursorValue: endDate,
         },
       });
+
+      if (existingCursor) {
+        await tx.syncCursor.update({
+          where: { id: existingCursor.id },
+          data: { cursorValue: endDate },
+        });
+      } else {
+        await tx.syncCursor.create({
+          data: {
+            tenantId,
+            provider: 'GSC',
+            resourceId: propertyId,
+            cursorKey: 'last_synced_date',
+            cursorValue: endDate,
+          },
+        });
+      }
     });
 
     return totalRows;
@@ -504,26 +515,32 @@ export class SyncWorkerService {
         rowsIngested++;
       }
 
-      await tx.syncCursor.upsert({
+      // Safe cursor update for GBP (avoids Postgres 42P10 constraint mismatch)
+      const existingCursor = await tx.syncCursor.findFirst({
         where: {
-          uq_sync_cursor: {
-            tenantId,
-            provider: 'GBP',
-            resourceId: locationId,
-            cursorKey: 'last_synced_date',
-          },
-        },
-        create: {
           tenantId,
           provider: 'GBP',
           resourceId: locationId,
           cursorKey: 'last_synced_date',
-          cursorValue: endDate,
-        },
-        update: {
-          cursorValue: endDate,
         },
       });
+
+      if (existingCursor) {
+        await tx.syncCursor.update({
+          where: { id: existingCursor.id },
+          data: { cursorValue: endDate },
+        });
+      } else {
+        await tx.syncCursor.create({
+          data: {
+            tenantId,
+            provider: 'GBP',
+            resourceId: locationId,
+            cursorKey: 'last_synced_date',
+            cursorValue: endDate,
+          },
+        });
+      }
     });
 
     return rowsIngested;
@@ -542,9 +559,45 @@ export class SyncWorkerService {
           where: { tenantId, status: 'ACTIVE' },
         });
 
-        const props = await tx.gscProperty.findMany({
+        let props = await tx.gscProperty.findMany({
           where: { tenantId },
         });
+
+        // Ensure any mapped GSC resources from internal mappings have corresponding GscProperty rows
+        const brandMappings = await tx.internalResourceMapping.findMany({
+          where: {
+            tenantId,
+            internalType: 'BRAND',
+            resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+          },
+          include: { resource: true },
+        });
+
+        for (const bm of brandMappings) {
+          const propertyUrl = bm.resource.externalResourceId;
+          const propertyType = propertyUrl.startsWith('sc-domain:') ? 'DOMAIN' : 'URL_PREFIX';
+          const upserted = await tx.gscProperty.upsert({
+            where: {
+              uq_gsc_property_url: {
+                tenantId,
+                propertyUrl,
+              },
+            },
+            create: {
+              tenantId,
+              resourceId: bm.resourceId,
+              propertyUrl,
+              propertyType,
+            },
+            update: {
+              resourceId: bm.resourceId,
+              propertyType,
+            },
+          });
+          if (!props.some(p => p.id === upserted.id)) {
+            props.push(upserted);
+          }
+        }
 
         const locMappings = await tx.internalResourceMapping.findMany({
           where: { tenantId, internalType: 'LOCATION' },
@@ -601,6 +654,7 @@ export class SyncWorkerService {
         gscRows += rows;
       } catch (err) {
         logger.error({ err, propertyUrl: prop.propertyUrl }, 'Direct GSC sync error');
+        throw err;
       }
     }
 

@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const userAgentHeader = req.headers.get('user-agent') || '';
     const {
-      tenantSlug = 'lakshmi-food',
+      tenantSlug,
       deviceFingerprint,
       url = '/',
       title = 'Page',
@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
       eventType = 'page_view',
       identifiedUser,
     } = body;
+
+    if (!tenantSlug) {
+      return NextResponse.json(
+        { error: 'Missing tenantSlug in telemetry payload.' },
+        { status: 400 }
+      );
+    }
 
     if (!deviceFingerprint) {
       return NextResponse.json(

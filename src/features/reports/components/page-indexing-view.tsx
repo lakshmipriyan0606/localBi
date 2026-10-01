@@ -184,40 +184,13 @@ export function PageIndexingView({ tenantSlug, propertyUrl }: PageIndexingViewPr
     }
   };
 
-  // Robust timeline fallback guaranteeing chart always renders matching GSC dates
   const timeline: GscIndexingTimelineItem[] = useMemo(() => {
-    if (data?.timeline && data.timeline.length > 0) {
-      return data.timeline;
-    }
-    const startDate = new Date('2026-06-28T00:00:00Z');
-    const endDate = new Date('2026-09-21T00:00:00Z');
-    const indexDiscoveryDate = new Date('2026-09-13T00:00:00Z');
-    const targetIndexed = data?.totalIndexed ?? 1;
+    return data?.timeline || [];
+  }, [data?.timeline]);
 
-    const list: GscIndexingTimelineItem[] = [];
-    const curr = new Date(startDate);
-    while (curr <= endDate) {
-      const isIndexed = curr >= indexDiscoveryDate;
-      const month = curr.getUTCMonth() + 1;
-      const day = curr.getUTCDate();
-      const year = String(curr.getUTCFullYear()).slice(-2);
-      const label = `${month}/${day}/${year}`;
-      const isoDate = curr.toISOString().split('T')[0] || '';
-      list.push({
-        date: isoDate,
-        label,
-        indexed: isIndexed ? targetIndexed : 0,
-        notIndexed: 0,
-        impressions: 0,
-      });
-      curr.setUTCDate(curr.getUTCDate() + 1);
-    }
-    return list;
-  }, [data?.timeline, data?.totalIndexed]);
-
-  const indexedCount = data?.totalIndexed ?? 1;
+  const indexedCount = data?.totalIndexed ?? 0;
   const notIndexedCount = data?.totalNotIndexed ?? 0;
-  const lastUpdated = data?.lastUpdated ?? '9/21/26';
+  const lastUpdated = data?.lastUpdated ?? 'Pending sync';
 
   const maxPages = useMemo(() => {
     const vals = timeline.map((t) => (t.indexed || 0) + (t.notIndexed || 0));
