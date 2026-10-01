@@ -78,10 +78,36 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (searchParams.get('runSync') === 'true' && tenant) {
+    if (searchParams.get('runSync') === 'true' && tenant && activeConnection) {
       try {
-        const res = await SyncWorkerService.syncTenantDirect(tenant.id);
-        syncResult = { success: true, res };
+        const accessToken = await GoogleOAuthService.refreshAccessToken(
+          activeConnection.encryptedRefreshToken,
+          tenant.id,
+          activeConnection.id,
+          true
+        );
+        const prop = gscProperties[0];
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        const startDate = thirtyDaysAgo.toISOString().slice(0, 10);
+        const endDate = today.toISOString().slice(0, 10);
+
+        try {
+          const directRows = await (SyncWorkerService as any).processGscJob({
+            type: 'GSC_SYNC',
+            tenantId: tenant.id,
+            propertyId: prop.id,
+            propertyUrl: prop.propertyUrl,
+            startDate,
+            endDate,
+            searchType: 'WEB',
+            businessKey: `${tenant.id}:gsc:${prop.id}:${startDate}:${endDate}:WEB`,
+          }, accessToken);
+          syncResult = { success: true, directRows };
+        } catch (jobErr: any) {
+          syncResult = { success: false, processGscJobError: jobErr.message, stack: jobErr.stack };
+        }
       } catch (err: any) {
         syncResult = { success: false, error: err.message, stack: err.stack };
       }
