@@ -8,6 +8,7 @@ import { SyncWorkerService } from '@/modules/sync/sync-worker';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { handleRouteError } from '@/shared/errors';
+import { logger } from '@/shared/observability/logger';
 
 export const maxDuration = 60;
 
@@ -53,7 +54,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string }> }
 ) {
   try {
@@ -72,20 +73,25 @@ export async function POST(
 
     AuthorizationService.assertCan(authorizedContext, Action.INTEGRATION_MAP);
 
-    // 1. Run direct sync immediately so tenant sees fresh data without waiting for background worker
-    const directSync = await SyncWorkerService.syncTenantDirect(tenant.id);
+    const body = await request.json().catch(() => ({}));
+    const provider = (body?.provider || request.nextUrl.searchParams.get('provider') || 'ALL') as 'GSC' | 'GBP' | 'ALL';
 
-    // 2. Also register queue jobs for background traceability
-    const queueResult = await SyncQueueService.scheduleTenantFullSync(tenant.id).catch((err) => {
-      return { scheduledJobsCount: 0, jobs: [], error: (err as Error).message };
+    // 1. Run direct sync immediately so tenant sees fresh data without waiting for background worker
+    const directSync = await SyncWorkerService.syncTenantDirect(tenant.id, provider);
+
+    // 2. Also register queue jobs asynchronously without blocking the response
+    SyncQueueService.scheduleTenantFullSync(tenant.id).catch((err) => {
+      logger.warn({ err: (err as Error).message }, 'Background queue scheduling non-blocking warning');
     });
+
+    const metricsCount = provider === 'GBP' ? directSync.gbpRows : directSync.gscRows;
+    const providerLabel = provider === 'GBP' ? 'Google Business Profile' : 'Search Console';
 
     return NextResponse.json({
       success: true,
-      message: `Data synchronized with Google! Ingested ${directSync.gscRows} Search Console metrics.`,
+      message: `Data synchronized with Google! Ingested ${metricsCount} ${providerLabel} metrics.`,
       data: {
         directSync,
-        queueResult,
       },
     });
   } catch (error) {

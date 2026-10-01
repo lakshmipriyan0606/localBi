@@ -70,8 +70,8 @@ export function ReportsDashboard({ tenantSlug, tenantName, brands, locations, in
     try {
       const res = await browserClient.post<{ success: boolean; message: string }>(
         `/tenants/${tenantSlug}/sync`,
-        {},
-        { timeout: 60000 }
+        { provider: 'GSC' },
+        { timeout: 120000 }
       );
       if (res.data?.success) {
         notify.success(res.data.message || 'Synced successfully with Google!');

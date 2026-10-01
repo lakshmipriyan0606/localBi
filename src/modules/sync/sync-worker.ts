@@ -550,7 +550,13 @@ export class SyncWorkerService {
    * Directly synchronizes mapped GSC properties (and GBP if enabled) for a tenant
    * without requiring an asynchronous background worker process.
    */
-  public static async syncTenantDirect(tenantId: string): Promise<{ gscRows: number; gbpRows: number }> {
+  public static async syncTenantDirect(
+    tenantId: string,
+    provider: 'GSC' | 'GBP' | 'ALL' = 'ALL'
+  ): Promise<{ gscRows: number; gbpRows: number }> {
+    const shouldSyncGsc = provider === 'GSC' || provider === 'ALL';
+    const shouldSyncGbp = provider === 'GBP' || provider === 'ALL';
+
     const { activeConnection, properties, locations } = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
@@ -559,50 +565,56 @@ export class SyncWorkerService {
           where: { tenantId, status: 'ACTIVE' },
         });
 
-        let props = await tx.gscProperty.findMany({
-          where: { tenantId },
-        });
-
-        // Ensure any mapped GSC resources from internal mappings have corresponding GscProperty rows
-        const brandMappings = await tx.internalResourceMapping.findMany({
-          where: {
-            tenantId,
-            internalType: 'BRAND',
-            resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
-          },
-          include: { resource: true },
-        });
-
-        for (const bm of brandMappings) {
-          const propertyUrl = bm.resource.externalResourceId;
-          const propertyType = propertyUrl.startsWith('sc-domain:') ? 'DOMAIN' : 'URL_PREFIX';
-          const upserted = await tx.gscProperty.upsert({
-            where: {
-              uq_gsc_property_url: {
-                tenantId,
-                propertyUrl,
-              },
-            },
-            create: {
-              tenantId,
-              resourceId: bm.resourceId,
-              propertyUrl,
-              propertyType,
-            },
-            update: {
-              resourceId: bm.resourceId,
-              propertyType,
-            },
+        let props: any[] = [];
+        if (shouldSyncGsc) {
+          props = await tx.gscProperty.findMany({
+            where: { tenantId },
           });
-          if (!props.some(p => p.id === upserted.id)) {
-            props.push(upserted);
+
+          // Ensure any mapped GSC resources from internal mappings have corresponding GscProperty rows
+          const brandMappings = await tx.internalResourceMapping.findMany({
+            where: {
+              tenantId,
+              internalType: 'BRAND',
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+
+          for (const bm of brandMappings) {
+            const propertyUrl = bm.resource.externalResourceId;
+            const propertyType = propertyUrl.startsWith('sc-domain:') ? 'DOMAIN' : 'URL_PREFIX';
+            const upserted = await tx.gscProperty.upsert({
+              where: {
+                uq_gsc_property_url: {
+                  tenantId,
+                  propertyUrl,
+                },
+              },
+              create: {
+                tenantId,
+                resourceId: bm.resourceId,
+                propertyUrl,
+                propertyType,
+              },
+              update: {
+                resourceId: bm.resourceId,
+                propertyType,
+              },
+            });
+            if (!props.some((p) => p.id === upserted.id)) {
+              props.push(upserted);
+            }
           }
         }
 
-        const locMappings = await tx.internalResourceMapping.findMany({
-          where: { tenantId, internalType: 'LOCATION' },
-          include: { resource: true },
-        });
+        let locMappings: any[] = [];
+        if (shouldSyncGbp) {
+          locMappings = await tx.internalResourceMapping.findMany({
+            where: { tenantId, internalType: 'LOCATION' },
+            include: { resource: true },
+          });
+        }
 
         return { activeConnection: conn, properties: props, locations: locMappings };
       }
@@ -639,28 +651,30 @@ export class SyncWorkerService {
     const endDate = today.toISOString().slice(0, 10);
 
     let gscRows = 0;
-    for (const prop of properties) {
-      try {
-        const rows = await this.processGscJob({
-          type: 'GSC_SYNC',
-          tenantId,
-          propertyId: prop.id,
-          propertyUrl: prop.propertyUrl,
-          startDate,
-          endDate,
-          searchType: 'WEB',
-          businessKey: `${tenantId}:gsc:${prop.id}:${startDate}:${endDate}:WEB`,
-        }, accessToken);
-        gscRows += rows;
-      } catch (err) {
-        logger.error({ err, propertyUrl: prop.propertyUrl }, 'Direct GSC sync error');
-        throw err;
+    if (shouldSyncGsc) {
+      for (const prop of properties) {
+        try {
+          const rows = await this.processGscJob({
+            type: 'GSC_SYNC',
+            tenantId,
+            propertyId: prop.id,
+            propertyUrl: prop.propertyUrl,
+            startDate,
+            endDate,
+            searchType: 'WEB',
+            businessKey: `${tenantId}:gsc:${prop.id}:${startDate}:${endDate}:WEB`,
+          }, accessToken);
+          gscRows += rows;
+        } catch (err) {
+          logger.error({ err, propertyUrl: prop.propertyUrl }, 'Direct GSC sync error');
+          throw err;
+        }
       }
     }
 
     let gbpRows = 0;
     const config = getConfig();
-    if (config.ENABLE_GBP_SYNC) {
+    if (config.ENABLE_GBP_SYNC && shouldSyncGbp) {
       for (const loc of locations) {
         try {
           const resolved = await TenantContextService.withTenantContext(
