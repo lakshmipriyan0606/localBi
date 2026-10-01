@@ -1,12 +1,21 @@
 [
   {
+    "id": "ms-lakshmi-food",
+    "subdomain": "lakshmi-food",
+    "tenantSlug": "lakshmi-food",
+    "brandName": "Lakshmi Food Flagship",
+    "locationName": "Lakshmi Food Flagship",
     "tagline": "Authentic South Indian Specialties & Fresh Delicacies",
     "aboutStory": "Lakshmi Food Flagship brings premium products, trusted expertise, and dedicated customer support to our local community.",
     "primaryColor": "#4F46E5",
+    "secondaryColor": "#059669",
+    "font": "Inter",
     "phone": "+91 98401 23456",
     "whatsapp": "+919840123456",
     "address": "Khan St, Thiruvenkatapuram, Choolaimedu",
     "city": "Chennai",
+    "state": "",
+    "postalCode": "",
     "hours": "8:00 AM - 10:00 PM",
     "googleRating": 4.9,
     "reviewCount": 1,
@@ -23,19 +32,62 @@
       }
     ],
     "published": true,
+    "status": "PUBLISHED",
+    "customDomainStatus": "NOT_CONNECTED",
     "industry": "FOOD",
-    "subdomain": "lakshmi-food",
-    "tenantSlug": "lakshmi-food",
-    "brandName": "Lakshmi Food Flagship"
+    "templateId": "restaurant",
+    "theme": {
+      "primaryColor": "#4F46E5",
+      "secondaryColor": "#059669",
+      "font": "Inter",
+      "borderRadius": "16px",
+      "buttonStyle": "rounded"
+    },
+    "pages": [
+      {
+        "id": "page-home",
+        "name": "Home",
+        "path": "/",
+        "isHome": true
+      },
+      {
+        "id": "page-menu",
+        "name": "Menu & Specials",
+        "path": "/menu"
+      },
+      {
+        "id": "page-about",
+        "name": "Our Story",
+        "path": "/about"
+      },
+      {
+        "id": "page-contact",
+        "name": "Location & Hours",
+        "path": "/contact"
+      }
+    ],
+    "sections": [],
+    "lastPublishedAt": "2026-10-01T05:11:19.394Z",
+    "updatedAt": "2026-10-01T05:11:19.394Z",
+    "version": 1
   },
   {
+    "id": "ms-lakshmi-food-001",
+    "subdomain": "lakshmi-food-001",
+    "tenantSlug": "lakshmi-food",
+    "brandName": "Lakshmi Food Store 001",
+    "locationName": "Lakshmi Food Store 001",
     "tagline": "Authentic South Indian Specialties & Fresh Delicacies",
     "aboutStory": "Lakshmi Food Store 001 brings premium products, trusted expertise, and dedicated customer support to our local community.",
     "primaryColor": "#4F46E5",
+    "secondaryColor": "#059669",
+    "font": "Inter",
     "phone": "+91 98401 23456",
     "whatsapp": "+919840123456",
     "address": "Khan St, Thiruvenkatapuram, Choolaimedu",
     "city": "Chennai",
+    "state": "",
+    "postalCode": "",
     "hours": "8:00 AM - 10:00 PM",
     "googleRating": 4.9,
     "reviewCount": 1,
@@ -52,9 +104,43 @@
       }
     ],
     "published": true,
+    "status": "PUBLISHED",
+    "customDomainStatus": "NOT_CONNECTED",
     "industry": "FOOD",
-    "subdomain": "lakshmi-food-001",
-    "tenantSlug": "lakshmi-food",
-    "brandName": "Lakshmi Food Store 001"
+    "templateId": "restaurant",
+    "theme": {
+      "primaryColor": "#4F46E5",
+      "secondaryColor": "#059669",
+      "font": "Inter",
+      "borderRadius": "16px",
+      "buttonStyle": "rounded"
+    },
+    "pages": [
+      {
+        "id": "page-home",
+        "name": "Home",
+        "path": "/",
+        "isHome": true
+      },
+      {
+        "id": "page-menu",
+        "name": "Menu & Specials",
+        "path": "/menu"
+      },
+      {
+        "id": "page-about",
+        "name": "Our Story",
+        "path": "/about"
+      },
+      {
+        "id": "page-contact",
+        "name": "Location & Hours",
+        "path": "/contact"
+      }
+    ],
+    "sections": [],
+    "lastPublishedAt": "2026-10-01T05:11:19.394Z",
+    "updatedAt": "2026-10-01T05:11:19.394Z",
+    "version": 1
   }
 ]

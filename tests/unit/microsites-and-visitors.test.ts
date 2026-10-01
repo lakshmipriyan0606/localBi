@@ -65,15 +65,15 @@ describe('Multi-Industry Puck Visual Page Builder Engine', () => {
     const { PuckService } = await import('@/modules/microsites/puck-service');
     const foodLayout = await PuckService.getPuckData('lakshmi-food');
     expect(foodLayout).toBeDefined();
-    expect(foodLayout?.content.some((c) => c.type === 'Hero' || c.type === 'RestaurantHero')).toBe(true);
+    expect(foodLayout?.content.some((c: any) => c.type === 'Hero' || c.type === 'RestaurantHero')).toBe(true);
 
     const hospLayout = await PuckService.getPuckData('apollo-annanagar');
     expect(hospLayout).toBeDefined();
-    expect(hospLayout?.content.some((c) => c.type === 'HospitalHero')).toBe(true);
+    expect(hospLayout?.content.some((c: any) => c.type === 'HospitalHero')).toBe(true);
 
     const jewelryLayout = await PuckService.getPuckData('swarna-mahal');
     expect(jewelryLayout).toBeDefined();
-    expect(jewelryLayout?.content.some((c) => c.type === 'JewelryHero')).toBe(true);
+    expect(jewelryLayout?.content.some((c: any) => c.type === 'JewelryHero')).toBe(true);
   });
 
   it('saves and publishes custom layout for a subdomain', async () => {

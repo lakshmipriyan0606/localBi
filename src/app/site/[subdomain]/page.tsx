@@ -12,7 +12,7 @@ import {
   Flame,
   Award,
 } from 'lucide-react';
-import { MicrositeService } from '@/modules/microsites/microsite-service';
+import { MicrositeService, MenuItem } from '@/modules/microsites/microsite-service';
 import { Render } from '@measured/puck';
 import { puckConfig } from '@/modules/microsites/puck-config';
 import { PuckService } from '@/modules/microsites/puck-service';
@@ -41,7 +41,7 @@ export default async function MicrositeHomePage({
     );
   }
 
-  const popularItems = site.menuItems.slice(0, 3);
+  const popularItems = (site.menuItems || []).slice(0, 3);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-300">
@@ -78,23 +78,27 @@ export default async function MicrositeHomePage({
               <ArrowRight className="w-4 h-4" />
             </Link>
 
-            <a
-              href={`https://wa.me/${site.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${site.brandName}, I would like to place an order.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Order via WhatsApp</span>
-            </a>
+            {site.whatsapp && (
+              <a
+                href={`https://wa.me/${(site.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${site.brandName}, I would like to place an order.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Order via WhatsApp</span>
+              </a>
+            )}
 
-            <a
-              href={`tel:${site.phone}`}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm transition-colors"
-            >
-              <Phone className="w-4 h-4 text-indigo-600" />
-              <span>Call Store</span>
-            </a>
+            {site.phone && (
+              <a
+                href={`tel:${site.phone}`}
+                className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs sm:text-sm transition-colors"
+              >
+                <Phone className="w-4 h-4 text-indigo-600" />
+                <span>Call Store</span>
+              </a>
+            )}
           </div>
 
           {/* Location & Time bar */}
@@ -168,13 +172,13 @@ export default async function MicrositeHomePage({
               href={`/site/${subdomain}/menu`}
               className="inline-flex items-center gap-1 text-xs sm:text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
             >
-              <span>View All ({site.menuItems.length} Items)</span>
+              <span>View All ({(site.menuItems || []).length} Items)</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {popularItems.map((item) => (
+            {popularItems.map((item: MenuItem) => (
               <div
                 key={item.id}
                 className="rounded-2xl bg-white border border-slate-200 p-5 flex flex-col justify-between hover:border-slate-300 transition-all hover:-translate-y-0.5 shadow-xs group"
@@ -204,15 +208,19 @@ export default async function MicrositeHomePage({
                     Pure Vegetarian
                   </span>
 
-                  <a
-                    href={`https://wa.me/${site.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${site.brandName}, I would like to order: ${item.name} (₹${item.price})`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    Order
-                  </a>
+                  {site.whatsapp ? (
+                    <a
+                      href={`https://wa.me/${(site.whatsapp || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${site.brandName}, I would like to order: ${item.name} (₹${item.price})`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Order
+                    </a>
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-600">Available</span>
+                  )}
                 </div>
               </div>
             ))}

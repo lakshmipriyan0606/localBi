@@ -28,6 +28,30 @@ export async function PUT(
     const { subdomain } = await segmentData.params;
     const body = await req.json();
 
+    if (body.action === 'publish') {
+      const published = await MicrositeService.publishMicrosite(subdomain);
+      if (!published) {
+        return NextResponse.json({ error: 'Microsite not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, microsite: published, message: 'Website published live!' });
+    }
+
+    if (body.action === 'unpublish') {
+      const unpublished = await MicrositeService.unpublishMicrosite(subdomain);
+      if (!unpublished) {
+        return NextResponse.json({ error: 'Microsite not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, microsite: unpublished, message: 'Website set to draft.' });
+    }
+
+    if (body.action === 'connectDomain') {
+      const withDomain = await MicrositeService.connectCustomDomain(subdomain, body.customDomain);
+      if (!withDomain) {
+        return NextResponse.json({ error: 'Microsite not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, microsite: withDomain, message: 'Custom domain connected!' });
+    }
+
     const updated = await MicrositeService.updateMicrosite(subdomain, body);
     if (!updated) {
       return NextResponse.json({ error: 'Microsite not found' }, { status: 404 });
