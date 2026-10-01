@@ -72,8 +72,9 @@ export function TopNavTenantSwitcher({ tenant, userRole, tenants }: TopNavTenant
           open ? 'border-indigo-300 bg-indigo-50/70 text-indigo-700' : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:bg-slate-100'
         )}
       >
-        <Building2 className="h-3.5 w-3.5" />
-        <span className="text-[11px] font-semibold max-w-[120px] truncate">{tenant.name}</span>
+        <Building2 className="h-3.5 w-3.5 text-slate-500" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Business:</span>
+        <span className="text-[11px] font-semibold max-w-[120px] truncate text-slate-800">{tenant.name}</span>
         <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
       </button>
 

@@ -219,7 +219,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     heading: 'Administration',
     items: [
       {
-        label: 'Brands & Businesses',
+        label: 'Brands',
         href: `/client/${slug}/brands`,
         icon: Tag,
       },
