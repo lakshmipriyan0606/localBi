@@ -1,8 +1,75 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { VisitorService } from '@/modules/visitors/visitor-service';
+import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 describe('Subdomain Microsites Engine', () => {
+  let testTenantId: string;
+  let isolatedTenantId: string;
+
+  beforeAll(async () => {
+    // Ensure test-tenant and isolated-test-tenant exist in DB for RLS validation
+    const tenant1 = await prisma.tenant.upsert({
+      where: { slug: 'test-tenant' },
+      update: {},
+      create: {
+        name: 'Test Tenant',
+        slug: 'test-tenant',
+        timezone: 'Asia/Kolkata',
+        plan: 'STANDARD',
+        status: 'ACTIVE',
+      },
+    });
+    testTenantId = tenant1.id;
+
+    const tenant2 = await prisma.tenant.upsert({
+      where: { slug: 'isolated-test-tenant' },
+      update: {},
+      create: {
+        name: 'Isolated Tenant',
+        slug: 'isolated-test-tenant',
+        timezone: 'Asia/Kolkata',
+        plan: 'STANDARD',
+        status: 'ACTIVE',
+      },
+    });
+    isolatedTenantId = tenant2.id;
+
+    // Seed lakshmi-food published microsite under test-tenant
+    await TenantContextService.withTenantContext(prisma, testTenantId, async (tx) => {
+      await tx.microsite.upsert({
+        where: { uq_microsite_subdomain: { tenantId: testTenantId, subdomain: 'lakshmi-food' } },
+        update: { published: true, status: 'PUBLISHED' },
+        create: {
+          tenantId: testTenantId,
+          subdomain: 'lakshmi-food',
+          brandName: 'Lakshmi Food',
+          hours: '9:00 AM - 9:00 PM',
+          published: true,
+          status: 'PUBLISHED',
+          menuItems: [{ id: '1', name: 'Masala Dosa', price: 90 }],
+        },
+      });
+    });
+  });
+
+  afterAll(async () => {
+    // Clean up test tenants and children
+    const ids = [testTenantId, isolatedTenantId].filter(Boolean);
+    if (ids.length > 0) {
+      await prisma.micrositeVisitor.deleteMany({
+        where: { tenantId: { in: ids } },
+      });
+      await prisma.microsite.deleteMany({
+        where: { tenantId: { in: ids } },
+      });
+      await prisma.tenant.deleteMany({
+        where: { id: { in: ids } },
+      });
+    }
+  });
+
   it('retrieves configured microsite by subdomain', async () => {
     const site = await MicrositeService.getMicrositeBySubdomain('lakshmi-food');
     expect(site).toBeDefined();
@@ -18,84 +85,85 @@ describe('Subdomain Microsites Engine', () => {
       brandName: 'Test Store',
       industry: 'FOOD',
     });
-    const updated = await MicrositeService.updateMicrosite('temp-unit-test-store', {
+    const updated = await MicrositeService.updateMicrosite(testTenantId, 'temp-unit-test-store', {
       phone: '+91 99999 88888',
       customDomain: 'test.example.com',
     });
     expect(updated?.phone).toBe('+91 99999 88888');
     expect(updated?.customDomain).toBe('test.example.com');
-    await MicrositeService.deleteMicrosite('temp-unit-test-store');
+    await MicrositeService.deleteMicrosite(testTenantId, 'temp-unit-test-store');
   });
-});
 
-describe('Microsite Visitor Analytics & Cookieless Lead Capture Engine', () => {
-  it('tracks page views and calculates intent levels', async () => {
-    const session = await VisitorService.recordEvent({
-      tenantSlug: 'isolated-test-tenant',
-      deviceFingerprint: 'fp_test_unit_123',
-      url: '/site/isolated-test-tenant/menu',
-      platform: 'iOS',
-      referrer: 'https://www.google.com/search?q=best+dosa',
-      eventType: 'page_view',
+  describe('Microsite Visitor Analytics & Cookieless Lead Capture Engine', () => {
+    it('tracks page views and calculates intent levels', async () => {
+      const session = await VisitorService.recordEvent({
+        tenantSlug: 'isolated-test-tenant',
+        deviceFingerprint: 'fp_test_unit_123',
+        url: '/site/isolated-test-tenant/menu',
+        platform: 'iOS',
+        referrer: 'https://www.google.com/search?q=best+dosa',
+        eventType: 'page_view',
+      });
+
+      expect(session.deviceFingerprint).toBe('fp_test_unit_123');
+      expect(session.trafficSource.channel).toBe('Google Search');
     });
 
-    expect(session.deviceFingerprint).toBe('fp_test_unit_123');
-    expect(session.trafficSource.channel).toBe('Google Search');
+    it('stitches identity to device fingerprint upon interaction', async () => {
+      const identified = await VisitorService.identifyVisitor({
+        tenantId: isolatedTenantId,
+        deviceFingerprint: 'fp_test_unit_123',
+        phone: '+91 98401 55555',
+        name: 'Prakash',
+      });
+
+      expect(identified).toBeDefined();
+      expect(identified?.isIdentified).toBe(true);
+      expect(identified?.identifiedUser?.phone).toBe('+91 98401 55555');
+      expect(identified?.intentLevel).toBe('HOT');
+
+      // Clean up test tenant visitors
+      await VisitorService.clearRealVisitors('isolated-test-tenant');
+    });
   });
 
-  it('stitches identity to device fingerprint upon interaction', async () => {
-    const identified = await VisitorService.identifyVisitor({
-      deviceFingerprint: 'fp_test_unit_123',
-      phone: '+91 98401 55555',
-      name: 'Prakash',
+  describe('Multi-Industry Puck Visual Page Builder Engine', () => {
+    it('retrieves default starter layout for food, hospital, and jewelry subdomains', async () => {
+      const { PuckService } = await import('@/modules/microsites/puck-service');
+      const foodLayout = await PuckService.getPuckData('lakshmi-food');
+      expect(foodLayout).toBeDefined();
+      expect(foodLayout?.content.some((c: any) => c.type === 'Hero' || c.type === 'RestaurantHero')).toBe(true);
+
+      const hospLayout = await PuckService.getPuckData('apollo-annanagar');
+      expect(hospLayout).toBeDefined();
+      expect(hospLayout?.content.some((c: any) => c.type === 'HospitalHero')).toBe(true);
+
+      const jewelryLayout = await PuckService.getPuckData('swarna-mahal');
+      expect(jewelryLayout).toBeDefined();
+      expect(jewelryLayout?.content.some((c: any) => c.type === 'JewelryHero')).toBe(true);
     });
 
-    expect(identified).toBeDefined();
-    expect(identified?.isIdentified).toBe(true);
-    expect(identified?.identifiedUser?.phone).toBe('+91 98401 55555');
-    expect(identified?.intentLevel).toBe('HOT');
-
-    // Clean up test tenant
-    await VisitorService.clearRealVisitors('isolated-test-tenant');
-  });
-});
-
-describe('Multi-Industry Puck Visual Page Builder Engine', () => {
-  it('retrieves default starter layout for food, hospital, and jewelry subdomains', async () => {
-    const { PuckService } = await import('@/modules/microsites/puck-service');
-    const foodLayout = await PuckService.getPuckData('lakshmi-food');
-    expect(foodLayout).toBeDefined();
-    expect(foodLayout?.content.some((c: any) => c.type === 'Hero' || c.type === 'RestaurantHero')).toBe(true);
-
-    const hospLayout = await PuckService.getPuckData('apollo-annanagar');
-    expect(hospLayout).toBeDefined();
-    expect(hospLayout?.content.some((c: any) => c.type === 'HospitalHero')).toBe(true);
-
-    const jewelryLayout = await PuckService.getPuckData('swarna-mahal');
-    expect(jewelryLayout).toBeDefined();
-    expect(jewelryLayout?.content.some((c: any) => c.type === 'JewelryHero')).toBe(true);
-  });
-
-  it('saves and publishes custom layout for a subdomain', async () => {
-    const { PuckService } = await import('@/modules/microsites/puck-service');
-    const success = await PuckService.savePuckData('custom-client', {
-      content: [
-        {
-          type: 'GoldRateTicker',
-          props: {
-            id: 'unit-gold-1',
-            rate22k: '₹6,900/g',
-            rate24k: '₹7,550/g',
-            silverRate: '₹99/g',
-            lastUpdated: 'Today',
+    it('saves and publishes custom layout for a subdomain', async () => {
+      const { PuckService } = await import('@/modules/microsites/puck-service');
+      const success = await PuckService.savePuckData('custom-client', {
+        content: [
+          {
+            type: 'GoldRateTicker',
+            props: {
+              id: 'unit-gold-1',
+              rate22k: '₹6,900/g',
+              rate24k: '₹7,550/g',
+              silverRate: '₹99/g',
+              lastUpdated: 'Today',
+            },
           },
-        },
-      ],
-      root: { props: { title: 'Custom Jewelers' } },
-    });
+        ],
+        root: { props: { title: 'Custom Jewelers' } },
+      });
 
-    expect(success).toBe(true);
-    const saved = await PuckService.getPuckData('custom-client');
-    expect(saved?.content[0]?.type).toBe('GoldRateTicker');
+      expect(success).toBe(true);
+      const saved = await PuckService.getPuckData('custom-client');
+      expect(saved?.content[0]?.type).toBe('GoldRateTicker');
+    });
   });
 });

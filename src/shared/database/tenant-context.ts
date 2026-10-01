@@ -43,4 +43,20 @@ export class TenantContextService {
       return operation(tx);
     });
   }
+
+  /**
+   * Executes a database operation within a transaction boundary scoped strictly to
+   * published public data (`app.public_read_scope = 'published_only'`).
+   * Mutation attempts are rejected by RLS.
+   */
+  public static async withPublicReadContext<T>(
+    prisma: PrismaClient,
+    operation: (tx: Prisma.TransactionClient) => Promise<T>
+  ): Promise<T> {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT set_config('app.public_read_scope', 'published_only', true)`;
+
+      return operation(tx);
+    });
+  }
 }

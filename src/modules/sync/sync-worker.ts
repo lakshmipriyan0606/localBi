@@ -130,7 +130,7 @@ export class SyncWorkerService {
     try {
       // 2. Refresh or resolve valid access token
       let accessToken: string;
-      if (activeConnection.encryptedRefreshToken && activeConnection.encryptedRefreshToken !== 'service-account-mock-token') {
+      if (activeConnection.encryptedRefreshToken) {
         try {
           accessToken = await GoogleOAuthService.refreshAccessToken(
             activeConnection.encryptedRefreshToken,
@@ -145,8 +145,8 @@ export class SyncWorkerService {
         const { getAuthenticatedGoogleClient } = await import('@/shared/lib/google-auth');
         const auth = getAuthenticatedGoogleClient();
         const token = await auth.getAccessToken();
-        if (!token) throw new Error('Failed to get access token from service account');
-        accessToken = token;
+        if (!token) throw new Error('Failed to get access token from Google credentials');
+        accessToken = String(token);
       }
 
       let rowsIngested = 0;
@@ -625,7 +625,7 @@ export class SyncWorkerService {
     }
 
     let accessToken: string;
-    if (activeConnection.encryptedRefreshToken && activeConnection.encryptedRefreshToken !== 'service-account-mock-token') {
+    if (activeConnection.encryptedRefreshToken) {
       try {
         accessToken = await GoogleOAuthService.refreshAccessToken(
           activeConnection.encryptedRefreshToken,
@@ -640,8 +640,8 @@ export class SyncWorkerService {
       const { getAuthenticatedGoogleClient } = await import('@/shared/lib/google-auth');
       const auth = getAuthenticatedGoogleClient();
       const token = await auth.getAccessToken();
-      if (!token) throw new Error('Failed to get access token from service account');
-      accessToken = token;
+      if (!token) throw new Error('Failed to get access token from Google credentials');
+      accessToken = String(token);
     }
 
     const today = new Date();

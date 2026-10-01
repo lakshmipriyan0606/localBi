@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { SessionCookieManager } from '@/modules/auth/cookies';
+import { ContextResolver } from '@/modules/auth/context-resolver';
+import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { MicrositeService, MicrositeConfig } from '@/modules/microsites/microsite-service';
+import { TenantContextService } from '@/shared/database/tenant-context';
+import { prisma } from '@/shared/database/client';
+import { handleRouteError } from '@/shared/errors';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,11 +16,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing tenantSlug query parameter' }, { status: 400 });
     }
 
-    const sites = await MicrositeService.getAllMicrosites(tenantSlug);
+    const cookieStore = await cookies();
+    const rawToken = SessionCookieManager.getSessionToken(cookieStore);
+    const { tenant, authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
+
+    if (!authorizedContext || !tenant) {
+      return NextResponse.json({ error: 'Tenant context not found or access denied' }, { status: 403 });
+    }
+
+    AuthorizationService.assertCan(authorizedContext, Action.MICROSITE_VIEW);
+
+    const sites = await MicrositeService.getAllMicrosites(tenant.id);
     return NextResponse.json({ microsites: sites });
   } catch (error) {
-    console.error('Error fetching all microsites:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleRouteError(error, 'Error fetching microsites');
   }
 }
 
@@ -26,11 +42,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subdomain, Brand Name, and tenantSlug are required' }, { status: 400 });
     }
 
+    const cookieStore = await cookies();
+    const rawToken = SessionCookieManager.getSessionToken(cookieStore);
+    const { tenant, authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
+
+    if (!authorizedContext || !tenant) {
+      return NextResponse.json({ error: 'Tenant context not found or access denied' }, { status: 403 });
+    }
+
+    AuthorizationService.assertCan(authorizedContext, Action.MICROSITE_CREATE);
+
     const cleanSubdomain = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+
+    // Prevent duplicate subdomain registrations within tenant
+    const existing = await TenantContextService.withTenantContext(
+      prisma,
+      tenant.id,
+      async (tx) => {
+        return tx.microsite.findFirst({
+          where: { subdomain: cleanSubdomain },
+        });
+      }
+    );
+    if (existing) {
+      return NextResponse.json({ error: `Subdomain "${cleanSubdomain}" is already registered` }, { status: 409 });
+    }
 
     const newConfig: Partial<MicrositeConfig> & { subdomain: string; tenantSlug: string; brandName: string } = {
       subdomain: cleanSubdomain,
-      tenantSlug,
+      tenantSlug: tenant.slug,
       brandId: body.brandId,
       brandName: brandName.trim(),
       locationId: body.locationId,
@@ -61,10 +101,9 @@ export async function POST(req: NextRequest) {
       menuItems: body.menuItems || [],
     };
 
-    const created = await MicrositeService.createMicrosite(newConfig);
+    const created = await MicrositeService.createMicrosite(tenant.id, newConfig);
     return NextResponse.json({ success: true, microsite: created });
   } catch (error) {
-    console.error('Error creating microsite:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleRouteError(error, 'Error creating microsite');
   }
 }

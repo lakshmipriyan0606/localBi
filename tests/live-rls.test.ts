@@ -250,8 +250,8 @@ describe('Live PostgreSQL 16 Dual-Role Row-Level Security (RLS) Exhaustive Integ
   - Missing Tables: [${missingTables.join(', ')}]
   - Unexpected Tables: [${unexpectedTables.join(', ')}]`);
 
-    expect(expectedCount).toBe(25);
-    expect(actualProtectedCount).toBe(25);
+    expect(expectedCount).toBe(34);
+    expect(actualProtectedCount).toBe(34);
     expect(missingTables).toEqual([]);
     expect(unexpectedTables).toEqual([]);
 
@@ -263,7 +263,7 @@ describe('Live PostgreSQL 16 Dual-Role Row-Level Security (RLS) Exhaustive Integ
     }
   });
 
-  it('Gate 5.4: System Catalog Verification — Fail-closed isolation policy exists on ALL 25 tenant tables', async () => {
+  it('Gate 5.4: System Catalog Verification — Fail-closed isolation policy exists on ALL 34 tenant tables', async () => {
     const policies = await appPrisma.$queryRaw<
       Array<{ tablename: string; policyname: string; cmd: string; qual: string; with_check: string }>
     >`

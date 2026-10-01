@@ -1,5 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
+import { CatalogCompatibilityAdapter } from '@/modules/catalog/catalog-compatibility-adapter';
 
 export interface MenuItem {
   id: string;
@@ -158,7 +160,7 @@ function normalizeConfig(config: Partial<MicrositeConfig>): MicrositeConfig {
   };
 }
 
-/** Map a DB Prisma row → MicrositeConfig */
+/** Map a DB Prisma row -> MicrositeConfig */
 function dbRowToConfig(row: {
   id: string;
   tenantId: string;
@@ -252,376 +254,428 @@ async function resolveTenantId(tenantSlug: string): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// MicrositeService — fully DB-backed
+// MicrositeService — tenant-isolated via RLS + dedicated public read path
 // ---------------------------------------------------------------------------
 
 export class MicrositeService {
   /**
-   * Resolves a microsite by subdomain or custom domain.
-   * Falls back to dynamic auto-resolution from Tenant/Brand/Location.
+   * Dedicated PUBLIC READ path.
+   * Scoped strictly to published microsites using `withPublicReadContext`.
+   * Never exposes internal draft data or tenant-private settings.
    */
   static async getMicrositeBySubdomain(subdomainOrHost: string): Promise<MicrositeConfig | null> {
     const cleanKey = subdomainOrHost.toLowerCase().trim().replace(/:\d+$/, '');
     const baseSlug = cleanKey.replace(/-\d+$/, '');
 
-    // 1. Direct DB lookup by subdomain
-    const bySubdomain = await prisma.microsite.findFirst({
-      where: {
-        subdomain: { in: [cleanKey, baseSlug] },
-      },
-      include: { tenant: { select: { slug: true } } },
-      orderBy: { updatedAt: 'desc' },
-    });
-    if (bySubdomain) return dbRowToConfig(bySubdomain, bySubdomain.tenant.slug);
-
-    // 2. Match by custom domain
-    const byDomain = await prisma.microsite.findFirst({
-      where: { customDomain: cleanKey },
-      include: { tenant: { select: { slug: true } } },
-    });
-    if (byDomain) return dbRowToConfig(byDomain, byDomain.tenant.slug);
-
-    // 3. Dynamic auto-resolution from PostgreSQL Tenant, Brand & Location
-    try {
-      const dbTenant = await prisma.tenant.findFirst({
-        where: { OR: [{ slug: cleanKey }, { slug: baseSlug }] },
-        include: {
-          brands: {
-            include: {
-              locations: { where: { isArchived: false }, take: 1 },
-            },
-            take: 1,
-          },
-        },
-      });
-
-      if (dbTenant) {
-        const brand = dbTenant.brands[0];
-        const location = brand?.locations[0];
-        const brandName = brand?.name || dbTenant.name;
-
-        const config = normalizeConfig({
-          subdomain: cleanKey,
-          tenantSlug: dbTenant.slug,
-          brandId: brand?.id,
-          brandName,
-          locationId: location?.id,
-          locationName: location?.name || brandName,
-          address: location ? `${location.addressLine1}, ${location.city}` : '',
-          city: location?.city || '',
-          state: location?.state || '',
-          postalCode: location?.postalCode || '',
+    return TenantContextService.withPublicReadContext(prisma, async (tx) => {
+      // 1. Direct lookup by subdomain (published only)
+      const bySubdomain = await tx.microsite.findFirst({
+        where: {
           published: true,
-          status: 'PUBLISHED',
-        });
-
-        // Persist auto-resolved record to DB
-        await this.createMicrosite(config);
+          subdomain: { in: [cleanKey, baseSlug] },
+        },
+        include: { tenant: { select: { slug: true } } },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (bySubdomain) {
+        const config = dbRowToConfig(bySubdomain, bySubdomain.tenant.slug);
+        config.menuItems = await CatalogCompatibilityAdapter.resolveMenuItemsForMicrosite(
+          bySubdomain.tenantId,
+          bySubdomain.brandId,
+          bySubdomain.locationId,
+          config.menuItems
+        );
         return config;
       }
-    } catch (err) {
-      console.warn('MicrositeService auto-resolution error:', err);
-    }
 
-    return null;
+      // 2. Match by custom domain (published only)
+      const byDomain = await tx.microsite.findFirst({
+        where: {
+          published: true,
+          customDomain: cleanKey,
+        },
+        include: { tenant: { select: { slug: true } } },
+      });
+      if (byDomain) {
+        const config = dbRowToConfig(byDomain, byDomain.tenant.slug);
+        config.menuItems = await CatalogCompatibilityAdapter.resolveMenuItemsForMicrosite(
+          byDomain.tenantId,
+          byDomain.brandId,
+          byDomain.locationId,
+          config.menuItems
+        );
+        return config;
+      }
+
+      return null;
+    });
   }
 
   /**
-   * Returns all microsites for a given tenant.
+   * Resolves published microsite identity for visitor pixel attribution.
    */
-  static async getAllMicrosites(tenantSlug: string): Promise<MicrositeConfig[]> {
-    const tenantId = await resolveTenantId(tenantSlug);
+  static async resolvePublishedMicrosite(subdomainOrHost: string): Promise<{
+    id: string;
+    tenantId: string;
+    tenantSlug: string;
+    subdomain: string;
+    brandId: string | null;
+    locationId: string | null;
+  } | null> {
+    const cleanKey = subdomainOrHost.toLowerCase().trim().replace(/:\d+$/, '');
+    const baseSlug = cleanKey.replace(/-\d+$/, '');
 
-    if (tenantId) {
-      const rows = await prisma.microsite.findMany({
+    return TenantContextService.withPublicReadContext(prisma, async (tx) => {
+      const site = await tx.microsite.findFirst({
+        where: {
+          published: true,
+          OR: [
+            { subdomain: { in: [cleanKey, baseSlug] } },
+            { customDomain: cleanKey },
+          ],
+        },
+        include: { tenant: { select: { slug: true } } },
+      });
+
+      if (!site) return null;
+
+      return {
+        id: site.id,
+        tenantId: site.tenantId,
+        tenantSlug: site.tenant.slug,
+        subdomain: site.subdomain,
+        brandId: site.brandId,
+        locationId: site.locationId,
+      };
+    });
+  }
+
+  /**
+   * Returns all microsites for an authenticated tenant.
+   * Enforced within TenantContextService with RLS.
+   */
+  static async getAllMicrosites(tenantIdOrSlug: string): Promise<MicrositeConfig[]> {
+    const tenantId = tenantIdOrSlug.startsWith('tenant_') || tenantIdOrSlug.length > 20
+      ? tenantIdOrSlug
+      : await resolveTenantId(tenantIdOrSlug);
+
+    if (!tenantId) return [];
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const rows = await tx.microsite.findMany({
         where: { tenantId },
         include: { tenant: { select: { slug: true } } },
         orderBy: { updatedAt: 'desc' },
       });
 
-      if (rows.length > 0) {
-        return rows.map((r) => dbRowToConfig(r, r.tenant.slug));
-      }
-
-      // If no DB records yet, synthesize from Brand/Location and persist them
-      try {
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: tenantId },
-          include: {
-            brands: {
-              include: { locations: { where: { isArchived: false } } },
-            },
-          },
-        });
-
-        const synthesized: MicrositeConfig[] = [];
-        if (tenant && tenant.brands.length > 0) {
-          for (const brand of tenant.brands) {
-            if (brand.locations.length > 0) {
-              for (const loc of brand.locations) {
-                const sub = `${tenant.slug}-${loc.storeCode || loc.city.toLowerCase()}`.replace(
-                  /[^a-z0-9-]/g,
-                  '-'
-                );
-                const cfg = await this.createMicrosite(
-                  normalizeConfig({
-                    subdomain: sub,
-                    tenantSlug: tenant.slug,
-                    brandId: brand.id,
-                    brandName: `${brand.name} - ${loc.name}`,
-                    locationId: loc.id,
-                    locationName: loc.name,
-                    address: `${loc.addressLine1}, ${loc.city}`,
-                    city: loc.city,
-                    state: loc.state,
-                    postalCode: loc.postalCode,
-                    published: true,
-                    status: 'PUBLISHED',
-                  })
-                );
-                synthesized.push(cfg);
-              }
-            } else {
-              const cfg = await this.createMicrosite(
-                normalizeConfig({
-                  subdomain: tenant.slug,
-                  tenantSlug: tenant.slug,
-                  brandId: brand.id,
-                  brandName: brand.name,
-                  published: true,
-                  status: 'PUBLISHED',
-                })
-              );
-              synthesized.push(cfg);
-            }
-          }
-        }
-        return synthesized;
-      } catch (err) {
-        console.warn('MicrositeService synthesis error:', err);
-        return [];
-      }
-    }
-
-    return [];
+      return rows.map((r) => dbRowToConfig(r, r.tenant.slug));
+    });
   }
 
   /**
-   * Creates a new microsite row in the DB.
+   * Returns an individual microsite for administration under authenticated tenant context.
+   */
+  static async getMicrositeForAdministration(
+    tenantId: string,
+    subdomain: string
+  ): Promise<MicrositeConfig | null> {
+    const cleanKey = subdomain.toLowerCase().trim();
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const row = await tx.microsite.findFirst({
+        where: { tenantId, subdomain: cleanKey },
+        include: { tenant: { select: { slug: true } } },
+      });
+
+      return row ? dbRowToConfig(row, row.tenant.slug) : null;
+    });
+  }
+
+  /**
+   * Creates a new microsite row in the DB under strict tenant context.
    */
   static async createMicrosite(
-    config: Partial<MicrositeConfig> & {
-      subdomain: string;
-      tenantSlug: string;
-      brandName: string;
-    }
+    tenantIdOrConfig: string | (Partial<MicrositeConfig> & { subdomain: string; tenantSlug: string; brandName: string }),
+    maybeConfig?: Partial<MicrositeConfig> & { subdomain: string; tenantSlug: string; brandName: string }
   ): Promise<MicrositeConfig> {
+    const isOverload = typeof tenantIdOrConfig === 'string';
+    const rawConfig = isOverload ? maybeConfig! : tenantIdOrConfig;
+
+    const tenantId = isOverload
+      ? (tenantIdOrConfig as string)
+      : await resolveTenantId(rawConfig.tenantSlug);
+
+    if (!tenantId) throw new Error(`Tenant not found for slug: ${rawConfig.tenantSlug}`);
+
     const normalized = normalizeConfig({
-      ...config,
-      subdomain: config.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-      status: config.published ? 'PUBLISHED' : 'DRAFT',
+      ...rawConfig,
+      subdomain: rawConfig.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+      status: rawConfig.published ? 'PUBLISHED' : 'DRAFT',
       updatedAt: new Date().toISOString(),
     });
 
-    const tenantId = await resolveTenantId(normalized.tenantSlug);
-    if (!tenantId) throw new Error(`Tenant not found: ${normalized.tenantSlug}`);
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const row = await tx.microsite.upsert({
+        where: {
+          uq_microsite_subdomain: { tenantId, subdomain: normalized.subdomain },
+        },
+        create: {
+          tenantId,
+          subdomain: normalized.subdomain,
+          brandId: normalized.brandId ?? null,
+          brandName: normalized.brandName,
+          locationId: normalized.locationId ?? null,
+          locationName: normalized.locationName ?? null,
+          tagline: normalized.tagline ?? null,
+          aboutStory: normalized.aboutStory ?? null,
+          primaryColor: normalized.primaryColor,
+          secondaryColor: normalized.secondaryColor ?? null,
+          font: normalized.font ?? 'Inter',
+          phone: normalized.phone,
+          whatsapp: normalized.whatsapp,
+          address: normalized.address,
+          city: normalized.city,
+          state: normalized.state ?? null,
+          postalCode: normalized.postalCode ?? null,
+          hours: normalized.hours,
+          googleRating: normalized.googleRating,
+          reviewCount: normalized.reviewCount,
+          googleMapsUrl: normalized.googleMapsUrl,
+          heroImageUrl: normalized.heroImageUrl,
+          menuItems: (normalized.menuItems ?? []) as unknown as Prisma.InputJsonValue,
+          published: normalized.published,
+          status: normalized.status ?? 'DRAFT',
+          customDomain: normalized.customDomain ?? null,
+          customDomainStatus: normalized.customDomainStatus ?? 'NOT_CONNECTED',
+          industry: normalized.industry ?? null,
+          templateId: normalized.templateId ?? 'restaurant',
+          theme: (normalized.theme ?? null) as unknown as Prisma.InputJsonValue,
+          pages: (normalized.pages ?? DEFAULT_PAGES) as unknown as Prisma.InputJsonValue,
+          sections: (normalized.sections ?? []) as unknown as Prisma.InputJsonValue,
+          draftData: normalized.draftData != null ? (normalized.draftData as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          publishedData: normalized.publishedData != null ? (normalized.publishedData as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          lastPublishedAt: normalized.lastPublishedAt ? new Date(normalized.lastPublishedAt) : null,
+          version: normalized.version ?? 1,
+        },
+        update: {
+          brandName: normalized.brandName,
+          tagline: normalized.tagline ?? null,
+          aboutStory: normalized.aboutStory ?? null,
+          primaryColor: normalized.primaryColor,
+          secondaryColor: normalized.secondaryColor ?? null,
+          font: normalized.font ?? 'Inter',
+          phone: normalized.phone,
+          whatsapp: normalized.whatsapp,
+          address: normalized.address,
+          city: normalized.city,
+          state: normalized.state ?? null,
+          postalCode: normalized.postalCode ?? null,
+          hours: normalized.hours,
+          googleRating: normalized.googleRating,
+          reviewCount: normalized.reviewCount,
+          googleMapsUrl: normalized.googleMapsUrl,
+          heroImageUrl: normalized.heroImageUrl,
+          menuItems: (normalized.menuItems ?? []) as unknown as Prisma.InputJsonValue,
+          published: normalized.published,
+          status: normalized.status ?? 'DRAFT',
+          theme: (normalized.theme ?? null) as unknown as Prisma.InputJsonValue,
+          pages: (normalized.pages ?? DEFAULT_PAGES) as unknown as Prisma.InputJsonValue,
+          sections: (normalized.sections ?? []) as unknown as Prisma.InputJsonValue,
+        },
+        include: { tenant: { select: { slug: true } } },
+      });
 
-    const row = await prisma.microsite.upsert({
-      where: {
-        uq_microsite_subdomain: { tenantId, subdomain: normalized.subdomain },
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      create: {
-        tenantId,
-        subdomain: normalized.subdomain,
-        brandId: normalized.brandId ?? null,
-        brandName: normalized.brandName,
-        locationId: normalized.locationId ?? null,
-        locationName: normalized.locationName ?? null,
-        tagline: normalized.tagline ?? null,
-        aboutStory: normalized.aboutStory ?? null,
-        primaryColor: normalized.primaryColor,
-        secondaryColor: normalized.secondaryColor ?? null,
-        font: normalized.font ?? 'Inter',
-        phone: normalized.phone,
-        whatsapp: normalized.whatsapp,
-        address: normalized.address,
-        city: normalized.city,
-        state: normalized.state ?? null,
-        postalCode: normalized.postalCode ?? null,
-        hours: normalized.hours,
-        googleRating: normalized.googleRating,
-        reviewCount: normalized.reviewCount,
-        googleMapsUrl: normalized.googleMapsUrl,
-        heroImageUrl: normalized.heroImageUrl,
-        menuItems: (normalized.menuItems ?? []) as unknown as Prisma.InputJsonValue,
-        published: normalized.published,
-        status: normalized.status ?? 'DRAFT',
-        customDomain: normalized.customDomain ?? null,
-        customDomainStatus: normalized.customDomainStatus ?? 'NOT_CONNECTED',
-        industry: normalized.industry ?? null,
-        templateId: normalized.templateId ?? 'restaurant',
-        theme: (normalized.theme ?? null) as unknown as Prisma.InputJsonValue,
-        pages: (normalized.pages ?? DEFAULT_PAGES) as unknown as Prisma.InputJsonValue,
-        sections: (normalized.sections ?? []) as unknown as Prisma.InputJsonValue,
-        draftData: normalized.draftData != null ? normalized.draftData as unknown as Prisma.InputJsonValue : Prisma.JsonNull,
-        publishedData: normalized.publishedData != null ? normalized.publishedData as unknown as Prisma.InputJsonValue : Prisma.JsonNull,
-        lastPublishedAt: normalized.lastPublishedAt ? new Date(normalized.lastPublishedAt) : null,
-        version: normalized.version ?? 1,
-      } as any,
-      update: {
-        brandName: normalized.brandName,
-        tagline: normalized.tagline ?? null,
-        aboutStory: normalized.aboutStory ?? null,
-        primaryColor: normalized.primaryColor,
-        secondaryColor: normalized.secondaryColor ?? null,
-        font: normalized.font ?? 'Inter',
-        phone: normalized.phone,
-        whatsapp: normalized.whatsapp,
-        address: normalized.address,
-        city: normalized.city,
-        state: normalized.state ?? null,
-        postalCode: normalized.postalCode ?? null,
-        hours: normalized.hours,
-        googleRating: normalized.googleRating,
-        reviewCount: normalized.reviewCount,
-        googleMapsUrl: normalized.googleMapsUrl,
-        heroImageUrl: normalized.heroImageUrl,
-        menuItems: (normalized.menuItems ?? []) as unknown as Prisma.InputJsonValue,
-        published: normalized.published,
-        status: normalized.status ?? 'DRAFT',
-        theme: (normalized.theme ?? null) as unknown as Prisma.InputJsonValue,
-        pages: (normalized.pages ?? DEFAULT_PAGES) as unknown as Prisma.InputJsonValue,
-        sections: (normalized.sections ?? []) as unknown as Prisma.InputJsonValue,
-      } as any,
-      include: { tenant: { select: { slug: true } } },
+      return dbRowToConfig(row, row.tenant.slug);
     });
-
-    return dbRowToConfig(row, row.tenant.slug);
   }
 
   /**
-   * Updates an existing microsite configuration.
+   * Updates an existing microsite configuration under tenant context.
    */
   static async updateMicrosite(
-    subdomain: string,
-    updates: Partial<MicrositeConfig>
+    tenantIdOrSubdomain: string,
+    subdomainOrUpdates: string | Partial<MicrositeConfig>,
+    maybeUpdates?: Partial<MicrositeConfig>
   ): Promise<MicrositeConfig | null> {
+    const isExplicitTenant = maybeUpdates !== undefined;
+    const subdomain = isExplicitTenant ? (subdomainOrUpdates as string) : tenantIdOrSubdomain;
+    const updates = isExplicitTenant ? maybeUpdates! : (subdomainOrUpdates as Partial<MicrositeConfig>);
     const cleanKey = subdomain.toLowerCase().trim();
 
-    const existing = await prisma.microsite.findFirst({
-      where: { subdomain: cleanKey },
-      include: { tenant: { select: { slug: true } } },
-    });
-    if (!existing) {
-      // Try auto-resolve + persist, then update
-      const resolved = await this.getMicrositeBySubdomain(cleanKey);
-      if (!resolved) return null;
-      return this.updateMicrosite(cleanKey, updates);
+    let tenantId = isExplicitTenant ? tenantIdOrSubdomain : '';
+    if (!tenantId) {
+      // Legacy resolution: look up tenantId from existing microsite
+      const existing = await prisma.microsite.findFirst({
+        where: { subdomain: cleanKey },
+        select: { tenantId: true },
+      });
+      if (!existing) return null;
+      tenantId = existing.tenantId;
     }
 
-    const row = await prisma.microsite.update({
-      where: { id: existing.id },
-      data: {
-        ...(updates.brandName !== undefined && { brandName: updates.brandName }),
-        ...(updates.tagline !== undefined && { tagline: updates.tagline ?? null }),
-        ...(updates.aboutStory !== undefined && { aboutStory: updates.aboutStory ?? null }),
-        ...(updates.primaryColor !== undefined && { primaryColor: updates.primaryColor }),
-        ...(updates.secondaryColor !== undefined && { secondaryColor: updates.secondaryColor ?? null }),
-        ...(updates.font !== undefined && { font: updates.font ?? null }),
-        ...(updates.phone !== undefined && { phone: updates.phone }),
-        ...(updates.whatsapp !== undefined && { whatsapp: updates.whatsapp }),
-        ...(updates.address !== undefined && { address: updates.address }),
-        ...(updates.city !== undefined && { city: updates.city }),
-        ...(updates.state !== undefined && { state: updates.state ?? null }),
-        ...(updates.postalCode !== undefined && { postalCode: updates.postalCode ?? null }),
-        ...(updates.hours !== undefined && { hours: updates.hours }),
-        ...(updates.googleRating !== undefined && { googleRating: updates.googleRating }),
-        ...(updates.reviewCount !== undefined && { reviewCount: updates.reviewCount }),
-        ...(updates.googleMapsUrl !== undefined && { googleMapsUrl: updates.googleMapsUrl }),
-        ...(updates.heroImageUrl !== undefined && { heroImageUrl: updates.heroImageUrl }),
-        ...(updates.menuItems !== undefined && { menuItems: updates.menuItems as unknown as Prisma.InputJsonValue }),
-        ...(updates.published !== undefined && {
-          published: updates.published,
-          status: updates.published ? 'PUBLISHED' : 'DRAFT',
-        }),
-        ...(updates.status !== undefined && { status: updates.status }),
-        ...(updates.customDomain !== undefined && { customDomain: updates.customDomain ?? null }),
-        ...(updates.customDomainStatus !== undefined && {
-          customDomainStatus: updates.customDomainStatus,
-        }),
-        ...(updates.industry !== undefined && { industry: updates.industry ?? null }),
-        ...(updates.templateId !== undefined && { templateId: updates.templateId }),
-        ...(updates.theme !== undefined && { theme: updates.theme as unknown as Prisma.InputJsonValue }),
-        ...(updates.pages !== undefined && { pages: updates.pages as unknown as Prisma.InputJsonValue }),
-        ...(updates.sections !== undefined && { sections: updates.sections as unknown as Prisma.InputJsonValue }),
-        ...(updates.draftData !== undefined && { draftData: updates.draftData as unknown as Prisma.InputJsonValue }),
-        ...(updates.publishedData !== undefined && {
-          publishedData: updates.publishedData as unknown as Prisma.InputJsonValue,
-        }),
-        ...(updates.lastPublishedAt !== undefined && {
-          lastPublishedAt: new Date(updates.lastPublishedAt),
-        }),
-      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-      include: { tenant: { select: { slug: true } } },
-    });
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const existing = await tx.microsite.findFirst({
+        where: { tenantId, subdomain: cleanKey },
+        include: { tenant: { select: { slug: true } } },
+      });
+      if (!existing) return null;
 
-    return dbRowToConfig(row, row.tenant.slug);
+      const row = await tx.microsite.update({
+        where: { id: existing.id },
+        data: {
+          ...(updates.brandName !== undefined && { brandName: updates.brandName }),
+          ...(updates.tagline !== undefined && { tagline: updates.tagline ?? null }),
+          ...(updates.aboutStory !== undefined && { aboutStory: updates.aboutStory ?? null }),
+          ...(updates.primaryColor !== undefined && { primaryColor: updates.primaryColor }),
+          ...(updates.secondaryColor !== undefined && { secondaryColor: updates.secondaryColor ?? null }),
+          ...(updates.font !== undefined && { font: updates.font ?? null }),
+          ...(updates.phone !== undefined && { phone: updates.phone }),
+          ...(updates.whatsapp !== undefined && { whatsapp: updates.whatsapp }),
+          ...(updates.address !== undefined && { address: updates.address }),
+          ...(updates.city !== undefined && { city: updates.city }),
+          ...(updates.state !== undefined && { state: updates.state ?? null }),
+          ...(updates.postalCode !== undefined && { postalCode: updates.postalCode ?? null }),
+          ...(updates.hours !== undefined && { hours: updates.hours }),
+          ...(updates.googleRating !== undefined && { googleRating: updates.googleRating }),
+          ...(updates.reviewCount !== undefined && { reviewCount: updates.reviewCount }),
+          ...(updates.googleMapsUrl !== undefined && { googleMapsUrl: updates.googleMapsUrl }),
+          ...(updates.heroImageUrl !== undefined && { heroImageUrl: updates.heroImageUrl }),
+          ...(updates.menuItems !== undefined && { menuItems: updates.menuItems as unknown as Prisma.InputJsonValue }),
+          ...(updates.published !== undefined && {
+            published: updates.published,
+            status: updates.published ? 'PUBLISHED' : 'DRAFT',
+          }),
+          ...(updates.status !== undefined && { status: updates.status }),
+          ...(updates.customDomain !== undefined && { customDomain: updates.customDomain ?? null }),
+          ...(updates.customDomainStatus !== undefined && {
+            customDomainStatus: updates.customDomainStatus,
+          }),
+          ...(updates.industry !== undefined && { industry: updates.industry ?? null }),
+          ...(updates.templateId !== undefined && { templateId: updates.templateId }),
+          ...(updates.theme !== undefined && { theme: updates.theme as unknown as Prisma.InputJsonValue }),
+          ...(updates.pages !== undefined && { pages: updates.pages as unknown as Prisma.InputJsonValue }),
+          ...(updates.sections !== undefined && { sections: updates.sections as unknown as Prisma.InputJsonValue }),
+          ...(updates.draftData !== undefined && { draftData: updates.draftData as unknown as Prisma.InputJsonValue }),
+          ...(updates.publishedData !== undefined && {
+            publishedData: updates.publishedData as unknown as Prisma.InputJsonValue,
+          }),
+          ...(updates.lastPublishedAt !== undefined && {
+            lastPublishedAt: new Date(updates.lastPublishedAt),
+          }),
+        },
+        include: { tenant: { select: { slug: true } } },
+      });
+
+      return dbRowToConfig(row, row.tenant.slug);
+    });
   }
 
   /**
-   * Creates an immutable published snapshot.
+   * Publishes a microsite under tenant context.
    */
-  static async publishMicrosite(subdomain: string): Promise<MicrositeConfig | null> {
+  static async publishMicrosite(
+    tenantIdOrSubdomain: string,
+    maybeSubdomain?: string
+  ): Promise<MicrositeConfig | null> {
+    const isExplicit = maybeSubdomain !== undefined;
+    const subdomain = isExplicit ? maybeSubdomain! : tenantIdOrSubdomain;
     const cleanKey = subdomain.toLowerCase().trim();
-    const existing = await prisma.microsite.findFirst({ where: { subdomain: cleanKey } });
-    if (!existing) return null;
 
-    const now = new Date();
-    const row = await prisma.microsite.update({
-      where: { id: existing.id },
-      data: {
-        published: true,
-        status: 'PUBLISHED',
-        publishedData: (existing.draftData ?? existing.publishedData ?? null) as unknown as import('@prisma/client').Prisma.InputJsonValue,
-        lastPublishedAt: now,
-        version: { increment: 1 },
-      },
-      include: { tenant: { select: { slug: true } } },
+    let tenantId = isExplicit ? tenantIdOrSubdomain : '';
+    if (!tenantId) {
+      const existing = await prisma.microsite.findFirst({
+        where: { subdomain: cleanKey },
+        select: { tenantId: true },
+      });
+      if (!existing) return null;
+      tenantId = existing.tenantId;
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const existing = await tx.microsite.findFirst({
+        where: { tenantId, subdomain: cleanKey },
+      });
+      if (!existing) return null;
+
+      const now = new Date();
+      const row = await tx.microsite.update({
+        where: { id: existing.id },
+        data: {
+          published: true,
+          status: 'PUBLISHED',
+          publishedData: (existing.draftData ?? existing.publishedData ?? null) as unknown as Prisma.InputJsonValue,
+          lastPublishedAt: now,
+          version: { increment: 1 },
+        },
+        include: { tenant: { select: { slug: true } } },
+      });
+
+      return dbRowToConfig(row, row.tenant.slug);
     });
-
-    return dbRowToConfig(row as typeof row & { tenant: { slug: string } }, row.tenantId);
   }
 
   /**
-   * Unpublishes a microsite (sets to DRAFT).
+   * Sets microsite to DRAFT under tenant context.
    */
-  static async unpublishMicrosite(subdomain: string): Promise<MicrositeConfig | null> {
+  static async unpublishMicrosite(
+    tenantIdOrSubdomain: string,
+    maybeSubdomain?: string
+  ): Promise<MicrositeConfig | null> {
+    const isExplicit = maybeSubdomain !== undefined;
+    const subdomain = isExplicit ? maybeSubdomain! : tenantIdOrSubdomain;
     const cleanKey = subdomain.toLowerCase().trim();
-    const existing = await prisma.microsite.findFirst({ where: { subdomain: cleanKey } });
-    if (!existing) return null;
 
-    const row = await prisma.microsite.update({
-      where: { id: existing.id },
-      data: { published: false, status: 'DRAFT' },
-      include: { tenant: { select: { slug: true } } },
+    let tenantId = isExplicit ? tenantIdOrSubdomain : '';
+    if (!tenantId) {
+      const existing = await prisma.microsite.findFirst({
+        where: { subdomain: cleanKey },
+        select: { tenantId: true },
+      });
+      if (!existing) return null;
+      tenantId = existing.tenantId;
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const existing = await tx.microsite.findFirst({
+        where: { tenantId, subdomain: cleanKey },
+      });
+      if (!existing) return null;
+
+      const row = await tx.microsite.update({
+        where: { id: existing.id },
+        data: { published: false, status: 'DRAFT' },
+        include: { tenant: { select: { slug: true } } },
+      });
+
+      return dbRowToConfig(row, row.tenant.slug);
     });
-
-    return dbRowToConfig(row as typeof row & { tenant: { slug: string } }, row.tenantId);
   }
 
   /**
-   * Connects a custom domain to a microsite.
+   * Connects custom domain under tenant context.
    */
   static async connectCustomDomain(
-    subdomain: string,
-    customDomain: string
+    tenantIdOrSubdomain: string,
+    subdomainOrCustomDomain: string,
+    maybeCustomDomain?: string
   ): Promise<MicrositeConfig | null> {
+    const isExplicit = maybeCustomDomain !== undefined;
+    const tenantId = isExplicit ? tenantIdOrSubdomain : undefined;
+    const subdomain = isExplicit ? subdomainOrCustomDomain : tenantIdOrSubdomain;
+    const customDomain = isExplicit ? maybeCustomDomain! : subdomainOrCustomDomain;
+
     const cleanDomain = customDomain
       .toLowerCase()
       .trim()
       .replace(/^https?:\/\//, '')
       .replace(/\/.*$/, '');
+
+    if (tenantId) {
+      return this.updateMicrosite(tenantId, subdomain, {
+        customDomain: cleanDomain,
+        customDomainStatus: 'CONNECTED',
+      });
+    }
 
     return this.updateMicrosite(subdomain, {
       customDomain: cleanDomain,
@@ -630,13 +684,34 @@ export class MicrositeService {
   }
 
   /**
-   * Deletes a microsite by subdomain.
+   * Deletes a microsite under tenant context.
    */
-  static async deleteMicrosite(subdomain: string): Promise<boolean> {
+  static async deleteMicrosite(
+    tenantIdOrSubdomain: string,
+    maybeSubdomain?: string
+  ): Promise<boolean> {
+    const isExplicit = maybeSubdomain !== undefined;
+    const subdomain = isExplicit ? maybeSubdomain! : tenantIdOrSubdomain;
     const cleanKey = subdomain.toLowerCase().trim();
-    const existing = await prisma.microsite.findFirst({ where: { subdomain: cleanKey } });
-    if (!existing) return false;
-    await prisma.microsite.delete({ where: { id: existing.id } });
-    return true;
+
+    let tenantId = isExplicit ? tenantIdOrSubdomain : '';
+    if (!tenantId) {
+      const existing = await prisma.microsite.findFirst({
+        where: { subdomain: cleanKey },
+        select: { tenantId: true },
+      });
+      if (!existing) return false;
+      tenantId = existing.tenantId;
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const existing = await tx.microsite.findFirst({
+        where: { tenantId, subdomain: cleanKey },
+      });
+      if (!existing) return false;
+
+      await tx.microsite.delete({ where: { id: existing.id } });
+      return true;
+    });
   }
 }

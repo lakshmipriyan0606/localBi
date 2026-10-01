@@ -98,7 +98,7 @@ export class ReportContextService {
           where: { tenantId: tenant.id, status: 'ACTIVE' },
         });
 
-        const isServiceAccount = activeConnection?.encryptedRefreshToken === '' || activeConnection?.encryptedRefreshToken === 'service-account-mock-token';
+        const isServiceAccount = activeConnection?.provider === 'google_service_account';
 
         const hasGbpScope =
           isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/business.manage') ?? false);

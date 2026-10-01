@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { LocationStatusBanner } from './location-status-banner';
 import { LocationKpiGrid } from './location-kpi-grid';
 import { LocationMetaCards } from './location-meta-cards';
+import { LocationCatalogCard } from './location-catalog-card';
 
 export interface LocationDetailProps {
   tenantSlug: string;
@@ -97,6 +98,7 @@ export function LocationDetailView({
       <LocationStatusBanner tenantSlug={tenantSlug} mapping={mapping} />
       <LocationKpiGrid metricsSummary={metricsSummary} />
       <LocationMetaCards tenantName={tenantName} location={location} mapping={mapping} />
+      <LocationCatalogCard tenantSlug={tenantSlug} storeId={location.id} />
     </div>
   );
 }

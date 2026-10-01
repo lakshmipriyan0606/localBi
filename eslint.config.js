@@ -15,6 +15,8 @@ export default tsPlugin.config(
       '*.config.ts',
       'spikes/**',
       'scripts/**',
+      '.kilo/**',
+      'scratch/**',
     ],
   },
   {

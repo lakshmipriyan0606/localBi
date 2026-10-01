@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Settings2,
   Folder,
+  Package,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -215,6 +216,11 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'Store Management',
         href: `/client/${slug}/locations`,
         icon: Store,
+      },
+      {
+        label: 'Catalog & Products',
+        href: `/client/${slug}/catalog`,
+        icon: Package,
       },
       {
         label: 'Storefront Microsites',

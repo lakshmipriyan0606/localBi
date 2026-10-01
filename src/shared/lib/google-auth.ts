@@ -1,5 +1,4 @@
 import { google } from 'googleapis';
-import path from 'path';
 
 // The scopes determine what APIs this service account is allowed to access
 const SCOPES = [
@@ -9,18 +8,32 @@ const SCOPES = [
 ];
 
 /**
- * Creates an authenticated Google client using the local JSON Service Account file.
+ * Creates an authenticated Google client using environment credentials or Application Default Credentials.
  */
 export function getAuthenticatedGoogleClient() {
-  // We resolve the path to the google-credentials.json file in the root of the project
-  const keyfilePath = path.join(process.cwd(), 'google-credentials.json');
+  if (process.env['GOOGLE_SERVICE_ACCOUNT_JSON']) {
+    try {
+      const credentials = JSON.parse(process.env['GOOGLE_SERVICE_ACCOUNT_JSON']);
+      return new google.auth.GoogleAuth({
+        credentials,
+        scopes: SCOPES,
+      });
+    } catch (err) {
+      console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON environment variable:', err);
+    }
+  }
 
-  const auth = new google.auth.GoogleAuth({
-    keyFile: keyfilePath,
+  if (process.env['GOOGLE_APPLICATION_CREDENTIALS']) {
+    return new google.auth.GoogleAuth({
+      keyFile: process.env['GOOGLE_APPLICATION_CREDENTIALS'],
+      scopes: SCOPES,
+    });
+  }
+
+  // Standard Google Application Default Credentials (ADC) resolution
+  return new google.auth.GoogleAuth({
     scopes: SCOPES,
   });
-
-  return auth;
 }
 
 /**

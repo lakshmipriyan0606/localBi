@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { SessionCookieManager } from '@/modules/auth/cookies';
+import { ContextResolver } from '@/modules/auth/context-resolver';
+import { Action, AuthorizationService } from '@/shared/authorization/policy';
 import { VisitorService } from '@/modules/visitors/visitor-service';
+import { handleRouteError } from '@/shared/errors';
 
 export async function GET(
   _req: NextRequest,
@@ -7,10 +12,19 @@ export async function GET(
 ) {
   try {
     const { tenantSlug } = await segmentData.params;
+    const cookieStore = await cookies();
+    const rawToken = SessionCookieManager.getSessionToken(cookieStore);
+    const { tenant, authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
+
+    if (!tenant || !authorizedContext) {
+      return NextResponse.json({ error: 'Tenant context not found' }, { status: 403 });
+    }
+
+    AuthorizationService.assertCan(authorizedContext, Action.DASHBOARD_VIEW);
 
     const [visitors, stats] = await Promise.all([
-      VisitorService.getTenantVisitors(tenantSlug),
-      VisitorService.getTenantVisitorStats(tenantSlug),
+      VisitorService.getTenantVisitors(tenant.id),
+      VisitorService.getTenantVisitorStats(tenant.id),
     ]);
 
     return NextResponse.json({
@@ -19,8 +33,7 @@ export async function GET(
       realCount: visitors.length,
     });
   } catch (error) {
-    console.error('Error fetching tenant visitors:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleRouteError(error, 'Error fetching tenant visitors');
   }
 }
 
@@ -30,10 +43,19 @@ export async function DELETE(
 ) {
   try {
     const { tenantSlug } = await segmentData.params;
-    await VisitorService.clearRealVisitors(tenantSlug);
+    const cookieStore = await cookies();
+    const rawToken = SessionCookieManager.getSessionToken(cookieStore);
+    const { tenant, authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
+
+    if (!tenant || !authorizedContext) {
+      return NextResponse.json({ error: 'Tenant context not found' }, { status: 403 });
+    }
+
+    AuthorizationService.assertCan(authorizedContext, Action.TENANT_UPDATE);
+
+    await VisitorService.clearRealVisitors(tenant.id);
     return NextResponse.json({ success: true, message: 'Visitor logs reset successfully.' });
   } catch (error) {
-    console.error('Error resetting visitors:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleRouteError(error, 'Error resetting visitors');
   }
 }

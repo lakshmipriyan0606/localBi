@@ -57,7 +57,21 @@ export const tenantQueryKeys = {
   settings: {
     detail: (tenantSlug: string) => ['tenant', tenantSlug, 'settings'] as const,
   },
+
+  // Catalog scope
+  catalog: {
+    all: (tenantSlug: string) => ['tenant', tenantSlug, 'catalog'] as const,
+    products: (tenantSlug: string, filters?: Record<string, unknown>) =>
+      ['tenant', tenantSlug, 'catalog', 'products', filters || {}] as const,
+    productDetail: (tenantSlug: string, productId: string) =>
+      ['tenant', tenantSlug, 'catalog', 'products', 'detail', productId] as const,
+    categories: (tenantSlug: string, filters?: Record<string, unknown>) =>
+      ['tenant', tenantSlug, 'catalog', 'categories', filters || {}] as const,
+    storeProducts: (tenantSlug: string, storeId: string, filters?: Record<string, unknown>) =>
+      ['tenant', tenantSlug, 'catalog', 'stores', storeId, 'products', filters || {}] as const,
+  },
 };
+
 
 export const authQueryKeys = {
   sessions: () => ['auth', 'sessions'] as const,

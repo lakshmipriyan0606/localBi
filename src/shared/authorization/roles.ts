@@ -39,6 +39,16 @@ export const Action = {
   DASHBOARD_VIEW: 'dashboard:view',
   DASHBOARD_EXPORT: 'dashboard:export',
   GBP_WRITE: 'gbp:write',
+  MICROSITE_VIEW: 'microsite:view',
+  MICROSITE_CREATE: 'microsite:create',
+  MICROSITE_UPDATE: 'microsite:update',
+  MICROSITE_DELETE: 'microsite:delete',
+  PRODUCT_VIEW: 'product:view',
+  PRODUCT_CREATE: 'product:create',
+  PRODUCT_UPDATE: 'product:update',
+  PRODUCT_DELETE: 'product:delete',
+  CATEGORY_MANAGE: 'category:manage',
+  STORE_PRODUCT_MANAGE: 'store_product:manage',
 } as const;
 
 export type ActionType = typeof Action[keyof typeof Action];
@@ -53,6 +63,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.BRAND_VIEW,
     Action.LOCATION_VIEW,
     Action.DASHBOARD_VIEW,
+    Action.MICROSITE_VIEW,
+    Action.PRODUCT_VIEW,
   ]),
   CLIENT_OWNER: new Set(Object.values(Action)),
   CLIENT_ADMIN: new Set([
@@ -75,6 +87,16 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.DASHBOARD_VIEW,
     Action.DASHBOARD_EXPORT,
     Action.GBP_WRITE,
+    Action.MICROSITE_VIEW,
+    Action.MICROSITE_CREATE,
+    Action.MICROSITE_UPDATE,
+    Action.MICROSITE_DELETE,
+    Action.PRODUCT_VIEW,
+    Action.PRODUCT_CREATE,
+    Action.PRODUCT_UPDATE,
+    Action.PRODUCT_DELETE,
+    Action.CATEGORY_MANAGE,
+    Action.STORE_PRODUCT_MANAGE,
   ]),
   BRAND_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -87,6 +109,15 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.DASHBOARD_VIEW,
     Action.DASHBOARD_EXPORT,
     Action.GBP_WRITE,
+    Action.MICROSITE_VIEW,
+    Action.MICROSITE_CREATE,
+    Action.MICROSITE_UPDATE,
+    Action.PRODUCT_VIEW,
+    Action.PRODUCT_CREATE,
+    Action.PRODUCT_UPDATE,
+    Action.PRODUCT_DELETE,
+    Action.CATEGORY_MANAGE,
+    Action.STORE_PRODUCT_MANAGE,
   ]),
   LOCATION_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -94,6 +125,10 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LOCATION_VIEW,
     Action.LOCATION_UPDATE,
     Action.DASHBOARD_VIEW,
+    Action.MICROSITE_VIEW,
+    Action.MICROSITE_UPDATE,
+    Action.PRODUCT_VIEW,
+    Action.STORE_PRODUCT_MANAGE,
   ]),
   ANALYST: new Set([
     Action.TENANT_VIEW,
@@ -101,11 +136,26 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LOCATION_VIEW,
     Action.DASHBOARD_VIEW,
     Action.DASHBOARD_EXPORT,
+    Action.MICROSITE_VIEW,
+    Action.PRODUCT_VIEW,
   ]),
   VIEWER: new Set([
     Action.TENANT_VIEW,
     Action.BRAND_VIEW,
     Action.LOCATION_VIEW,
     Action.DASHBOARD_VIEW,
+    Action.MICROSITE_VIEW,
+    Action.PRODUCT_VIEW,
   ]),
 };
+
+export function hasActionPermission(role: RoleType, action: ActionType): boolean {
+  return ROLE_CAPABILITIES[role]?.has(action) ?? false;
+}
+
+export function assertAuthorizedAction(role: RoleType, action: ActionType): void {
+  if (!hasActionPermission(role, action)) {
+    throw new Error(`Role ${role} is not authorized to perform action ${action}`);
+  }
+}
+

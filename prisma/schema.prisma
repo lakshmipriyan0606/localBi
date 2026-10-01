@@ -55,6 +55,9 @@ model Tenant {
   auditLogs            AuditLog[]
   microsites           Microsite[]
   micrositeVisitors    MicrositeVisitor[]
+  categories           Category[]
+  storeProducts        StoreProduct[]
+  productMedia         ProductMedia[]
 
   @@map("tenants")
 }
@@ -218,9 +221,11 @@ model Brand {
 
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  locations   Location[]
-  products    Product[]
-  scopes      BrandAccessScope[]
+  locations     Location[]
+  products      Product[]
+  categories    Category[]
+  storeProducts StoreProduct[]
+  scopes        BrandAccessScope[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -266,7 +271,8 @@ model Location {
   brand        Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
 
   scopes           LocationAccessScope[]
-  productLocations ProductLocation[]
+  storeProducts    StoreProduct[]
+  productLocations ProductLocation[] // Deprecated: legacy composite mapping
   gbpMetrics       GbpDailyMetric[]
   gbpReviews       GbpReview[]
   gbpAggregate     GbpLocationAggregate?
@@ -295,28 +301,116 @@ model LocationAccessScope {
   @@map("location_access_scopes")
 }
 
-model Product {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  brandId     String   @map("brand_id")
+model Category {
+  id          String     @id @default(cuid())
+  tenantId    String     @map("tenant_id")
+  brandId     String     @map("brand_id")
+  parentId    String?    @map("parent_id")
   name        String
-  sku         String
-  category    String?
-  status      String   @default("ACTIVE") // ACTIVE, RETIRED
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  slug        String
+  description String?    @db.Text
+  sortOrder   Int        @default(0) @map("sort_order")
+  status      String     @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  brand       Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand       Brand      @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
 
-  productLocations ProductLocation[]
+  @@unique([tenantId, id], name: "uq_category_tenant_id")
+  @@unique([tenantId, brandId, id], name: "uq_category_tenant_brand_id")
+  @@unique([tenantId, brandId, slug], name: "uq_category_tenant_brand_slug")
+  @@index([tenantId, brandId, sortOrder], name: "idx_categories_brand_sort")
+  @@index([tenantId, parentId], name: "idx_categories_parent")
+  @@map("categories")
+}
+
+model Product {
+  id               String            @id @default(cuid())
+  tenantId         String            @map("tenant_id")
+  brandId          String            @map("brand_id")
+  categoryId       String?           @map("category_id")
+  name             String
+  slug             String            @default("")
+  sku              String
+  shortDescription String?           @map("short_description")
+  description      String?           @db.Text
+  basePrice        Decimal?          @map("base_price") @db.Decimal(10, 2)
+  currency         String            @default("INR")
+  status           String            @default("ACTIVE") // ACTIVE, INACTIVE
+  publishStatus    String            @default("DRAFT") @map("publish_status") // DRAFT, PUBLISHED, UNPUBLISHED
+  featured         Boolean           @default(false)
+  category         String?           // Deprecated: legacy string category preserved for backward compatibility
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand            Brand             @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  categoryRel      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  storeProducts    StoreProduct[]
+  media            ProductMedia[]
+  productLocations ProductLocation[] // Deprecated: legacy composite mapping preserved
 
   @@unique([tenantId, id], name: "uq_product_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
   @@unique([tenantId, brandId, sku], name: "uq_product_sku")
+  @@unique([tenantId, brandId, slug], name: "uq_product_slug")
+  @@index([tenantId, brandId, categoryId], name: "idx_products_brand_category")
+  @@index([tenantId, brandId, status, publishStatus], name: "idx_products_brand_status")
   @@map("products")
 }
 
+model StoreProduct {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  brandId       String    @map("brand_id")
+  storeId       String    @map("store_id")
+  productId     String    @map("product_id")
+  isAvailable   Boolean   @default(true) @map("is_available")
+  priceOverride Decimal?  @map("price_override") @db.Decimal(10, 2)
+  quantity      Int?      @default(0)
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand         Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store         Location  @relation(fields: [tenantId, brandId, storeId], references: [tenantId, brandId, id], onDelete: Cascade)
+  product       Product   @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_store_product_tenant_id")
+  @@unique([tenantId, brandId, id], name: "uq_store_product_tenant_brand_id")
+  @@unique([storeId, productId], name: "uq_store_product_store_product")
+  @@unique([tenantId, brandId, storeId, productId], name: "uq_store_product_tenant_brand_store_product")
+  @@index([tenantId, brandId, storeId], name: "idx_store_products_store")
+  @@index([tenantId, brandId, productId], name: "idx_store_products_product")
+  @@index([tenantId, isAvailable], name: "idx_store_products_availability")
+  @@map("store_products")
+}
+
+model ProductMedia {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  productId String   @map("product_id")
+  url       String
+  altText   String?  @map("alt_text")
+  sortOrder Int      @default(0) @map("sort_order")
+  type      String   @default("IMAGE") // IMAGE, VIDEO
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [tenantId, productId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_product_media_tenant_id")
+  @@index([tenantId, productId, sortOrder], name: "idx_product_media_product_sort")
+  @@map("product_media")
+}
+
+// Deprecated: Kept strictly for backward compatibility with legacy references
 model ProductLocation {
   id          String   @id @default(cuid())
   tenantId    String   @map("tenant_id")

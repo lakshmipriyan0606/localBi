@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 export interface VisitorSession {
   id: string;
@@ -58,9 +59,13 @@ function detectChannel(referrer: string): VisitorSession['trafficSource']['chann
   return 'Direct';
 }
 
-async function resolveTenantId(tenantSlug: string): Promise<string | null> {
+async function resolveTenantId(tenantSlugOrId: string): Promise<string | null> {
+  if (tenantSlugOrId.startsWith('tenant_') || tenantSlugOrId.length > 20) {
+    return tenantSlugOrId;
+  }
+  const baseSlug = tenantSlugOrId.toLowerCase().trim().replace(/-\d+$/, '');
   const tenant = await prisma.tenant.findFirst({
-    where: { slug: tenantSlug },
+    where: { OR: [{ slug: tenantSlugOrId }, { slug: baseSlug }] },
     select: { id: true },
   });
   return tenant?.id ?? null;
@@ -105,16 +110,17 @@ function dbRowToSession(row: {
 }
 
 // ---------------------------------------------------------------------------
-// VisitorService — fully DB-backed
+// VisitorService — tenant-isolated via RLS
 // ---------------------------------------------------------------------------
 
 export class VisitorService {
   /**
-   * Record a real-time event from the tracking pixel.
-   * Uses upsert so a visitor returning multiple times merges into one row.
+   * Record a real-time event from the tracking pixel under server-derived tenant context.
    */
   static async recordEvent(params: {
+    tenantId?: string | undefined;
     tenantSlug: string;
+    micrositeId?: string | null;
     deviceFingerprint: string;
     url: string;
     title?: string | undefined;
@@ -126,165 +132,185 @@ export class VisitorService {
     dwellTimeSeconds?: number | undefined;
     eventType?: 'page_view' | 'whatsapp_click' | 'phone_call' | 'menu_view' | undefined;
   }): Promise<VisitorSession> {
-    const tenantId = await resolveTenantId(params.tenantSlug);
-    if (!tenantId) throw new Error(`Tenant not found: ${params.tenantSlug}`);
+    const tenantId = params.tenantId || (await resolveTenantId(params.tenantSlug));
+    if (!tenantId) throw new Error(`Tenant not found for slug: ${params.tenantSlug}`);
 
     const now = new Date();
     const channel = detectChannel(params.referrer ?? '');
 
-    // Fetch existing row (if any) — we need to merge arrays
-    const existing = await prisma.micrositeVisitor.findUnique({
-      where: {
-        uq_visitor_fingerprint: {
-          tenantId,
-          deviceFingerprint: params.deviceFingerprint,
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // Fetch existing row under tenant
+      const existing = await tx.micrositeVisitor.findUnique({
+        where: {
+          uq_visitor_fingerprint: {
+            tenantId,
+            deviceFingerprint: params.deviceFingerprint,
+          },
         },
-      },
-    });
+      });
 
-    // Build updated fields
-    const pageViews: VisitorSession['pageViews'] = existing
-      ? (existing.pageViews as VisitorSession['pageViews'])
-      : [];
-    const conversions: VisitorSession['conversions'] = existing
-      ? (existing.conversions as VisitorSession['conversions'])
-      : [];
-    let intentLevel: VisitorSession['intentLevel'] = (existing?.intentLevel as VisitorSession['intentLevel']) ?? 'LOW';
+      const pageViews: VisitorSession['pageViews'] = existing
+        ? (existing.pageViews as VisitorSession['pageViews'])
+        : [];
+      const conversions: VisitorSession['conversions'] = existing
+        ? (existing.conversions as VisitorSession['conversions'])
+        : [];
+      let intentLevel: VisitorSession['intentLevel'] = (existing?.intentLevel as VisitorSession['intentLevel']) ?? 'LOW';
 
-    const deviceInfo: VisitorSession['deviceInfo'] = {
-      platform: params.platform ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.platform ?? 'Unknown Device',
-      browser: params.browser ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.browser ?? 'Unknown Browser',
-      screenResolution:
-        params.screenResolution ??
-        (existing?.deviceInfo as VisitorSession['deviceInfo'])?.screenResolution ??
-        '1920x1080',
-      timezone: params.timezone ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.timezone ?? 'Asia/Kolkata',
-    };
+      const deviceInfo: VisitorSession['deviceInfo'] = {
+        platform: params.platform ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.platform ?? 'Unknown Device',
+        browser: params.browser ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.browser ?? 'Unknown Browser',
+        screenResolution:
+          params.screenResolution ??
+          (existing?.deviceInfo as VisitorSession['deviceInfo'])?.screenResolution ??
+          '1920x1080',
+        timezone: params.timezone ?? (existing?.deviceInfo as VisitorSession['deviceInfo'])?.timezone ?? 'Asia/Kolkata',
+      };
 
-    const trafficSource: VisitorSession['trafficSource'] = existing
-      ? (existing.trafficSource as VisitorSession['trafficSource'])
-      : { referrer: params.referrer ?? '', channel };
+      const trafficSource: VisitorSession['trafficSource'] = existing
+        ? (existing.trafficSource as VisitorSession['trafficSource'])
+        : { referrer: params.referrer ?? '', channel };
 
-    const eventType = params.eventType ?? 'page_view';
+      const eventType = params.eventType ?? 'page_view';
 
-    if (eventType === 'page_view') {
-      const lastView = pageViews[pageViews.length - 1];
-      const isQuickDuplicate =
-        lastView &&
-        lastView.url === params.url &&
-        Date.now() - new Date(lastView.timestamp).getTime() < 5000;
+      if (eventType === 'page_view') {
+        const lastView = pageViews[pageViews.length - 1];
+        const isQuickDuplicate =
+          lastView &&
+          lastView.url === params.url &&
+          Date.now() - new Date(lastView.timestamp).getTime() < 5000;
 
-      if (!isQuickDuplicate) {
-        pageViews.push({
-          url: params.url,
-          title: params.title ?? 'Page View',
-          timestamp: now.toISOString(),
-          dwellTimeSeconds: params.dwellTimeSeconds ?? 15,
-        });
+        if (!isQuickDuplicate) {
+          pageViews.push({
+            url: params.url,
+            title: params.title ?? 'Page View',
+            timestamp: now.toISOString(),
+            dwellTimeSeconds: params.dwellTimeSeconds ?? 15,
+          });
+        }
+
+        if (pageViews.length >= 3 && intentLevel !== 'HOT') intentLevel = 'HIGH';
+        else if (pageViews.length >= 2 && intentLevel === 'LOW') intentLevel = 'MEDIUM';
+      } else if (eventType === 'whatsapp_click') {
+        conversions.push({ type: 'WHATSAPP_CLICK', timestamp: now.toISOString() });
+        intentLevel = 'HOT';
+      } else if (eventType === 'phone_call') {
+        conversions.push({ type: 'PHONE_CALL', timestamp: now.toISOString() });
+        intentLevel = 'HOT';
+      } else if (eventType === 'menu_view') {
+        conversions.push({ type: 'MENU_VIEW', timestamp: now.toISOString() });
+        if (intentLevel !== 'HOT') intentLevel = 'HIGH';
       }
 
-      if (pageViews.length >= 3 && intentLevel !== 'HOT') intentLevel = 'HIGH';
-      else if (pageViews.length >= 2 && intentLevel === 'LOW') intentLevel = 'MEDIUM';
-    } else if (eventType === 'whatsapp_click') {
-      conversions.push({ type: 'WHATSAPP_CLICK', timestamp: now.toISOString() });
-      intentLevel = 'HOT';
-    } else if (eventType === 'phone_call') {
-      conversions.push({ type: 'PHONE_CALL', timestamp: now.toISOString() });
-      intentLevel = 'HOT';
-    } else if (eventType === 'menu_view') {
-      conversions.push({ type: 'MENU_VIEW', timestamp: now.toISOString() });
-      if (intentLevel !== 'HOT') intentLevel = 'HIGH';
-    }
-
-    const row = await prisma.micrositeVisitor.upsert({
-      where: {
-        uq_visitor_fingerprint: {
-          tenantId,
-          deviceFingerprint: params.deviceFingerprint,
+      const row = await tx.micrositeVisitor.upsert({
+        where: {
+          uq_visitor_fingerprint: {
+            tenantId,
+            deviceFingerprint: params.deviceFingerprint,
+          },
         },
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      create: {
-        tenantId,
-        tenantSlug: params.tenantSlug,
-        deviceFingerprint: params.deviceFingerprint,
-        isIdentified: false,
-        identifiedUser: Prisma.JsonNull,
-        intentLevel,
-        pageViews:      pageViews      as unknown as Prisma.InputJsonValue,
-        deviceInfo:     deviceInfo     as unknown as Prisma.InputJsonValue,
-        trafficSource:  trafficSource  as unknown as Prisma.InputJsonValue,
-        conversions:    conversions    as unknown as Prisma.InputJsonValue,
-        firstSeenAt: now,
-        lastSeenAt: now,
-      } as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      update: {
-        intentLevel,
-        pageViews:   pageViews   as unknown as Prisma.InputJsonValue,
-        deviceInfo:  deviceInfo  as unknown as Prisma.InputJsonValue,
-        conversions: conversions as unknown as Prisma.InputJsonValue,
-        lastSeenAt: now,
-      } as any,
-    });
+        create: {
+          tenantId,
+          tenantSlug: params.tenantSlug,
+          micrositeId: params.micrositeId ?? null,
+          deviceFingerprint: params.deviceFingerprint,
+          isIdentified: false,
+          identifiedUser: Prisma.JsonNull,
+          intentLevel,
+          pageViews: pageViews as unknown as Prisma.InputJsonValue,
+          deviceInfo: deviceInfo as unknown as Prisma.InputJsonValue,
+          trafficSource: trafficSource as unknown as Prisma.InputJsonValue,
+          conversions: conversions as unknown as Prisma.InputJsonValue,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        },
+        update: {
+          intentLevel,
+          pageViews: pageViews as unknown as Prisma.InputJsonValue,
+          deviceInfo: deviceInfo as unknown as Prisma.InputJsonValue,
+          conversions: conversions as unknown as Prisma.InputJsonValue,
+          lastSeenAt: now,
+        },
+      });
 
-    return dbRowToSession(row);
+      return dbRowToSession(row);
+    });
   }
 
   /**
-   * Stitch a phone/name to an anonymous device fingerprint.
+   * Stitch phone/name to anonymous device fingerprint under verified tenant context.
    */
   static async identifyVisitor(params: {
+    tenantId?: string | undefined;
     deviceFingerprint: string;
     phone: string;
     name?: string | undefined;
     email?: string | undefined;
   }): Promise<VisitorSession | null> {
-    // We need to find by fingerprint across all tenants (caller may not know tenantId)
-    const existing = await prisma.micrositeVisitor.findFirst({
-      where: { deviceFingerprint: params.deviceFingerprint },
-    });
-    if (!existing) return null;
+    let tenantId = params.tenantId;
+    if (!tenantId) {
+      const existing = await prisma.micrositeVisitor.findFirst({
+        where: { deviceFingerprint: params.deviceFingerprint },
+        select: { tenantId: true },
+      });
+      if (!existing) return null;
+      tenantId = existing.tenantId;
+    }
 
-    const prevUser = (existing.identifiedUser as Partial<VisitorSession['identifiedUser']> | null) ?? {};
-
-    const row = await prisma.micrositeVisitor.update({
-      where: { id: existing.id },
-      data: {
-        isIdentified: true,
-        intentLevel: 'HOT',
-        identifiedUser: {
-          phone: params.phone,
-          name: params.name ?? prevUser?.name,
-          email: params.email ?? prevUser?.email,
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const existing = await tx.micrositeVisitor.findUnique({
+        where: {
+          uq_visitor_fingerprint: {
+            tenantId,
+            deviceFingerprint: params.deviceFingerprint,
+          },
         },
-        lastSeenAt: new Date(),
-      },
-    });
+      });
 
-    return dbRowToSession(row);
+      if (!existing) return null;
+
+      const prevUser = (existing.identifiedUser as Partial<VisitorSession['identifiedUser']> | null) ?? {};
+
+      const row = await tx.micrositeVisitor.update({
+        where: { id: existing.id },
+        data: {
+          isIdentified: true,
+          intentLevel: 'HOT',
+          identifiedUser: {
+            phone: params.phone,
+            name: params.name ?? prevUser?.name,
+            email: params.email ?? prevUser?.email,
+          },
+          lastSeenAt: new Date(),
+        },
+      });
+
+      return dbRowToSession(row);
+    });
   }
 
   /**
-   * Get all visitors for a given tenant, ordered by most recent first.
+   * Get all visitors for an authorized tenant under RLS.
    */
-  static async getTenantVisitors(tenantSlug: string): Promise<VisitorSession[]> {
-    const tenantId = await resolveTenantId(tenantSlug);
+  static async getTenantVisitors(tenantIdOrSlug: string): Promise<VisitorSession[]> {
+    const tenantId = await resolveTenantId(tenantIdOrSlug);
     if (!tenantId) return [];
 
-    const rows = await prisma.micrositeVisitor.findMany({
-      where: { tenantId },
-      orderBy: { lastSeenAt: 'desc' },
-    });
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const rows = await tx.micrositeVisitor.findMany({
+        where: { tenantId },
+        orderBy: { lastSeenAt: 'desc' },
+      });
 
-    return rows.map(dbRowToSession);
+      return rows.map(dbRowToSession);
+    });
   }
 
   /**
-   * Aggregated intelligence stats for a tenant.
+   * Aggregated intelligence stats for an authorized tenant under RLS.
    */
-  static async getTenantVisitorStats(tenantSlug: string): Promise<VisitorStats> {
-    const visitors = await this.getTenantVisitors(tenantSlug);
+  static async getTenantVisitorStats(tenantIdOrSlug: string): Promise<VisitorStats> {
+    const visitors = await this.getTenantVisitors(tenantIdOrSlug);
 
     const totalVisitors = visitors.length;
     const identifiedCount = visitors.filter((v) => v.isIdentified).length;
@@ -311,11 +337,14 @@ export class VisitorService {
   }
 
   /**
-   * Hard-delete all visitor sessions for a tenant (admin reset).
+   * Hard-delete all visitor sessions for an authorized tenant under RLS.
    */
-  static async clearRealVisitors(tenantSlug: string): Promise<void> {
-    const tenantId = await resolveTenantId(tenantSlug);
+  static async clearRealVisitors(tenantIdOrSlug: string): Promise<void> {
+    const tenantId = await resolveTenantId(tenantIdOrSlug);
     if (!tenantId) return;
-    await prisma.micrositeVisitor.deleteMany({ where: { tenantId } });
+
+    await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      await tx.micrositeVisitor.deleteMany({ where: { tenantId } });
+    });
   }
 }
