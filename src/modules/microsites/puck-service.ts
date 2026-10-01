@@ -22,7 +22,8 @@ export class PuckService {
     // 2. Check MicrositeConfig published or draft data
     const site = await MicrositeService.getMicrositeBySubdomain(cleanSubdomain);
     if (site) {
-      const persisted = preferDraft ? (site.draftData || site.publishedData) : (site.publishedData || site.draftData);
+      const rawData = preferDraft ? (site.draftData || site.publishedData) : (site.publishedData || site.draftData);
+      const persisted = rawData as Data<PuckComponentProps> | null | undefined;
       if (persisted && persisted.content && persisted.content.length > 0) {
         puckDataStore.set(cleanSubdomain, persisted);
         return normalizePuckData(persisted);

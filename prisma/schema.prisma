@@ -53,6 +53,8 @@ model Tenant {
   syncRuns             SyncRun[]
   syncCursors          SyncCursor[]
   auditLogs            AuditLog[]
+  microsites           Microsite[]
+  micrositeVisitors    MicrositeVisitor[]
 
   @@map("tenants")
 }
@@ -750,4 +752,84 @@ model GbpMedia {
   @@unique([tenantId, mediaKey], name: "uq_gbp_media")
   @@index([tenantId, locationId], name: "idx_gbp_media_location")
   @@map("gbp_media")
+}
+
+// -----------------------------------------------------------------------------
+// MICROSITE / STOREFRONT (DB-backed, replaces JSON file store)
+// -----------------------------------------------------------------------------
+
+model Microsite {
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  subdomain           String
+  brandId             String?   @map("brand_id")
+  brandName           String    @map("brand_name")
+  locationId          String?   @map("location_id")
+  locationName        String?   @map("location_name")
+  tagline             String?
+  aboutStory          String?   @map("about_story") @db.Text
+  primaryColor        String    @default("#4F46E5") @map("primary_color")
+  secondaryColor      String?   @map("secondary_color")
+  font                String    @default("Inter")
+  phone               String    @default("")
+  whatsapp            String    @default("")
+  address             String    @default("")
+  city                String    @default("")
+  state               String?
+  postalCode          String?   @map("postal_code")
+  hours               String    @default("9:00 AM - 9:00 PM")
+  googleRating        Float     @default(4.9) @map("google_rating")
+  reviewCount         Int       @default(0) @map("review_count")
+  googleMapsUrl       String    @default("") @map("google_maps_url")
+  heroImageUrl        String    @default("") @map("hero_image_url")
+  menuItems           Json      @default("[]") @map("menu_items")
+  published           Boolean   @default(false)
+  status              String    @default("DRAFT") // DRAFT, PUBLISHED, UNPUBLISHED_CHANGES
+  customDomain        String?   @map("custom_domain")
+  customDomainStatus  String    @default("NOT_CONNECTED") @map("custom_domain_status")
+  industry            String?   // FOOD, JEWELRY, HOSPITAL, RETAIL, SERVICES
+  templateId          String    @default("restaurant") @map("template_id")
+  theme               Json?
+  pages               Json?
+  sections            Json?
+  draftData           Json?     @map("draft_data")
+  publishedData       Json?     @map("published_data")
+  lastPublishedAt     DateTime? @map("last_published_at")
+  version             Int       @default(1)
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  visitors            MicrositeVisitor[]
+
+  @@unique([tenantId, subdomain], name: "uq_microsite_subdomain")
+  @@unique([tenantId, id], name: "uq_microsite_tenant_id")
+  @@index([tenantId, published], name: "idx_microsites_tenant_published")
+  @@index([customDomain], name: "idx_microsites_custom_domain")
+  @@map("microsites")
+}
+
+model MicrositeVisitor {
+  id                String    @id @default(cuid())
+  tenantId          String    @map("tenant_id")
+  micrositeId       String?   @map("microsite_id")
+  tenantSlug        String    @map("tenant_slug")
+  deviceFingerprint String    @map("device_fingerprint")
+  isIdentified      Boolean   @default(false) @map("is_identified")
+  identifiedUser    Json?     @map("identified_user")  // { phone, name, email }
+  intentLevel       String    @default("LOW") @map("intent_level") // LOW, MEDIUM, HIGH, HOT
+  pageViews         Json      @default("[]") @map("page_views")
+  deviceInfo        Json      @map("device_info")      // { platform, browser, screenResolution, timezone }
+  trafficSource     Json      @map("traffic_source")   // { referrer, channel, utmCampaign }
+  conversions       Json      @default("[]")
+  firstSeenAt       DateTime  @default(now()) @map("first_seen_at")
+  lastSeenAt        DateTime  @default(now()) @map("last_seen_at")
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  microsite         Microsite? @relation(fields: [micrositeId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, deviceFingerprint], name: "uq_visitor_fingerprint")
+  @@index([tenantId, intentLevel], name: "idx_visitors_tenant_intent")
+  @@index([tenantId, lastSeenAt(sort: Desc)], name: "idx_visitors_tenant_last_seen")
+  @@map("microsite_visitors")
 }
