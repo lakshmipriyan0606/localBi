@@ -1,44 +1,35 @@
 [
   {
-    "id": "ms-lakshmi-food",
-    "subdomain": "lakshmi-food",
+    "id": "ms-chennai-lakshmifood",
+    "subdomain": "chennai-lakshmifood",
     "tenantSlug": "lakshmi-food",
-    "brandName": "Lakshmi Food Flagship",
-    "locationName": "Lakshmi Food Flagship",
-    "tagline": "Authentic South Indian Specialties & Fresh Delicacies",
-    "aboutStory": "Lakshmi Food Flagship brings premium products, trusted expertise, and dedicated customer support to our local community.",
-    "primaryColor": "#4F46E5",
-    "secondaryColor": "#059669",
+    "brandName": "Chennai Lakshmi Food",
+    "locationName": "Chennai Lakshmi Food ",
+    "tagline": "Authentic Quality & Dedicated Local Hospitality",
+    "aboutStory": "Chennai Lakshmi Food  brings premium products, trusted expertise, and dedicated customer support to our local community.",
+    "primaryColor": "#d3d70f",
+    "secondaryColor": "#e01fda",
     "font": "Inter",
-    "phone": "+91 98401 23456",
-    "whatsapp": "+919840123456",
-    "address": "Khan St, Thiruvenkatapuram, Choolaimedu",
+    "phone": "",
+    "whatsapp": "",
+    "address": "",
     "city": "Chennai",
     "state": "",
     "postalCode": "",
-    "hours": "8:00 AM - 10:00 PM",
+    "hours": "9:00 AM - 9:00 PM",
     "googleRating": 4.9,
-    "reviewCount": 1,
-    "googleMapsUrl": "https://maps.google.com/?q=Lakshmi%20Food%20Flagship",
-    "heroImageUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
-    "menuItems": [
-      {
-        "id": "item-1",
-        "name": "Special Masala Dosa",
-        "category": "Tiffin & Breakfast",
-        "price": 110,
-        "description": "Crispy golden crepe with potato masala and fresh coconut chutney",
-        "isVeg": true
-      }
-    ],
+    "reviewCount": 120,
+    "googleMapsUrl": "https://maps.google.com/?q=Chennai%20Lakshmi%20Food%20",
+    "heroImageUrl": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80",
+    "menuItems": [],
     "published": true,
     "status": "PUBLISHED",
     "customDomainStatus": "NOT_CONNECTED",
     "industry": "FOOD",
-    "templateId": "restaurant",
+    "templateId": "professional",
     "theme": {
-      "primaryColor": "#4F46E5",
-      "secondaryColor": "#059669",
+      "primaryColor": "#d3d70f",
+      "secondaryColor": "#e01fda",
       "font": "Inter",
       "borderRadius": "16px",
       "buttonStyle": "rounded"
@@ -67,80 +58,8 @@
       }
     ],
     "sections": [],
-    "lastPublishedAt": "2026-10-01T05:11:19.394Z",
-    "updatedAt": "2026-10-01T05:11:19.394Z",
-    "version": 1
-  },
-  {
-    "id": "ms-lakshmi-food-001",
-    "subdomain": "lakshmi-food-001",
-    "tenantSlug": "lakshmi-food",
-    "brandName": "Lakshmi Food Store 001",
-    "locationName": "Lakshmi Food Store 001",
-    "tagline": "Authentic South Indian Specialties & Fresh Delicacies",
-    "aboutStory": "Lakshmi Food Store 001 brings premium products, trusted expertise, and dedicated customer support to our local community.",
-    "primaryColor": "#4F46E5",
-    "secondaryColor": "#059669",
-    "font": "Inter",
-    "phone": "+91 98401 23456",
-    "whatsapp": "+919840123456",
-    "address": "Khan St, Thiruvenkatapuram, Choolaimedu",
-    "city": "Chennai",
-    "state": "",
-    "postalCode": "",
-    "hours": "8:00 AM - 10:00 PM",
-    "googleRating": 4.9,
-    "reviewCount": 1,
-    "googleMapsUrl": "https://maps.google.com/?q=Lakshmi%20Food%20Store%20001",
-    "heroImageUrl": "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
-    "menuItems": [
-      {
-        "id": "item-1",
-        "name": "Special Masala Dosa",
-        "category": "Tiffin & Breakfast",
-        "price": 110,
-        "description": "Crispy golden crepe with potato masala and fresh coconut chutney",
-        "isVeg": true
-      }
-    ],
-    "published": true,
-    "status": "PUBLISHED",
-    "customDomainStatus": "NOT_CONNECTED",
-    "industry": "FOOD",
-    "templateId": "restaurant",
-    "theme": {
-      "primaryColor": "#4F46E5",
-      "secondaryColor": "#059669",
-      "font": "Inter",
-      "borderRadius": "16px",
-      "buttonStyle": "rounded"
-    },
-    "pages": [
-      {
-        "id": "page-home",
-        "name": "Home",
-        "path": "/",
-        "isHome": true
-      },
-      {
-        "id": "page-menu",
-        "name": "Menu & Specials",
-        "path": "/menu"
-      },
-      {
-        "id": "page-about",
-        "name": "Our Story",
-        "path": "/about"
-      },
-      {
-        "id": "page-contact",
-        "name": "Location & Hours",
-        "path": "/contact"
-      }
-    ],
-    "sections": [],
-    "lastPublishedAt": "2026-10-01T05:11:19.394Z",
-    "updatedAt": "2026-10-01T05:11:19.394Z",
+    "lastPublishedAt": "2026-10-01T05:28:57.116Z",
+    "updatedAt": "2026-10-01T05:28:57.116Z",
     "version": 1
   }
 ]

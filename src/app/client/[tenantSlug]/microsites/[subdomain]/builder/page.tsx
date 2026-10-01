@@ -458,36 +458,45 @@ export default function StorefrontBuilderStudio({
       {/* ══════════════════════════════════════════════════════════════════════
           TOP BAR (Matches Screenshot Header & Controls)
       ══════════════════════════════════════════════════════════════════════ */}
-      <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between z-50 shrink-0 shadow-2xs">
+      {/* ══════════════════════════════════════════════════════════════════════
+          TOP BAR (Matches Screenshot Header & Controls)
+      ══════════════════════════════════════════════════════════════════════ */}
+      <header className="h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between z-50 shrink-0 shadow-2xs gap-3">
         {/* Left: Breadcrumbs & Live Status */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Link
             href={`/client/${tenantSlug}/microsites`}
-            className="w-9 h-9 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-colors"
+            className="w-9 h-9 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-colors shrink-0"
             title="Back to Microsites"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
 
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center gap-2">
-              <UtensilsCrossed className="w-4 h-4 text-indigo-600" />
-              <span className="font-bold text-sm text-slate-900">Storefront Builder</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap">
+              <UtensilsCrossed className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span className="font-bold text-sm text-slate-900 whitespace-nowrap">Storefront Builder</span>
               <span className="text-slate-400 font-medium text-xs">&gt;</span>
+            </div>
+
+            <div className="min-w-0 max-w-[180px] sm:max-w-[260px] lg:max-w-[340px] truncate" title={`${pageTitle || site?.brandName} (${subdomain}.localbi.app)`}>
               <span className="font-semibold text-xs text-slate-800">
-                {pageTitle || site?.brandName} ({subdomain}.localbi.app)
+                {pageTitle || site?.brandName}
+              </span>
+              <span className="text-slate-400 font-normal text-xs ml-1">
+                ({subdomain}.localbi.app)
               </span>
             </div>
 
             {/* Status Badge */}
             {site?.status === 'PUBLISHED' && !hasUnsavedChanges ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold shrink-0 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 Live & Published
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold">
-                <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-semibold shrink-0 whitespace-nowrap">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                 {hasUnsavedChanges ? 'Unpublished Changes' : 'Draft'}
               </span>
             )}
@@ -495,7 +504,7 @@ export default function StorefrontBuilderStudio({
         </div>
 
         {/* Center: Device Viewport Switcher & Undo/Redo */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
@@ -559,24 +568,24 @@ export default function StorefrontBuilderStudio({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setShowPreviewModal(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <Eye className="w-3.5 h-3.5 text-slate-500" />
-            <span>Preview</span>
+            <Eye className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+            <span className="whitespace-nowrap">Preview</span>
           </button>
 
           <a
             href={`/site/${subdomain}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors shrink-0 whitespace-nowrap"
           >
-            <span>View Live</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+            <span className="whitespace-nowrap">View Live</span>
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           </a>
 
           {/* Primary Save / Publish Button */}
@@ -584,32 +593,32 @@ export default function StorefrontBuilderStudio({
             type="button"
             onClick={handlePublish}
             disabled={isPublishing}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 cursor-pointer shrink-0 whitespace-nowrap min-w-[130px] justify-center"
           >
             {isPublishing ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Publishing Live...</span>
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                <span className="whitespace-nowrap">Publishing Live...</span>
               </>
             ) : publishSuccess ? (
               <>
-                <Check className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Published Live!</span>
+                <Check className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+                <span className="whitespace-nowrap">Published Live!</span>
               </>
             ) : (
               <>
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Save Changes</span>
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap">Save Changes</span>
               </>
             )}
           </button>
 
           {/* More Menu */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setShowMoreMenu(!showMoreMenu)}
-              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer shrink-0"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -1252,7 +1261,7 @@ export default function StorefrontBuilderStudio({
                     <h4 className="font-bold text-slate-900 text-xs">Basic Info</h4>
                     <div className="space-y-2">
                       <div>
-                        <label className="text-[11px] text-slate-500 font-medium block mb-1">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
                           Page Title
                         </label>
                         <input
@@ -1262,13 +1271,13 @@ export default function StorefrontBuilderStudio({
                             setPageTitle(e.target.value);
                             setHasUnsavedChanges(true);
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold focus:ring-1 focus:ring-indigo-600"
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-bold text-slate-800 outline-none shadow-2xs"
                           placeholder="Store or Business Name"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[11px] text-slate-500 font-medium block mb-1">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
                           Tagline / Headline
                         </label>
                         <input
@@ -1278,13 +1287,13 @@ export default function StorefrontBuilderStudio({
                             setTagline(e.target.value);
                             setHasUnsavedChanges(true);
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs focus:ring-1 focus:ring-indigo-600"
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
                           placeholder="Authentic Specialties & Fresh Delicacies"
                         />
                       </div>
 
                       <div>
-                        <label className="text-[11px] text-slate-500 font-medium block mb-1">
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
                           Description
                         </label>
                         <textarea
@@ -1294,7 +1303,7 @@ export default function StorefrontBuilderStudio({
                             setDescription(e.target.value);
                             setHasUnsavedChanges(true);
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs leading-relaxed focus:ring-1 focus:ring-indigo-600"
+                          className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-normal text-slate-800 leading-relaxed outline-none shadow-2xs"
                           placeholder="Enjoy freshly prepared traditional dishes..."
                         />
                       </div>
@@ -2465,12 +2474,12 @@ function SectionPropertiesForm({
       {/* Title / Heading */}
       {p.heading !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">Heading</label>
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Heading</label>
           <input
             type="text"
             value={p.heading}
             onChange={(e) => onChange('heading', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-semibold"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-bold text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2478,12 +2487,12 @@ function SectionPropertiesForm({
       {/* Badge / Pill */}
       {p.badge !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">Badge Text</label>
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Badge Text</label>
           <input
             type="text"
             value={p.badge}
             onChange={(e) => onChange('badge', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2491,12 +2500,12 @@ function SectionPropertiesForm({
       {/* Subheading / Description */}
       {(p.description !== undefined || p.subheading !== undefined) && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">Description</label>
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Description</label>
           <textarea
             rows={3}
             value={p.description ?? p.subheading ?? ''}
             onChange={(e) => onChange(p.description !== undefined ? 'description' : 'subheading', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs leading-relaxed"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-normal text-slate-800 leading-relaxed outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2504,14 +2513,14 @@ function SectionPropertiesForm({
       {/* Primary CTA */}
       {p.primaryCtaText !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
             Primary Button Label
           </label>
           <input
             type="text"
             value={p.primaryCtaText}
             onChange={(e) => onChange('primaryCtaText', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2519,14 +2528,14 @@ function SectionPropertiesForm({
       {/* Secondary CTA */}
       {p.secondaryCtaText !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
             Secondary Button Label
           </label>
           <input
             type="text"
             value={p.secondaryCtaText}
             onChange={(e) => onChange('secondaryCtaText', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2534,7 +2543,7 @@ function SectionPropertiesForm({
       {/* WhatsApp Number */}
       {p.whatsappNumber !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">
             WhatsApp Number
           </label>
           <input
@@ -2542,7 +2551,7 @@ function SectionPropertiesForm({
             value={p.whatsappNumber}
             onChange={(e) => onChange('whatsappNumber', e.target.value)}
             placeholder="+91 98400 12345"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-mono"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-mono text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2550,12 +2559,12 @@ function SectionPropertiesForm({
       {/* Address */}
       {p.address !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">Store Address</label>
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Store Address</label>
           <input
             type="text"
             value={p.address}
             onChange={(e) => onChange('address', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}
@@ -2563,12 +2572,12 @@ function SectionPropertiesForm({
       {/* Hours */}
       {p.hours !== undefined && (
         <div>
-          <label className="text-[11px] text-slate-500 font-medium block mb-1">Opening Hours</label>
+          <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Opening Hours</label>
           <input
             type="text"
             value={p.hours}
             onChange={(e) => onChange('hours', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs"
+            className="w-full px-3.5 py-2 border border-slate-200 rounded-xl bg-slate-50/60 hover:bg-white focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition-all text-xs font-medium text-slate-800 outline-none shadow-2xs"
           />
         </div>
       )}

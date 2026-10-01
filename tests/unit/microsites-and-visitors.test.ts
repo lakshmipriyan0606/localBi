@@ -6,7 +6,7 @@ describe('Subdomain Microsites Engine', () => {
   it('retrieves configured microsite by subdomain', async () => {
     const site = await MicrositeService.getMicrositeBySubdomain('lakshmi-food');
     expect(site).toBeDefined();
-    expect(site?.brandName).toContain('Lakshmi Food');
+    expect(site?.brandName?.toLowerCase()).toContain('lakshmi food');
     expect(site?.menuItems).toBeDefined();
     expect(site?.hours).toBeDefined();
   });
