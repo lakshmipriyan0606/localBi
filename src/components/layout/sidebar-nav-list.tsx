@@ -169,9 +169,11 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                   headerBg
                 )}
               >
-                {/* Left: Indicator Dot + Section Title */}
+                {/* Left: Indicator Dot or Group Icon + Section Title */}
                 <div className="flex items-center gap-2 min-w-0 pr-1 flex-1">
-                  {isGroupActive ? (
+                  {group.icon ? (
+                    <group.icon className="h-3.5 w-3.5 text-slate-500 group-hover/header:text-slate-800 transition-colors flex-shrink-0" />
+                  ) : isGroupActive ? (
                     <span className="relative flex h-2 w-2 flex-shrink-0">
                       <span className={cn('animate-ping absolute inline-flex h-full w-full rounded-full opacity-75', dotStyle)} />
                       <span className={cn('relative inline-flex rounded-full h-2 w-2', dotStyle)} />

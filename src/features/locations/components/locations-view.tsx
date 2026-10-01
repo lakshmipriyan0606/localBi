@@ -34,8 +34,8 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
   return (
     <div className="space-y-4 pb-8">
       <PageHeader
-        title="Location Directory"
-        description="Register and manage store locations with validated ISO country codes, coordinates, and IANA timezones."
+        title="Store Management"
+        description="Register and manage physical store branches, addresses, timezones, and brand mappings."
         actions={<LocationCreateDialog tenantSlug={tenantSlug} brands={brands} />}
       />
 

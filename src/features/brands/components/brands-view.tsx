@@ -25,8 +25,8 @@ export function BrandsView({ tenantSlug }: BrandsViewProps) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Brand Administration"
-        description="Manage client brand identities and configure tenant-scoped brand access."
+        title="Brand Management"
+        description="Configure client brand identities and manage brand-level digital assets."
         actions={<BrandCreateDialog tenantSlug={tenantSlug} />}
       />
 

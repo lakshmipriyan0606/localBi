@@ -6,7 +6,7 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { BrandsView } from '@/features/brands/components/brands-view';
 
 export const metadata: Metadata = {
-  title: 'Brands — localBi',
+  title: 'Brand Management — localBi',
   description: 'Manage multi-tenant brand identities and configurations',
 };
 

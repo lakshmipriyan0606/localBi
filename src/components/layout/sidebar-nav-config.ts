@@ -23,6 +23,7 @@ import {
   Image,
   MessageSquare,
   Settings2,
+  Folder,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -61,6 +62,7 @@ export interface NavGroup {
   heading: string;
   sourceBadge?: string;
   badgeColor?: string;
+  icon?: React.ComponentType<{ className?: string }>;
   items: NavItem[];
 }
 
@@ -189,23 +191,6 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     ],
   },
   {
-    heading: 'Storefront Microsites',
-    sourceBadge: 'SITES',
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-    items: [
-      {
-        label: 'Subdomain Sites & Builder',
-        href: `/client/${slug}/microsites`,
-        icon: Globe,
-      },
-      {
-        label: 'Microsite Analytics & Leads',
-        href: `/client/${slug}/visitors`,
-        icon: Fingerprint,
-      },
-    ],
-  },
-  {
     heading: 'Connections',
     items: [
       {
@@ -216,13 +201,41 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     ],
   },
   {
-    heading: 'Administration',
+    heading: 'CMS',
+    icon: Folder,
+    sourceBadge: 'CMS',
+    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     items: [
       {
-        label: 'Brands',
+        label: 'Brand Management',
         href: `/client/${slug}/brands`,
         icon: Tag,
       },
+      {
+        label: 'Store Management',
+        href: `/client/${slug}/locations`,
+        icon: Store,
+      },
+      {
+        label: 'Storefront Microsites',
+        href: `/client/${slug}/microsites`,
+        icon: Globe,
+      },
+      {
+        label: 'Microsite Leads & Visitors',
+        href: `/client/${slug}/visitors`,
+        icon: Fingerprint,
+      },
+      {
+        label: 'Social Updates & Posts',
+        href: `/client/${slug}/reports/gbp/posts`,
+        icon: MessageSquare,
+      },
+    ],
+  },
+  {
+    heading: 'Administration',
+    items: [
       {
         label: 'Team Members',
         href: `/client/${slug}/team`,
