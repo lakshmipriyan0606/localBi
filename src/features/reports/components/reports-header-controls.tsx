@@ -76,20 +76,13 @@ export function ReportsHeaderControls({
         <button
           type="button"
           onClick={onSync}
-          disabled={isSyncing}
+          disabled={isSyncing || isFetching}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
           title="Pull latest live metrics directly from Google Search Console API"
         >
-          <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isSyncing ? 'animate-spin' : ''}`} />
-          <span>{isSyncing ? 'Syncing...' : 'Sync with Google'}</span>
+          <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isSyncing || isFetching ? 'animate-spin' : ''}`} />
+          <span>{isSyncing ? 'Syncing...' : isFetching ? 'Updating...' : 'Sync with Google'}</span>
         </button>
-      )}
-
-      {isFetching && (
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-[11px] font-semibold text-indigo-700 animate-pulse">
-          <RefreshCw className="h-3 w-3 animate-spin" />
-          <span>Syncing data...</span>
-        </div>
       )}
     </div>
   );
