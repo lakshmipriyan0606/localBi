@@ -4,6 +4,7 @@ import { GoogleOAuthService } from '@/modules/integrations/google/google-oauth-s
 import { GoogleApiClient } from '@/modules/integrations/google/google-api-client';
 import { SyncWorkerService } from '@/modules/sync/sync-worker';
 
+export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
@@ -87,6 +88,9 @@ export async function GET(req: NextRequest) {
           true
         );
         const prop = gscProperties[0];
+        if (!prop) {
+          throw new Error('No GscProperty found in database');
+        }
         const today = new Date();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(today.getDate() - 30);
