@@ -50,7 +50,22 @@ export interface GbpProfileSyncJobData {
   businessKey: string;
 }
 
-export type SyncJobData = GscSyncJobData | GbpSyncJobData | GbpReviewSyncJobData | GbpProfileSyncJobData;
+export interface RankScanJobData {
+  type: 'RANK_SCAN';
+  tenantId: string;
+  storeId: string;
+  keywordId: string;
+  gridConfigId?: string | undefined;
+  force?: boolean | undefined;
+  businessKey: string;
+}
+
+export type SyncJobData =
+  | GscSyncJobData
+  | GbpSyncJobData
+  | GbpReviewSyncJobData
+  | GbpProfileSyncJobData
+  | RankScanJobData;
 
 let syncQueueInstance: Queue<SyncJobData> | null = null;
 
@@ -377,6 +392,39 @@ export class SyncQueueService {
     );
 
     logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GBP Profile synchronization job');
+    return { jobId, businessKey, id: job.id };
+  }
+
+  /**
+   * Schedules a background geo-grid rank scan for a specific store and keyword.
+   */
+  public static async scheduleRankScan(params: {
+    tenantId: string;
+    storeId: string;
+    keywordId: string;
+    gridConfigId?: string | undefined;
+    force?: boolean | undefined;
+  }) {
+    const queue = getSyncQueue();
+    const today = new Date().toISOString().split('T')[0]!;
+    const businessKey = `${params.tenantId}:rank_scan:${params.storeId}:${params.keywordId}:${today}`;
+    const { jobId } = this.generateJobId('rank-scan', businessKey);
+
+    const job = await queue.add(
+      'rank-scan',
+      {
+        type: 'RANK_SCAN',
+        tenantId: params.tenantId,
+        storeId: params.storeId,
+        keywordId: params.keywordId,
+        gridConfigId: params.gridConfigId,
+        force: params.force,
+        businessKey,
+      },
+      { jobId }
+    );
+
+    logger.info({ jobId, businessKey, storeId: params.storeId, keywordId: params.keywordId }, 'Enqueued Rank Scan job');
     return { jobId, businessKey, id: job.id };
   }
 

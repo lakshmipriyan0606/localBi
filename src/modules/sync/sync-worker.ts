@@ -11,6 +11,8 @@ import { GbpReviewSyncJob } from './jobs/gbp-review-sync-job';
 import { GbpWriteClient } from '../integrations/google/gbp-write-client';
 import { GbpLocationService } from '../reports/gbp-location-service';
 import { logger } from '@/shared/observability/logger';
+import { AuthorizedContext, Role, ScopeMode } from '@/shared/authorization/policy';
+import { RankRunService } from '../rank/rank-run-service';
 
 export class SyncWorkerService {
   private static workerInstance: Worker<SyncJobData> | null = null;
@@ -79,6 +81,55 @@ export class SyncWorkerService {
     if (existingRun && existingRun.status === 'ABORTED_ORPHAN') {
       logger.info({ tenantId, businessKey }, 'Aborting job: sync run was cancelled while queued');
       return { aborted: true, reason: 'ABORTED_ORPHAN' };
+    }
+
+    // 1b. Rank scans do not rely on Google OAuth connections
+    if (data.type === 'RANK_SCAN') {
+      const systemContext: AuthorizedContext = {
+        userId: 'system-sync-worker',
+        tenantId,
+        role: Role.PLATFORM_SUPER_ADMIN,
+        scopeMode: ScopeMode.ALL,
+        grantedBrandIds: new Set(),
+        grantedLocationIds: new Set(),
+      };
+
+      try {
+        const rankRun = await RankRunService.triggerRankRun(
+          tenantId,
+          data.storeId,
+          data.keywordId,
+          { force: data.force ?? false },
+          systemContext
+        );
+
+        await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+          await tx.syncRun.updateMany({
+            where: { tenantId, businessKey },
+            data: {
+              status: rankRun.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
+              completedAt: new Date(),
+              rowsIngested: rankRun.summary?.validCheckedPoints ?? 0,
+              errorCode: rankRun.errorCode,
+            },
+          });
+        });
+
+        return { status: rankRun.status, rankRunId: rankRun.id };
+      } catch (err: any) {
+        logger.error({ err, tenantId, businessKey }, 'Rank scan background job failed');
+        await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+          await tx.syncRun.updateMany({
+            where: { tenantId, businessKey },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              errorCode: 'RANK_SCAN_FAILED',
+            },
+          });
+        });
+        throw err;
+      }
     }
 
     // 2. Verify target connection is still ACTIVE for this tenant. Disconnected resources must stop work.

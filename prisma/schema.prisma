@@ -70,6 +70,14 @@ model Tenant {
   attributionEvents    AttributionEvent[]
   leads                Lead[]
   visitorSessions      VisitorSession[]
+  keywords             Keyword[]
+  storeKeywords        StoreKeyword[]
+  rankGridConfigs      RankGridConfig[]
+  rankRuns             RankRun[]
+  rankObservations     RankObservation[]
+  rankRunSummaries     RankRunSummary[]
+  competitors          Competitor[]
+  storeCompetitors     StoreCompetitor[]
 
   @@map("tenants")
 }
@@ -249,6 +257,8 @@ model Brand {
   attributionEvents AttributionEvent[]
   leads             Lead[]
   visitorSessions   VisitorSession[]
+  keywords          Keyword[]
+  rankRuns          RankRun[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -291,6 +301,10 @@ model Location {
   gbpSyncStatus String?   @map("gbp_sync_status") // ACTIVE, SYNCING, SYNCED, STALE, ERROR, REAUTH_REQUIRED, RESOURCE_UNAVAILABLE
   gbpSyncedAt   DateTime? @map("gbp_synced_at")
   gbpSyncError  String?   @map("gbp_sync_error")
+  // Coordinates & Place ID for Hyper Rank Geo-Grid (Phase 7)
+  latitude         Float?
+  longitude        Float?
+  googlePlaceId    String?   @map("google_place_id")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -309,6 +323,10 @@ model Location {
   pages            Page[]
   attributionEvents AttributionEvent[]
   leads             Lead[]
+  keywords         StoreKeyword[]
+  gridConfigs      RankGridConfig[]
+  rankRuns         RankRun[]
+  storeCompetitors StoreCompetitor[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -1359,5 +1377,195 @@ model VisitorSession {
   @@index([tenantId, visitorId], name: "idx_visitor_session_visitor")
   @@map("visitor_sessions")
 }
+
+// -----------------------------------------------------------------------------
+// HYPER RANK / LOCAL SEARCH VISIBILITY ENGINE (Phase 7)
+// Keywords + Geo-Grid Rank Tracking + Competitor Intelligence
+// -----------------------------------------------------------------------------
+
+model Keyword {
+  id             String         @id @default(cuid())
+  tenantId       String         @map("tenant_id")
+  brandId        String         @map("brand_id")
+  term           String
+  normalizedTerm String         @map("normalized_term")
+  source         String         @default("MANUAL") // MANUAL, GSC, GBP, IMPORT
+  status         String         @default("ACTIVE") // ACTIVE, PAUSED
+  locale         String         @default("en")
+  country        String         @default("IN")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand          Brand          @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  storeKeywords  StoreKeyword[]
+  rankRuns       RankRun[]
+
+  @@unique([tenantId, brandId, normalizedTerm], name: "uq_keyword_tenant_brand_term")
+  @@index([tenantId, brandId, status], name: "idx_keywords_tenant_brand_status")
+  @@map("keywords")
+}
+
+model StoreKeyword {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  storeId         String    @map("store_id")
+  keywordId       String    @map("keyword_id")
+  trackingEnabled Boolean   @default(true) @map("tracking_enabled")
+  priority        Int       @default(1)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store           Location  @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+  keyword         Keyword   @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, keywordId], name: "uq_store_keyword")
+  @@index([tenantId, storeId, trackingEnabled], name: "idx_store_keywords_tenant_store")
+  @@index([tenantId, keywordId], name: "idx_store_keywords_tenant_keyword")
+  @@map("store_keywords")
+}
+
+model RankGridConfig {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  storeId         String    @map("store_id")
+  gridSize        Int       @default(7) @map("grid_size") // 3, 5, 7, 9
+  radiusKm        Float     @default(5.0) @map("radius_km") // 1.0, 3.0, 5.0, 10.0
+  centerLatitude  Float     @map("center_latitude")
+  centerLongitude Float     @map("center_longitude")
+  status          String    @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store           Location  @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+  rankRuns        RankRun[]
+
+  @@unique([tenantId, storeId, gridSize, radiusKm], name: "uq_rank_grid_config")
+  @@index([tenantId, storeId, status], name: "idx_rank_grid_config_tenant_store")
+  @@map("rank_grid_configs")
+}
+
+model RankRun {
+  id             String            @id @default(cuid())
+  tenantId       String            @map("tenant_id")
+  brandId        String            @map("brand_id")
+  storeId        String            @map("store_id")
+  keywordId      String            @map("keyword_id")
+  gridConfigId   String            @map("grid_config_id")
+  provider       String            @default("LOCAL_RANK_PROVIDER")
+  status         String            @default("QUEUED") // QUEUED, RUNNING, PARTIAL, COMPLETED, FAILED, CANCELLED
+  businessKey    String            @map("business_key")
+  scheduledDate  DateTime          @db.Date @map("scheduled_date")
+  startedAt      DateTime?         @map("started_at")
+  completedAt    DateTime?         @map("completed_at")
+  errorCode      String?           @map("error_code")
+  errorMessage   String?           @map("error_message")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand          Brand             @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store          Location          @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+  keyword        Keyword           @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  gridConfig     RankGridConfig    @relation(fields: [gridConfigId], references: [id], onDelete: Cascade)
+  observations   RankObservation[]
+  summary        RankRunSummary?
+
+  @@unique([tenantId, businessKey], name: "uq_rank_run_business_key")
+  @@index([tenantId, storeId, keywordId, scheduledDate(sort: Desc)], name: "idx_rank_runs_tenant_store_kw_date")
+  @@index([tenantId, status], name: "idx_rank_runs_tenant_status")
+  @@map("rank_runs")
+}
+
+model RankObservation {
+  id             BigInt    @id @default(autoincrement())
+  tenantId       String    @map("tenant_id")
+  rankRunId      String    @map("rank_run_id")
+  pointIndex     Int       @map("point_index")
+  gridRow        Int       @map("grid_row")
+  gridCol        Int       @map("grid_col")
+  latitude       Float
+  longitude      Float
+  distanceKm     Float     @map("distance_km")
+  rank           Int?      // 1..20, or NULL if not found. Never 0!
+  found          Boolean   @default(false)
+  checkedDepth   Int       @default(20) @map("checked_depth")
+  resultType     String    @default("LOCAL_PACK") @map("result_type") // LOCAL_PACK, MAPS, ORGANIC
+  topCompetitors Json?     @map("top_competitors") // [{ position, name, placeId }]
+  observedAt     DateTime  @default(now()) @map("observed_at")
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rankRun        RankRun   @relation(fields: [rankRunId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, rankRunId, pointIndex], name: "uq_rank_observation_point")
+  @@index([tenantId, rankRunId], name: "idx_rank_obs_tenant_run")
+  @@index([tenantId, observedAt(sort: Desc)], name: "idx_rank_obs_tenant_observed")
+  @@map("rank_observations")
+}
+
+model RankRunSummary {
+  id                 String    @id @default(cuid())
+  tenantId           String    @map("tenant_id")
+  rankRunId          String    @unique @map("rank_run_id")
+  storeId            String    @map("store_id")
+  keywordId          String    @map("keyword_id")
+  totalPoints        Int       @map("total_points")
+  validCheckedPoints Int       @map("valid_checked_points")
+  foundPoints        Int       @map("found_points")
+  top3Count          Int       @map("top3_count")
+  top10Count         Int       @map("top10_count")
+  averageFoundRank   Float?    @map("average_found_rank") // Average rank of found points only
+  top3Coverage       Float     @map("top3_coverage") // (top3Count / validCheckedPoints) * 100
+  top10Coverage      Float     @map("top10_coverage") // (top10Count / validCheckedPoints) * 100
+  shareOfVoice       Float     @map("share_of_voice") // Weighted position visibility score (0-100)
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rankRun            RankRun   @relation(fields: [rankRunId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, storeId, createdAt(sort: Desc)], name: "idx_rank_summary_tenant_store")
+  @@index([tenantId, keywordId, createdAt(sort: Desc)], name: "idx_rank_summary_tenant_keyword")
+  @@map("rank_run_summaries")
+}
+
+model Competitor {
+  id              String            @id @default(cuid())
+  tenantId        String            @map("tenant_id")
+  name            String
+  externalPlaceId String?           @map("external_place_id")
+  domain          String?
+  category        String?
+  latitude        Float?
+  longitude       Float?
+  source          String            @default("OBSERVED") // OBSERVED, MANUAL
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stores          StoreCompetitor[]
+
+  @@unique([tenantId, externalPlaceId], name: "uq_competitor_place_id")
+  @@index([tenantId, name], name: "idx_competitor_tenant_name")
+  @@map("competitors")
+}
+
+model StoreCompetitor {
+  id                String     @id @default(cuid())
+  tenantId          String     @map("tenant_id")
+  storeId           String     @map("store_id")
+  competitorId      String     @map("competitor_id")
+  observedFrequency Int        @default(1) @map("observed_frequency")
+  lastObservedAt    DateTime   @default(now()) @map("last_observed_at")
+
+  tenant            Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store             Location   @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+  competitor        Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, competitorId], name: "uq_store_competitor")
+  @@index([tenantId, storeId, observedFrequency(sort: Desc)], name: "idx_store_competitors_freq")
+  @@map("store_competitors")
+}
+
 
 

@@ -25,6 +25,7 @@ import {
   Settings2,
   Folder,
   Package,
+  Radar,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -123,6 +124,20 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'Manage Store Locations',
         href: `/client/${slug}/locations`,
         icon: MapPin,
+      },
+    ],
+  },
+  {
+    heading: 'Hyper Rank Intelligence',
+    sourceBadge: 'RANK',
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    items: [
+      {
+        label: 'Geo-Grid Rank Heatmap',
+        href: `/client/${slug}/rank`,
+        icon: Radar,
+        pillBadge: 'Live',
+        badgeVariant: 'emerald',
       },
     ],
   },
