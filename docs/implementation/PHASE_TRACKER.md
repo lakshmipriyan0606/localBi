@@ -2,10 +2,10 @@
 
 Overall roadmap: 20 phases
 
-CURRENT_PHASE: 4
-CURRENT_STATUS: VERIFYING
-LAST_COMPLETED_PHASE: 2
-LAST_COMMIT: 4e3c3a4
+CURRENT_PHASE: 5
+CURRENT_STATUS: NOT_STARTED
+LAST_COMPLETED_PHASE: 4
+LAST_COMMIT: 79e3783
 NEXT_PHASE: 5
 BLOCKERS: NONE
 
@@ -28,8 +28,8 @@ BLOCKERS: NONE
 | 0 | Multi-Tenant Architecture & Dual-Role RLS Base Setup | COMPLETED | 2026-10-01 | 2026-10-01 | `89f847b` | PASS | Dual-role RLS enforced on all tables, fail-closed isolation |
 | 1 | Brand & Store Governance Engine | COMPLETED | 2026-10-01 | 2026-10-01 | `89b4939` | PASS | Dedicated Brand & Store management, hierarchy & tenant scoping |
 | 2 | Catalog Engine (Categories, Products, StoreProduct) | COMPLETED | 2026-10-01 | 2026-10-01 | `4e3c3a4` | PASS | StoreProduct mapping, pricing, status, API routes & services |
-| 3 | Dynamic Website Engine (Puck CMS, BrandTheme, PageTemplate, SSR & SEO) | IMPLEMENTED | 2026-10-01 | 2026-10-01 | pending | PASS | Puck builder, dynamic SSR, theme tokens, structured data & SEO |
-| 4 | Web-Surface Analytics Isolation (GA4 + GSC + LocalBi-Only Performance) | VERIFIED | 2026-10-02 | 2026-10-02 | pending | PASS | GA4 hostname dimension filter, GSC URL prefix aggregation, surface compare view |
+| 3 | Dynamic Website Engine (Puck CMS, BrandTheme, PageTemplate, SSR & SEO) | COMPLETED | 2026-10-01 | 2026-10-01 | `252e355` | PASS | Puck builder, dynamic SSR, theme tokens, structured data & SEO |
+| 4 | Web-Surface Analytics Isolation (GA4 + GSC + LocalBi-Only Performance) | COMPLETED | 2026-10-02 | 2026-10-02 | `79e3783` | PASS | GA4 hostname dimension filter, GSC URL prefix aggregation, surface compare view |
 | 5 | Lead & Conversion Attribution Engine (Calls + WhatsApp + Directions + Forms + Bookings) | NOT_STARTED | | | | | Next planned phase |
 | 6 | Google Business Profile Operations (Locations + Reviews + Posts + Media + Location Intelligence) | NOT_STARTED | | | | | |
 | 7 | Hyper Rank / Local Search Visibility Engine (Keywords + Geo-Grid Rank Tracking + Competitor Intelligence) | NOT_STARTED | | | | | |
