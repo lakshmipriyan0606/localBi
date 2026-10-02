@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import crypto from 'node:crypto';
 import { getConfig } from '@/shared/config';
 import { prisma } from '@/shared/database/client';
+import { Prisma } from '@prisma/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleApiClient, GbpDailyMetricEntry } from '../integrations/google/google-api-client';
 import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
@@ -13,6 +14,8 @@ import { GbpLocationService } from '../reports/gbp-location-service';
 import { logger } from '@/shared/observability/logger';
 import { AuthorizedContext, Role, ScopeMode } from '@/shared/authorization/policy';
 import { RankRunService } from '../rank/rank-run-service';
+import { MerchantCatalogService } from '../merchant/merchant-catalog-service';
+import { MerchantDiagnosticsService } from '../merchant/merchant-diagnostics-service';
 
 export class SyncWorkerService {
   private static workerInstance: Worker<SyncJobData> | null = null;
@@ -125,6 +128,100 @@ export class SyncWorkerService {
               status: 'FAILED',
               completedAt: new Date(),
               errorCode: 'RANK_SCAN_FAILED',
+            },
+          });
+        });
+        throw err;
+      }
+    }
+
+    // 1c. Google Merchant Center background tasks
+    if (
+      data.type === 'MERCHANT_PRODUCT_SYNC' ||
+      data.type === 'MERCHANT_INVENTORY_SYNC' ||
+      data.type === 'MERCHANT_RECONCILE'
+    ) {
+      const systemContext: AuthorizedContext = {
+        userId: 'system-sync-worker',
+        tenantId,
+        role: Role.PLATFORM_SUPER_ADMIN,
+        scopeMode: ScopeMode.ALL,
+        grantedBrandIds: new Set(),
+        grantedLocationIds: new Set(),
+      };
+
+      try {
+        if (data.type === 'MERCHANT_PRODUCT_SYNC') {
+          const res = await MerchantCatalogService.syncProduct(systemContext, data.productId, {
+            force: data.force,
+          });
+          if (res.success) {
+            await MerchantDiagnosticsService.syncProductDiagnostics(systemContext, data.productId).catch(() => {});
+          }
+          await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+            await tx.syncRun.updateMany({
+              where: { tenantId, businessKey },
+              data: {
+                status: res.success ? 'SUCCESS' : 'FAILED',
+                completedAt: new Date(),
+                rowsIngested: res.success ? 1 : 0,
+                errorCode: res.success ? null : 'MERCHANT_PRODUCT_SYNC_ERROR',
+                errorDetails: res.error ? { message: res.error } : Prisma.DbNull,
+              },
+            });
+          });
+          return res;
+        }
+
+        if (data.type === 'MERCHANT_INVENTORY_SYNC') {
+          const res = await MerchantCatalogService.syncStoreInventory(systemContext, data.storeId, {
+            force: data.force,
+          });
+          await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+            await tx.syncRun.updateMany({
+              where: { tenantId, businessKey },
+              data: {
+                status: res.errorCount === 0 ? 'SUCCESS' : 'FAILED',
+                completedAt: new Date(),
+                rowsIngested: res.syncedCount,
+                errorCode: res.errorCount > 0 ? 'MERCHANT_INVENTORY_PARTIAL_ERROR' : null,
+                errorDetails: res.errorCount > 0 ? { message: `${res.errorCount} inventory items failed` } : Prisma.DbNull,
+              },
+            });
+          });
+          return res;
+        }
+
+        if (data.type === 'MERCHANT_RECONCILE') {
+          const res = await MerchantCatalogService.syncProductsBatch(systemContext, data.brandId);
+          await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+            await tx.merchantBrandConfig.updateMany({
+              where: { tenantId, brandId: data.brandId },
+              data: { lastReconciledAt: new Date() },
+            });
+            await tx.syncRun.updateMany({
+              where: { tenantId, businessKey },
+              data: {
+                status: res.failed === 0 ? 'SUCCESS' : 'FAILED',
+                completedAt: new Date(),
+                rowsIngested: res.succeeded,
+                errorCode: res.failed > 0 ? 'MERCHANT_RECONCILE_PARTIAL_ERROR' : null,
+                errorDetails: res.failed > 0 ? { message: `${res.failed} products failed reconciliation` } : Prisma.DbNull,
+              },
+            });
+          });
+          return res;
+        }
+      } catch (err: any) {
+        logger.error({ tenantId, businessKey, err }, 'Merchant background task failed');
+        await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+          await tx.syncRun.updateMany({
+            where: { tenantId, businessKey },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              errorCode: 'MERCHANT_SYNC_FAILED',
+              errorDetails: { message: err.message },
             },
           });
         });

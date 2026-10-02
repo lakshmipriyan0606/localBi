@@ -26,6 +26,7 @@ import {
   Folder,
   Package,
   Radar,
+  ShoppingBag,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -138,6 +139,20 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: Radar,
         pillBadge: 'Live',
         badgeVariant: 'emerald',
+      },
+    ],
+  },
+  {
+    heading: 'Google Merchant Center',
+    sourceBadge: 'GMC',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    items: [
+      {
+        label: 'Local Products & Inventory',
+        href: `/client/${slug}/merchant`,
+        icon: ShoppingBag,
+        pillBadge: 'Local Feed',
+        badgeVariant: 'amber',
       },
     ],
   },

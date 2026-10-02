@@ -214,7 +214,7 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
       return [];
     });
 
-    const result = await SyncWorkerService.processJob(mockJob);
+    const result = (await SyncWorkerService.processJob(mockJob)) as { status: string; rowsIngested: number };
     expect(result.status).toBe('SUCCESS');
     expect(result.rowsIngested).toBeGreaterThan(0);
 
@@ -281,7 +281,7 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
       { date: '2026-09-02', metricType: 'WEBSITE_CLICKS', value: 7 },
     ]);
 
-    const result = await SyncWorkerService.processJob(mockJob);
+    const result = (await SyncWorkerService.processJob(mockJob)) as { status: string; rowsIngested: number };
     expect(result.status).toBe('SUCCESS');
 
     // Verify GBP metrics stored
@@ -337,7 +337,7 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
       },
     } as Job<import('../src/modules/sync/sync-queue').SyncJobData>;
 
-    const result = await SyncWorkerService.processJob(mockJob);
+    const result = (await SyncWorkerService.processJob(mockJob)) as { aborted: boolean; reason: string };
     expect(result.aborted).toBe(true);
 
     const run = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {

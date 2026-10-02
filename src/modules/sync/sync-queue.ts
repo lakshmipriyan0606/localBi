@@ -60,12 +60,40 @@ export interface RankScanJobData {
   businessKey: string;
 }
 
+export interface MerchantProductSyncJobData {
+  type: 'MERCHANT_PRODUCT_SYNC';
+  tenantId: string;
+  brandId: string;
+  productId: string;
+  force?: boolean | undefined;
+  businessKey: string;
+}
+
+export interface MerchantInventorySyncJobData {
+  type: 'MERCHANT_INVENTORY_SYNC';
+  tenantId: string;
+  brandId: string;
+  storeId: string;
+  force?: boolean | undefined;
+  businessKey: string;
+}
+
+export interface MerchantReconcileJobData {
+  type: 'MERCHANT_RECONCILE';
+  tenantId: string;
+  brandId: string;
+  businessKey: string;
+}
+
 export type SyncJobData =
   | GscSyncJobData
   | GbpSyncJobData
   | GbpReviewSyncJobData
   | GbpProfileSyncJobData
-  | RankScanJobData;
+  | RankScanJobData
+  | MerchantProductSyncJobData
+  | MerchantInventorySyncJobData
+  | MerchantReconcileJobData;
 
 let syncQueueInstance: Queue<SyncJobData> | null = null;
 
@@ -511,6 +539,138 @@ export class SyncQueueService {
       scheduledJobsCount: jobs.length,
       jobs,
     };
+  }
+
+  /**
+   * Schedules a Google Merchant Center product synchronization job.
+   */
+  public static async scheduleMerchantProductSync(params: {
+    tenantId: string;
+    brandId: string;
+    productId: string;
+    force?: boolean | undefined;
+  }) {
+    const queue = getSyncQueue();
+    const baseKey = `MERCHANT_PRODUCT:${params.tenantId}:${params.brandId}:${params.productId}`;
+    const businessKey = params.force ? `${baseKey}:force:${Date.now()}` : baseKey;
+    const { jobId } = this.generateJobId('mprod', businessKey);
+
+    const jobData: MerchantProductSyncJobData = {
+      type: 'MERCHANT_PRODUCT_SYNC',
+      tenantId: params.tenantId,
+      brandId: params.brandId,
+      productId: params.productId,
+      force: params.force,
+      businessKey,
+    };
+
+    await queue.add('merchant-product-sync', jobData, { jobId });
+
+    await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+      await tx.syncRun.upsert({
+        where: { uq_sync_run_business_key: { tenantId: params.tenantId, businessKey } },
+        create: {
+          tenantId: params.tenantId,
+          businessKey,
+          provider: 'GOOGLE_MERCHANT_CENTER',
+          resourceId: params.productId,
+          status: 'RUNNING',
+          startedAt: new Date(),
+        },
+        update: {
+          status: 'RUNNING',
+          startedAt: new Date(),
+          completedAt: null,
+          errorCode: null,
+        },
+      });
+    });
+
+    return { jobId, businessKey, status: 'QUEUED' };
+  }
+
+  /**
+   * Schedules a Google Merchant Center store local inventory synchronization job.
+   */
+  public static async scheduleMerchantInventorySync(params: {
+    tenantId: string;
+    brandId: string;
+    storeId: string;
+    force?: boolean | undefined;
+  }) {
+    const queue = getSyncQueue();
+    const baseKey = `MERCHANT_INVENTORY:${params.tenantId}:${params.brandId}:${params.storeId}`;
+    const businessKey = params.force ? `${baseKey}:force:${Date.now()}` : baseKey;
+    const { jobId } = this.generateJobId('minv', businessKey);
+
+    const jobData: MerchantInventorySyncJobData = {
+      type: 'MERCHANT_INVENTORY_SYNC',
+      tenantId: params.tenantId,
+      brandId: params.brandId,
+      storeId: params.storeId,
+      force: params.force,
+      businessKey,
+    };
+
+    await queue.add('merchant-inventory-sync', jobData, { jobId });
+
+    await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+      await tx.syncRun.upsert({
+        where: { uq_sync_run_business_key: { tenantId: params.tenantId, businessKey } },
+        create: {
+          tenantId: params.tenantId,
+          businessKey,
+          provider: 'GOOGLE_MERCHANT_CENTER',
+          resourceId: params.storeId,
+          status: 'RUNNING',
+          startedAt: new Date(),
+        },
+        update: {
+          status: 'RUNNING',
+          startedAt: new Date(),
+          completedAt: null,
+          errorCode: null,
+        },
+      });
+    });
+
+    return { jobId, businessKey, status: 'QUEUED' };
+  }
+
+  /**
+   * Schedules a Google Merchant Center catalog reconciliation job.
+   */
+  public static async scheduleMerchantReconcile(params: {
+    tenantId: string;
+    brandId: string;
+  }) {
+    const queue = getSyncQueue();
+    const businessKey = `MERCHANT_RECONCILE:${params.tenantId}:${params.brandId}:${Date.now()}`;
+    const { jobId } = this.generateJobId('mrec', businessKey);
+
+    const jobData: MerchantReconcileJobData = {
+      type: 'MERCHANT_RECONCILE',
+      tenantId: params.tenantId,
+      brandId: params.brandId,
+      businessKey,
+    };
+
+    await queue.add('merchant-reconcile', jobData, { jobId });
+
+    await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+      await tx.syncRun.create({
+        data: {
+          tenantId: params.tenantId,
+          businessKey,
+          provider: 'GOOGLE_MERCHANT_CENTER',
+          resourceId: params.brandId,
+          status: 'RUNNING',
+          startedAt: new Date(),
+        },
+      });
+    });
+
+    return { jobId, businessKey, status: 'QUEUED' };
   }
 
   public static async closeQueue() {

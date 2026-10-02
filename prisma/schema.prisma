@@ -78,6 +78,11 @@ model Tenant {
   rankRunSummaries     RankRunSummary[]
   competitors          Competitor[]
   storeCompetitors     StoreCompetitor[]
+  merchantBrandConfigs MerchantBrandConfig[]
+  productMerchantConfigs ProductMerchantConfig[]
+  merchantProductMappings MerchantProductMapping[]
+  merchantLocalInventories MerchantLocalInventoryState[]
+  merchantProductIssues MerchantProductIssue[]
 
   @@map("tenants")
 }
@@ -259,6 +264,11 @@ model Brand {
   visitorSessions   VisitorSession[]
   keywords          Keyword[]
   rankRuns          RankRun[]
+  merchantBrandConfig MerchantBrandConfig?
+  productMerchantConfigs ProductMerchantConfig[]
+  merchantProductMappings MerchantProductMapping[]
+  merchantLocalInventories MerchantLocalInventoryState[]
+  merchantProductIssues MerchantProductIssue[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -327,6 +337,8 @@ model Location {
   gridConfigs      RankGridConfig[]
   rankRuns         RankRun[]
   storeCompetitors StoreCompetitor[]
+  merchantLocalInventories MerchantLocalInventoryState[]
+  merchantProductIssues MerchantProductIssue[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -408,6 +420,10 @@ model Product {
   pages            Page[]
   attributionEvents AttributionEvent[]
   leads             Lead[]
+  merchantConfig    ProductMerchantConfig?
+  merchantMapping   MerchantProductMapping?
+  merchantLocalInventories MerchantLocalInventoryState[]
+  merchantIssues    MerchantProductIssue[]
 
   @@unique([tenantId, id], name: "uq_product_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
@@ -1566,6 +1582,166 @@ model StoreCompetitor {
   @@index([tenantId, storeId, observedFrequency(sort: Desc)], name: "idx_store_competitors_freq")
   @@map("store_competitors")
 }
+
+// -----------------------------------------------------------------------------
+// GOOGLE MERCHANT CENTER + LOCAL PRODUCT INVENTORY ENGINE (Phase 8)
+// Products + Store Inventory + Feed Sync + Diagnostics
+// -----------------------------------------------------------------------------
+
+model MerchantBrandConfig {
+  id                 String    @id @default(cuid())
+  tenantId           String    @map("tenant_id")
+  brandId            String    @map("brand_id")
+  merchantAccountId  String    @map("merchant_account_id") // Google Merchant Center Account ID
+  targetCountry      String    @default("IN") @map("target_country")
+  contentLanguage    String    @default("en") @map("content_language")
+  defaultCurrency    String    @default("INR") @map("default_currency")
+  feedLabel          String?   @map("feed_label")
+  autoSyncEnabled    Boolean   @default(true) @map("auto_sync_enabled")
+  lastReconciledAt   DateTime? @map("last_reconciled_at")
+  lastSyncStatus     String    @default("IDLE") @map("last_sync_status") // IDLE, SYNCING, SUCCESS, ERROR
+  lastSyncError      String?   @map("last_sync_error")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, brandId], name: "uq_merchant_brand_config")
+  @@index([tenantId, merchantAccountId], name: "idx_merchant_brand_account")
+  @@map("merchant_brand_configs")
+}
+
+model ProductMerchantConfig {
+  id                    String   @id @default(cuid())
+  tenantId              String   @map("tenant_id")
+  brandId               String   @map("brand_id")
+  productId             String   @map("product_id")
+  enabled               Boolean  @default(true)
+  googleProductCategory String?  @map("google_product_category")
+  productType           String?  @map("product_type")
+  condition             String   @default("new") // new, refurbished, used
+  gtin                  String?
+  mpn                   String?
+  brandName             String?  @map("brand_name")
+  customLabel0          String?  @map("custom_label_0")
+  customLabel1          String?  @map("custom_label_1")
+  customLabel2          String?  @map("custom_label_2")
+  customLabel3          String?  @map("custom_label_3")
+  customLabel4          String?  @map("custom_label_4")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                 Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  product               Product  @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+
+  @@unique([tenantId, productId], name: "uq_product_merchant_config")
+  @@unique([tenantId, brandId, productId], name: "uq_product_merchant_config_brand")
+  @@index([tenantId, brandId, enabled], name: "idx_prod_merchant_cfg_enabled")
+  @@map("product_merchant_configs")
+}
+
+model MerchantProductMapping {
+  id                   String                       @id @default(cuid())
+  tenantId             String                       @map("tenant_id")
+  brandId              String                       @map("brand_id")
+  productId            String                       @map("product_id")
+  merchantAccountId    String                       @map("merchant_account_id")
+  offerId              String                       @map("offer_id") // Stable identifier (e.g. sku)
+  targetCountry        String                       @default("IN") @map("target_country")
+  contentLanguage      String                       @default("en") @map("content_language")
+  feedLabel            String?                      @map("feed_label")
+  channel              String                       @default("online_and_local") // online, local, online_and_local
+  syncStatus           String                       @default("NOT_ENABLED") @map("sync_status") // NOT_ENABLED, QUEUED, SYNCING, SUBMITTED, PROCESSING, APPROVED, DISAPPROVED, ERROR, STALE, REMOVAL_PENDING, REMOVED
+  providerStatus       String?                      @map("provider_status") // approved, disapproved, pending
+  payloadHash          String?                      @map("payload_hash") // SHA-256 for change detection
+  submittedPrice       Decimal?                     @map("submitted_price") @db.Decimal(10, 2)
+  submittedCurrency    String?                      @map("submitted_currency")
+  lastSubmittedAt      DateTime?                    @map("last_submitted_at")
+  lastSuccessfulSyncAt DateTime?                    @map("last_successful_sync_at")
+  lastCheckedAt        DateTime?                    @map("last_checked_at")
+  lastError            String?                      @map("last_error")
+  createdAt            DateTime                     @default(now()) @map("created_at")
+  updatedAt            DateTime                     @updatedAt @map("updated_at")
+
+  tenant               Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                Brand                        @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  product              Product                      @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+  localInventories     MerchantLocalInventoryState[]
+  issues               MerchantProductIssue[]
+
+  @@unique([tenantId, brandId, productId], name: "uq_merchant_prod_mapping_brand")
+  @@unique([tenantId, merchantAccountId, offerId], name: "uq_merchant_account_offer_id")
+  @@index([tenantId, brandId, syncStatus], name: "idx_merchant_prod_mapping_status")
+  @@map("merchant_product_mappings")
+}
+
+model MerchantLocalInventoryState {
+  id                    String                 @id @default(cuid())
+  tenantId              String                 @map("tenant_id")
+  brandId               String                 @map("brand_id")
+  storeId               String                 @map("store_id")
+  productId             String                 @map("product_id")
+  mappingId             String                 @map("mapping_id")
+  storeCode             String                 @map("store_code")
+  submittedPrice        Decimal                @map("submitted_price") @db.Decimal(10, 2)
+  submittedCurrency     String                 @default("INR") @map("submitted_currency")
+  submittedAvailability String                 @map("submitted_availability") // in_stock, out_of_stock, limited_availability, on_display_to_order
+  submittedQuantity     Int?                   @map("submitted_quantity")
+  syncStatus            String                 @default("QUEUED") @map("sync_status") // QUEUED, SYNCING, SYNCED, ERROR, REMOVED
+  providerStatus        String?                @map("provider_status")
+  payloadHash           String?                @map("payload_hash")
+  lastSubmittedAt       DateTime?              @map("last_submitted_at")
+  lastCheckedAt         DateTime?              @map("last_checked_at")
+  lastError             String?                @map("last_error")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                 Brand                  @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store                 Location               @relation(fields: [tenantId, brandId, storeId], references: [tenantId, brandId, id], onDelete: Cascade)
+  product               Product                @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+  mapping               MerchantProductMapping @relation(fields: [mappingId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, productId], name: "uq_merchant_local_inventory_store_prod")
+  @@unique([tenantId, brandId, storeId, productId], name: "uq_merchant_local_inventory_tenant_brand_store_prod")
+  @@index([tenantId, storeId, syncStatus], name: "idx_merchant_local_inv_store_status")
+  @@index([tenantId, brandId, syncStatus], name: "idx_merchant_local_inv_brand_status")
+  @@map("merchant_local_inventory_states")
+}
+
+model MerchantProductIssue {
+  id             String                 @id @default(cuid())
+  tenantId       String                 @map("tenant_id")
+  brandId        String                 @map("brand_id")
+  mappingId      String                 @map("mapping_id")
+  productId      String                 @map("product_id")
+  storeId        String?                @map("store_id") // Null for global product issues, storeId for local inventory issues
+  code           String                 // e.g. "missing_gtin", "price_mismatch", "image_link_broken"
+  severity       String                 // INFO, WARNING, ERROR, DISAPPROVAL
+  attributeName  String?                @map("attribute_name")
+  message        String                 // Descriptive message
+  detail         String?                // Technical detail or resolution guide
+  firstSeenAt    DateTime               @default(now()) @map("first_seen_at")
+  lastSeenAt     DateTime               @default(now()) @map("last_seen_at")
+  resolvedAt     DateTime?              @map("resolved_at")
+  isResolved     Boolean                @default(false) @map("is_resolved")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand          Brand                  @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  mapping        MerchantProductMapping @relation(fields: [mappingId], references: [id], onDelete: Cascade)
+  product        Product                @relation(fields: [tenantId, brandId, productId], references: [tenantId, brandId, id], onDelete: Cascade)
+  store          Location?              @relation(fields: [tenantId, brandId, storeId], references: [tenantId, brandId, id], onDelete: Cascade)
+
+  @@unique([tenantId, mappingId, code, storeId], name: "uq_merchant_prod_issue")
+  @@index([tenantId, mappingId, isResolved], name: "idx_merchant_issue_resolved")
+  @@index([tenantId, brandId, severity], name: "idx_merchant_issue_severity")
+  @@map("merchant_product_issues")
+}
+
 
 
 
