@@ -10,6 +10,8 @@ export type PageTemplateType =
   | 'CATEGORY'
   | 'PRODUCT'
   | 'STORE_PRODUCT'
+  | 'ARTICLE'
+  | 'BLOG_INDEX'
   | 'CUSTOM';
 
 export interface PageTemplateDto {

@@ -34,6 +34,19 @@ export interface StructuredDataFaqInput {
   answer: string;
 }
 
+export interface StructuredDataArticleInput {
+  headline: string;
+  description?: string | null | undefined;
+  authorName?: string | null | undefined;
+  authorUrl?: string | null | undefined;
+  publisherName: string;
+  publisherLogoUrl?: string | null | undefined;
+  datePublished?: string | null | undefined;
+  dateModified?: string | null | undefined;
+  imageUrl?: string | null | undefined;
+  url?: string | undefined;
+}
+
 export class StructuredDataService {
   /**
    * Generates BreadcrumbList JSON-LD from dynamic route items.
@@ -152,5 +165,39 @@ export class StructuredDataService {
         },
       })),
     };
+  }
+
+  /**
+   * Generates Article / BlogPosting schema.
+   */
+  public static generateArticleSchema(article: StructuredDataArticleInput): Record<string, unknown> | null {
+    if (!article || !article.headline) return null;
+
+    const schema: Record<string, unknown> = {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: article.headline,
+      publisher: {
+        '@type': 'Organization',
+        name: article.publisherName,
+        ...(article.publisherLogoUrl ? { logo: { '@type': 'ImageObject', url: article.publisherLogoUrl } } : {}),
+      },
+    };
+
+    if (article.description) schema['description'] = article.description;
+    if (article.url) schema['url'] = article.url;
+    if (article.imageUrl) schema['image'] = [article.imageUrl];
+    if (article.datePublished) schema['datePublished'] = article.datePublished;
+    if (article.dateModified) schema['dateModified'] = article.dateModified;
+
+    if (article.authorName) {
+      schema['author'] = {
+        '@type': 'Person',
+        name: article.authorName,
+        ...(article.authorUrl ? { url: article.authorUrl } : {}),
+      };
+    }
+
+    return schema;
   }
 }

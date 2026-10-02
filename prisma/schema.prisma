@@ -88,6 +88,17 @@ model Tenant {
   callEvents           CallEvent[]
   opportunities        Opportunity[]
   opportunityEvidence  OpportunityEvidence[]
+  contentAuthors       ContentAuthor[]
+  contentCategories    ContentCategory[]
+  contentBriefs        ContentBrief[]
+  contentItems         ContentItem[]
+  contentVersions      ContentVersion[]
+  contentRelations     ContentRelation[]
+  redirects            Redirect[]
+  listingHours         ListingStoreHours[]
+  directoryListings    DirectoryListing[]
+  duplicateCandidates  DuplicateListingCandidate[]
+  listingChangeSets    ListingChangeSet[]
 
   @@map("tenants")
 }
@@ -277,6 +288,11 @@ model Brand {
   virtualNumbers       VirtualNumber[]
   calls                Call[]
   opportunities        Opportunity[]
+  contentAuthors       ContentAuthor[]
+  contentCategories    ContentCategory[]
+  contentBriefs        ContentBrief[]
+  contentItems         ContentItem[]
+  directoryListings    DirectoryListing[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -351,6 +367,9 @@ model Location {
   virtualNumbers       VirtualNumber[]
   calls                Call[]
   opportunities        Opportunity[]
+  listingHours         ListingStoreHours[]
+  directoryListings    DirectoryListing[]
+  duplicateCandidates  DuplicateListingCandidate[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -1048,6 +1067,8 @@ model WebSurface {
   virtualNumbers   VirtualNumber[]
   calls            Call[]
   opportunities    Opportunity[]
+  contentItems     ContentItem[]
+  redirects        Redirect[]
 
   @@unique([tenantId, id], name: "uq_web_surface_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_web_surface_tenant_brand_id")
@@ -1437,6 +1458,7 @@ model Keyword {
   storeKeywords  StoreKeyword[]
   rankRuns       RankRun[]
   opportunities  Opportunity[]
+  briefs         ContentBrief[]
 
   @@unique([tenantId, brandId, normalizedTerm], name: "uq_keyword_tenant_brand_term")
   @@index([tenantId, brandId, status], name: "idx_keywords_tenant_brand_status")
@@ -1882,7 +1904,7 @@ model Opportunity {
   categoryId       String?   @map("category_id")
   keywordId        String?   @map("keyword_id")
 
-  type             String    // HIGH_IMPRESSIONS_LOW_CTR, HIGH_DEMAND_LOW_RANK, HIGH_CONVERSION_LOW_VISIBILITY, PAGE_WITH_TRAFFIC_NO_CONVERSIONS, MISSING_LANDING_PAGE, GBP_PROFILE_INCOMPLETE, UNANSWERED_REVIEWS, MERCHANT_PRODUCT_ISSUE, LOCAL_RANK_DECLINE, SEARCH_DEMAND_GROWTH
+  type             String    // HIGH_IMPRESSIONS_LOW_CTR, HIGH_DEMAND_LOW_RANK, HIGH_CONVERSION_LOW_VISIBILITY, PAGE_WITH_TRAFFIC_NO_CONVERSIONS, MISSING_LANDING_PAGE, GBP_PROFILE_INCOMPLETE, UNANSWERED_REVIEWS, MERCHANT_PRODUCT_ISSUE, LOCAL_RANK_DECLINE, SEARCH_DEMAND_GROWTH, NAP_MISMATCH, DUPLICATE_LISTING
   status           String    @default("OPEN") // OPEN, IN_REVIEW, ACCEPTED, DISMISSED, COMPLETED, STALE
   priority         String    @default("MEDIUM") // CRITICAL, HIGH, MEDIUM, LOW
   priorityScore    Float     @default(0.0) @map("priority_score")
@@ -1918,6 +1940,7 @@ model Opportunity {
   keyword          Keyword?   @relation(fields: [keywordId], references: [id], onDelete: SetNull)
 
   evidence         OpportunityEvidence[]
+  briefs           ContentBrief[]
 
   @@unique([tenantId, id], name: "uq_opportunity_tenant_id")
   @@unique([tenantId, identityHash], name: "uq_opportunity_identity_hash")
@@ -1951,7 +1974,368 @@ model OpportunityEvidence {
   @@map("opportunity_evidence")
 }
 
+// -----------------------------------------------------------------------------
+// PHASE 11: CONTENT & GROWTH ENGINE (Blog CMS, Editorial Workflow, Internal Linking)
+// -----------------------------------------------------------------------------
 
+model ContentAuthor {
+  id           String        @id @default(cuid())
+  tenantId     String        @map("tenant_id")
+  brandId      String        @map("brand_id")
+  name         String
+  slug         String
+  bio          String?       @db.Text
+  role         String?
+  avatarUrl    String?       @map("avatar_url")
+  socialLinks  Json?         @map("social_links")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand         @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  contentItems ContentItem[]
 
+  @@unique([tenantId, id], name: "uq_content_author_tenant_id")
+  @@unique([tenantId, brandId, slug], name: "uq_content_author_brand_slug")
+  @@index([tenantId, brandId], name: "idx_content_authors_brand")
+  @@map("content_authors")
+}
 
+model ContentCategory {
+  id           String        @id @default(cuid())
+  tenantId     String        @map("tenant_id")
+  brandId      String        @map("brand_id")
+  name         String
+  slug         String
+  description  String?       @db.Text
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand         @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  contentItems ContentItem[]
+
+  @@unique([tenantId, id], name: "uq_content_category_tenant_id")
+  @@unique([tenantId, brandId, slug], name: "uq_content_category_brand_slug")
+  @@index([tenantId, brandId], name: "idx_content_categories_brand")
+  @@map("content_categories")
+}
+
+model ContentBrief {
+  id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  brandId            String        @map("brand_id")
+  keywordId          String?       @map("keyword_id")
+  opportunityId      String?       @map("opportunity_id")
+  workingTitle       String        @map("working_title")
+  primaryTopic       String        @map("primary_topic")
+  primaryKeyword     String?       @map("primary_keyword")
+  secondaryKeywords  Json?         @map("secondary_keywords")
+  intent             String        @default("INFORMATIONAL") // INFORMATIONAL, COMMERCIAL, LOCAL, TRANSACTIONAL
+  targetAudience     String?       @map("target_audience")
+  relatedProductIds  Json?         @map("related_product_ids")
+  relatedStoreIds    Json?         @map("related_store_ids")
+  relatedCategoryIds Json?         @map("related_category_ids")
+  requiredTopics     Json?         @map("required_topics")
+  notes              String?       @db.Text
+  status             String        @default("DRAFT") // DRAFT, READY, ASSIGNED, IN_PROGRESS, COMPLETED, DISCARDED
+  createdBy          String?       @map("created_by")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand         @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  opportunity        Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  keyword            Keyword?      @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+  contentItems       ContentItem[]
+
+  @@unique([tenantId, id], name: "uq_content_brief_tenant_id")
+  @@index([tenantId, brandId, status], name: "idx_content_briefs_status")
+  @@index([tenantId, opportunityId], name: "idx_content_briefs_opportunity")
+  @@map("content_briefs")
+}
+
+model ContentItem {
+  id                   String            @id @default(cuid())
+  tenantId             String            @map("tenant_id")
+  brandId              String            @map("brand_id")
+  webSurfaceId         String?           @map("web_surface_id")
+  briefId              String?           @map("brief_id")
+  authorId             String?           @map("author_id")
+  categoryId           String?           @map("category_id")
+  type                 String            @default("ARTICLE") // ARTICLE, BLOG, GUIDE, FAQ_CONTENT, CUSTOM
+  title                String
+  slug                 String
+  excerpt              String?           @db.Text
+  status               String            @default("DRAFT") // DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED
+  featuredImageUrl     String?           @map("featured_image_url")
+  featuredImageAlt     String?           @map("featured_image_alt")
+  currentVersionNumber Int               @default(1) @map("current_version_number")
+  publishedVersionId   String?           @map("published_version_id")
+  publishedAt          DateTime?         @map("published_at")
+  scheduledAt          DateTime?         @map("scheduled_at")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                Brand             @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface           WebSurface?       @relation(fields: [webSurfaceId], references: [id], onDelete: SetNull)
+  brief                ContentBrief?     @relation(fields: [briefId], references: [id], onDelete: SetNull)
+  author               ContentAuthor?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category             ContentCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  versions             ContentVersion[]
+  relations            ContentRelation[]
+
+  @@unique([tenantId, id], name: "uq_content_item_tenant_id")
+  @@unique([tenantId, brandId, slug], name: "uq_content_item_brand_slug")
+  @@index([tenantId, brandId, status], name: "idx_content_items_status")
+  @@index([tenantId, webSurfaceId, status], name: "idx_content_items_surface")
+  @@map("content_items")
+}
+
+model ContentVersion {
+  id             String      @id @default(cuid())
+  tenantId       String      @map("tenant_id")
+  contentItemId  String      @map("content_item_id")
+  version        Int
+  title          String
+  slug           String
+  excerpt        String?     @db.Text
+  content        Json        // Structured body { blocks: [...] }
+  seoTitle       String?     @map("seo_title")
+  seoDescription String?     @map("seo_description") @db.Text
+  canonicalUrl   String?     @map("canonical_url")
+  ogImageUrl     String?     @map("og_image_url")
+  status         String      @default("DRAFT") // DRAFT, IN_REVIEW, APPROVED, PUBLISHED, ARCHIVED
+  origin         String      @default("HUMAN") // HUMAN, AI_ASSISTED, AI_GENERATED_DRAFT
+  aiAudit        Json?       @map("ai_audit") // model, promptVersion, generatedAt, createdBy
+  changeSummary  String?     @map("change_summary")
+  createdBy      String?     @map("created_by")
+  publishedAt    DateTime?   @map("published_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contentItem    ContentItem @relation(fields: [tenantId, contentItemId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_content_version_tenant_id")
+  @@unique([contentItemId, version], name: "uq_content_version_number")
+  @@index([tenantId, contentItemId, status], name: "idx_content_versions_status")
+  @@map("content_versions")
+}
+
+model ContentRelation {
+  id            String      @id @default(cuid())
+  tenantId      String      @map("tenant_id")
+  contentItemId String      @map("content_item_id")
+  targetType    String      @map("target_type") // PRODUCT, STORE, CATEGORY, KEYWORD, CONTENT
+  targetId      String      @map("target_id")
+  sortOrder     Int         @default(0) @map("sort_order")
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contentItem   ContentItem @relation(fields: [tenantId, contentItemId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_content_relation_tenant_id")
+  @@unique([contentItemId, targetType, targetId], name: "uq_content_relation_target")
+  @@index([tenantId, contentItemId], name: "idx_content_relations_item")
+  @@map("content_relations")
+}
+
+model Redirect {
+  id           String      @id @default(cuid())
+  tenantId     String      @map("tenant_id")
+  webSurfaceId String?     @map("web_surface_id")
+  fromPath     String      @map("from_path")
+  toPath       String      @map("to_path")
+  statusCode   Int         @default(301) @map("status_code")
+  reason       String?
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webSurface   WebSurface? @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_redirect_tenant_id")
+  @@unique([tenantId, fromPath], name: "uq_redirect_from_path")
+  @@index([tenantId, fromPath, isActive], name: "idx_redirects_lookup")
+  @@map("redirects")
+}
+
+// =============================================================================
+// PHASE 12: LOCAL LISTINGS + CITATIONS + DIRECTORY PRESENCE
+// NAP CONSISTENCY + DUPLICATE DETECTION + CONTROLLED SYNC
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// 12.1 STRUCTURED STORE HOURS
+// Replaces the freetext hours field; one row per day per store.
+// -----------------------------------------------------------------------------
+
+model ListingStoreHours {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  storeId    String   @map("store_id")
+  dayOfWeek  Int      @map("day_of_week")  // 0 = Monday … 6 = Sunday (ISO-compatible)
+  isClosed   Boolean  @default(false) @map("is_closed")
+  openTime   String?  @map("open_time")   // "HH:MM" 24-hour, null when isClosed
+  closeTime  String?  @map("close_time")  // "HH:MM" 24-hour, null when isClosed
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store      Location @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, storeId, dayOfWeek], name: "uq_listing_hours_store_day")
+  @@index([tenantId, storeId], name: "idx_listing_hours_store")
+  @@map("listing_store_hours")
+}
+
+// -----------------------------------------------------------------------------
+// 12.2 DIRECTORY LISTING
+// One record per (store, provider). Stores the last-known provider snapshot
+// and the mapping status. Never used as the canonical source of truth.
+// -----------------------------------------------------------------------------
+
+model DirectoryListing {
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  brandId             String    @map("brand_id")
+  storeId             String    @map("store_id")
+
+  // Provider identity
+  provider            String    // GOOGLE_BUSINESS_PROFILE, APPLE_BUSINESS_CONNECT, BING_PLACES, YELP, FACEBOOK, FOURSQUARE, JUSTDIAL, MANUAL
+  externalListingId   String?   @map("external_listing_id") // Provider's own ID; null for manual entries
+  providerUrl         String?   @map("provider_url")
+
+  // Listing status
+  status              String    @default("NOT_CHECKED")  @map("status")
+  // NOT_CHECKED, DISCOVERED, MATCHED, UNVERIFIED, NEEDS_REVIEW, SYNCING, SYNCED, STALE, ERROR, REMOVED, DUPLICATE, MANUAL_ACTION_REQUIRED
+  matchStatus         String    @default("UNKNOWN") @map("match_status")
+  // UNKNOWN, MATCHED, POSSIBLE_MATCH, NO_MATCH, AMBIGUOUS
+  matchConfidence     String?   @map("match_confidence")  // HIGH, MEDIUM, LOW
+  matchEvidenceSummary String?  @map("match_evidence_summary") @db.Text
+
+  // Provider snapshot (last fetched values — NOT canonical)
+  snapshotName        String?   @map("snapshot_name")
+  snapshotPhone       String?   @map("snapshot_phone")
+  snapshotAddress     String?   @map("snapshot_address")
+  snapshotWebsite     String?   @map("snapshot_website")
+  snapshotHours       Json?     @map("snapshot_hours") // raw provider hours object
+  snapshotCategories  String[]  @map("snapshot_categories")
+  snapshotExtra       Json?     @map("snapshot_extra")  // provider-specific additional fields
+
+  // NAP comparison results (computed on last sync)
+  napNameStatus       String    @default("UNKNOWN") @map("nap_name_status")    // MATCH, MISMATCH, MISSING, UNKNOWN
+  napPhoneStatus      String    @default("UNKNOWN") @map("nap_phone_status")
+  napAddressStatus    String    @default("UNKNOWN") @map("nap_address_status")
+  napWebsiteStatus    String    @default("UNKNOWN") @map("nap_website_status")
+  napHoursStatus      String    @default("UNKNOWN") @map("nap_hours_status")
+  napOverallStatus    String    @default("UNKNOWN") @map("nap_overall_status")  // HEALTHY, NEEDS_REVIEW, MISMATCH, ERROR
+
+  // Timestamps
+  lastDiscoveredAt    DateTime? @map("last_discovered_at")
+  lastSyncedAt        DateTime? @map("last_synced_at")
+  lastVerifiedAt      DateTime? @map("last_verified_at")
+  syncError           String?   @map("sync_error")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand               Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store               Location  @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+
+  changeSets          ListingChangeSet[]
+  duplicatesAsA       DuplicateListingCandidate[] @relation("DuplicateListingA")
+  duplicatesAsB       DuplicateListingCandidate[] @relation("DuplicateListingB")
+
+  @@unique([tenantId, storeId, provider], name: "uq_directory_listing_store_provider")
+  @@unique([tenantId, provider, externalListingId], name: "uq_directory_listing_provider_ext_id")
+  @@index([tenantId, brandId, status], name: "idx_directory_listing_brand_status")
+  @@index([tenantId, storeId, status], name: "idx_directory_listing_store_status")
+  @@index([tenantId, provider, napOverallStatus], name: "idx_directory_listing_nap_status")
+  @@map("directory_listings")
+}
+
+// -----------------------------------------------------------------------------
+// 12.3 DUPLICATE LISTING CANDIDATE
+// Two DirectoryListings at the same provider that may represent the same place.
+// Never auto-removed. Always requires human decision.
+// -----------------------------------------------------------------------------
+
+model DuplicateListingCandidate {
+  id             String          @id @default(cuid())
+  tenantId       String          @map("tenant_id")
+  storeId        String          @map("store_id")
+  provider       String          // Same provider for both candidates
+  listingAId     String          @map("listing_a_id")
+  listingBId     String          @map("listing_b_id")
+
+  // Detection evidence
+  confidence     String          @default("MEDIUM") // HIGH, MEDIUM, LOW
+  evidenceSummary String         @map("evidence_summary") @db.Text
+  sharedPhone    Boolean         @default(false) @map("shared_phone")
+  sharedAddress  Boolean         @default(false) @map("shared_address")
+  sharedPlaceId  Boolean         @default(false) @map("shared_place_id")
+
+  // Resolution
+  status         String          @default("OPEN")  // OPEN, CONFIRMED_DUPLICATE, DISMISSED, RESOLVED
+  resolvedAt     DateTime?       @map("resolved_at")
+  resolvedBy     String?         @map("resolved_by")
+  resolutionNote String?         @map("resolution_note") @db.Text
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store          Location        @relation(fields: [tenantId, storeId], references: [tenantId, id], onDelete: Cascade)
+  listingA       DirectoryListing @relation("DuplicateListingA", fields: [listingAId], references: [id], onDelete: Cascade)
+  listingB       DirectoryListing @relation("DuplicateListingB", fields: [listingBId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, listingAId, listingBId], name: "uq_duplicate_pair")
+  @@index([tenantId, storeId, status], name: "idx_duplicate_store_status")
+  @@index([tenantId, provider, status], name: "idx_duplicate_provider_status")
+  @@map("duplicate_listing_candidates")
+}
+
+// -----------------------------------------------------------------------------
+// 12.4 LISTING CHANGE SET
+// Proposed field corrections for a DirectoryListing that require human approval
+// before any provider write is attempted.
+// -----------------------------------------------------------------------------
+
+model ListingChangeSet {
+  id              String          @id @default(cuid())
+  tenantId        String          @map("tenant_id")
+  listingId       String          @map("listing_id")
+
+  // Proposed changes (stored as JSON diff: { field, canonicalValue, providerValue })
+  proposedChanges Json            @map("proposed_changes")
+  // Stale-check: snapshot of canonical version at time of proposal
+  canonicalVersionAt DateTime     @map("canonical_version_at")
+
+  // Lifecycle
+  status          String          @default("PENDING") // PENDING, APPROVED, REJECTED, EXECUTING, APPLIED, FAILED, STALE, MANUAL_ACTION_REQUIRED
+  priority        String          @default("MEDIUM")  // CRITICAL, HIGH, MEDIUM, LOW
+
+  // Approval
+  requestedBy     String?         @map("requested_by")  // userId who triggered the proposal
+  reviewedBy      String?         @map("reviewed_by")
+  reviewedAt      DateTime?       @map("reviewed_at")
+  reviewNote      String?         @map("review_note")
+
+  // Execution result
+  executedAt      DateTime?       @map("executed_at")
+  providerResult  String?         @map("provider_result") // SUCCESS, PENDING_PROVIDER_REVIEW, FAILED, MANUAL_ACTION_REQUIRED
+  providerError   String?         @map("provider_error")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  listing         DirectoryListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_listing_change_set_tenant_id")
+  @@index([tenantId, listingId, status], name: "idx_change_set_listing_status")
+  @@index([tenantId, status, priority], name: "idx_change_set_status_priority")
+  @@map("listing_change_sets")
+}

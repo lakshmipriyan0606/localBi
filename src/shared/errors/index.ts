@@ -50,6 +50,20 @@ export const ErrorCode = {
   OPPORTUNITY_ALREADY_RESOLVED: 'OPPORTUNITY_ALREADY_RESOLVED',
   INVALID_OPPORTUNITY_STATUS: 'INVALID_OPPORTUNITY_STATUS',
   DISMISSAL_REASON_REQUIRED: 'DISMISSAL_REASON_REQUIRED',
+  CONTENT_NOT_FOUND: 'CONTENT_NOT_FOUND',
+  CONTENT_VERSION_NOT_FOUND: 'CONTENT_VERSION_NOT_FOUND',
+  CONTENT_BRIEF_NOT_FOUND: 'CONTENT_BRIEF_NOT_FOUND',
+  VERSION_CONFLICT: 'VERSION_CONFLICT',
+  UNAUTHORIZED_PUBLISH: 'UNAUTHORIZED_PUBLISH',
+  INVALID_CONTENT_STATUS: 'INVALID_CONTENT_STATUS',
+  REDIRECT_CONFLICT: 'REDIRECT_CONFLICT',
+  FACTUAL_INTEGRITY_VIOLATION: 'FACTUAL_INTEGRITY_VIOLATION',
+  LISTING_NOT_FOUND: 'LISTING_NOT_FOUND',
+  LISTING_PROVIDER_ERROR: 'LISTING_PROVIDER_ERROR',
+  CHANGE_SET_NOT_FOUND: 'CHANGE_SET_NOT_FOUND',
+  CHANGE_SET_STALE: 'CHANGE_SET_STALE',
+  DUPLICATE_CANDIDATE_NOT_FOUND: 'DUPLICATE_CANDIDATE_NOT_FOUND',
+  PROVIDER_CAPABILITY_NOT_SUPPORTED: 'PROVIDER_CAPABILITY_NOT_SUPPORTED',
 } as const;
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];
@@ -283,6 +297,80 @@ export function createOpportunityWorkflowError(
     code,
     message,
     statusCode,
+    requestId,
+  });
+}
+
+export function createContentNotFoundError(
+  contentId: string,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.CONTENT_NOT_FOUND,
+    message: `Content item '${contentId}' not found.`,
+    statusCode: 404,
+    requestId,
+  });
+}
+
+export function createContentVersionNotFoundError(
+  versionId: string,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.CONTENT_VERSION_NOT_FOUND,
+    message: `Content version '${versionId}' not found.`,
+    statusCode: 404,
+    requestId,
+  });
+}
+
+export function createContentBriefNotFoundError(
+  briefId: string,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.CONTENT_BRIEF_NOT_FOUND,
+    message: `Content brief '${briefId}' not found.`,
+    statusCode: 404,
+    requestId,
+  });
+}
+
+export function createContentWorkflowError(
+  message: string,
+  code: ErrorCodeType = ErrorCode.INVALID_CONTENT_STATUS,
+  statusCode = 400,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code,
+    message,
+    statusCode,
+    requestId,
+  });
+}
+
+export function createVersionConflictError(
+  message = 'A newer version has been saved or modified concurrently.',
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.VERSION_CONFLICT,
+    message,
+    statusCode: 409,
+    requestId,
+  });
+}
+
+export function createRedirectConflictError(
+  sourcePath: string,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.REDIRECT_CONFLICT,
+    message: `A redirect loop or conflict was detected for source path '${sourcePath}'.`,
+    statusCode: 409,
     requestId,
   });
 }

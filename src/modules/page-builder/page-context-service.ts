@@ -101,6 +101,13 @@ export interface PageContext {
   product?: ProductDto | null | undefined;
   storeProduct?: StoreProductDto | null | undefined;
 
+  contentItem?: any | null | undefined;
+  contentVersion?: any | null | undefined;
+  author?: any | null | undefined;
+  articles?: any[] | undefined;
+  relatedArticles?: any[] | undefined;
+  redirectUrl?: string | null | undefined;
+
   products: ProductDto[];
   nearbyStores: StoreDto[];
   reviews: ReviewDto[];
@@ -139,6 +146,12 @@ export class PageContextService {
       let category: { id: string; name: string; slug: string } | null = null;
       let product: ProductDto | null = null;
       let storeProduct: StoreProductDto | null = null;
+      let contentItem: any = null;
+      let contentVersion: any = null;
+      let author: any = null;
+      let articles: any[] = [];
+      let relatedArticles: any[] = [];
+      let redirectUrl: string | null = null;
       let products: ProductDto[] = [];
       let nearbyStores: StoreDto[] = [];
       let reviews: ReviewDto[] = [];
@@ -296,6 +309,63 @@ export class PageContextService {
               { name: prod.name, url: rawPath }
             );
           }
+        } else if (seg0 === 'blog' || seg0 === 'guides') {
+          // Article page: /blog/[slug] or /guides/[slug]
+          const item = await tx.contentItem.findFirst({
+            where: {
+              tenantId: tenant.id,
+              brandId: brand.id,
+              slug: seg1,
+              ...(isDraftOrPreview ? {} : { status: 'PUBLISHED' }),
+            },
+            include: {
+              versions: {
+                orderBy: { version: 'desc' },
+                take: 5,
+              },
+              author: true,
+              category: true,
+            },
+          });
+
+          if (item) {
+            pageType = 'ARTICLE';
+            contentItem = item;
+            const currentVer = item.versions.find((v: any) => v.version === item.currentVersionNumber) || item.versions[0];
+            const pubVer = item.versions.find((v: any) => v.id === item.publishedVersionId);
+            contentVersion = isDraftOrPreview ? (currentVer || pubVer) : (pubVer || currentVer);
+            author = item.author;
+
+            const related = await tx.contentItem.findMany({
+              where: {
+                tenantId: tenant.id,
+                brandId: brand.id,
+                status: 'PUBLISHED',
+                id: { not: item.id },
+              },
+              include: { versions: { take: 1, orderBy: { version: 'desc' } }, author: true },
+              take: 3,
+              orderBy: { publishedAt: 'desc' },
+            });
+            relatedArticles = related;
+
+            breadcrumbs.push(
+              { name: seg0 === 'guides' ? 'Guides' : 'Blog', url: `/${seg0}` },
+              { name: item.title, url: rawPath }
+            );
+          } else {
+            // Check for redirect
+            const redir = await tx.redirect.findFirst({
+              where: {
+                tenantId: tenant.id,
+                fromPath: rawPath,
+                isActive: true,
+              },
+            });
+            if (redir) {
+              redirectUrl = redir.toPath;
+            }
+          }
         } else {
           // Store page in city: e.g. /chennai/mannadi
           city = seg0;
@@ -388,14 +458,33 @@ export class PageContextService {
         }
       }
 
-      // C. CITY or CATEGORY: e.g. /chennai or /attars (1 segment)
+      // C. CITY or CATEGORY or BLOG: e.g. /chennai or /attars or /blog (1 segment)
       else if (cleanSegments.length === 1) {
         const seg = cleanSegments[0]!;
 
-        // 1. Try Category
-        const cat = await tx.category.findFirst({
-          where: { tenantId: tenant.id, brandId: brand.id, slug: seg },
-        });
+        if (seg === 'blog') {
+          pageType = 'BLOG_INDEX';
+          const blogItems = await tx.contentItem.findMany({
+            where: {
+              tenantId: tenant.id,
+              brandId: brand.id,
+              status: 'PUBLISHED',
+            },
+            include: {
+              versions: { take: 1, orderBy: { version: 'desc' } },
+              author: true,
+              category: true,
+            },
+            orderBy: { publishedAt: 'desc' },
+            take: 20,
+          });
+          articles = blogItems;
+          breadcrumbs.push({ name: 'Blog', url: '/blog' });
+        } else {
+          // 1. Try Category
+          const cat = await tx.category.findFirst({
+            where: { tenantId: tenant.id, brandId: brand.id, slug: seg },
+          });
 
         if (cat) {
           pageType = 'CATEGORY';
@@ -450,6 +539,7 @@ export class PageContextService {
           }
         }
       }
+    }
 
       // D. HOME: /
       if (cleanSegments.length === 0 || pageType === 'HOME') {
@@ -578,6 +668,22 @@ export class PageContextService {
         if (fSchema) structuredData.push(fSchema);
       }
 
+      // Article schema
+      if (contentItem && contentVersion) {
+        const artSchema = StructuredDataService.generateArticleSchema({
+          headline: contentItem.title,
+          description: contentVersion.seoDescription || contentItem.excerpt,
+          authorName: author?.name,
+          authorUrl: author?.slug ? `/authors/${author.slug}` : undefined,
+          publisherName: brand.name,
+          datePublished: contentItem.publishedAt ? new Date(contentItem.publishedAt).toISOString() : undefined,
+          dateModified: contentItem.updatedAt ? new Date(contentItem.updatedAt).toISOString() : undefined,
+          imageUrl: contentItem.featuredImageUrl || contentVersion.ogImageUrl,
+          url: domainHost ? `https://${domainHost}${rawPath}` : rawPath,
+        });
+        if (artSchema) structuredData.push(artSchema);
+      }
+
       // ── TRACKING CONTEXT ─────────────────────────────────────────────────
       let ga4MeasurementId: string | undefined = undefined;
       const ga4Mapping = await tx.internalResourceMapping.findFirst({
@@ -623,6 +729,12 @@ export class PageContextService {
         category,
         product,
         storeProduct,
+        contentItem,
+        contentVersion,
+        author,
+        articles,
+        relatedArticles,
+        redirectUrl,
         products,
         nearbyStores,
         reviews,

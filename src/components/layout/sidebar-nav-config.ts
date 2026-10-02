@@ -29,6 +29,7 @@ import {
   ShoppingBag,
   PhoneCall,
   Lightbulb,
+  BookOpen,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -95,6 +96,13 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         pillBadge: 'Explainable',
         badgeVariant: 'amber',
       },
+      {
+        label: 'Content & Blog CMS',
+        href: `/client/${slug}/content`,
+        icon: BookOpen,
+        pillBadge: 'CMS',
+        badgeVariant: 'indigo',
+      },
     ],
   },
   {
@@ -141,6 +149,20 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'Manage Store Locations',
         href: `/client/${slug}/locations`,
         icon: MapPin,
+      },
+    ],
+  },
+  {
+    heading: 'Local Listings & Citations',
+    sourceBadge: 'NAP',
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+    items: [
+      {
+        label: 'Directory Presence & NAP',
+        href: `/client/${slug}/listings`,
+        icon: Network,
+        pillBadge: 'Sync',
+        badgeVariant: 'indigo',
       },
     ],
   },
