@@ -69,4 +69,20 @@ export class TenantContextService {
       return operation(tx);
     });
   }
+
+  /**
+   * Executes a database operation within a transaction boundary scoped strictly to
+   * virtual tracking number discovery for inbound telephony webhooks (`app.telephony_lookup_scope = 'number_lookup'`).
+   * Mutation attempts are rejected by RLS.
+   */
+  public static async withTelephonyLookupContext<T>(
+    prisma: PrismaClient,
+    operation: (tx: Prisma.TransactionClient) => Promise<T>
+  ): Promise<T> {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT set_config('app.telephony_lookup_scope', 'number_lookup', true)`;
+
+      return operation(tx);
+    });
+  }
 }

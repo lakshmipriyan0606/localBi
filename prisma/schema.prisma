@@ -83,6 +83,9 @@ model Tenant {
   merchantProductMappings MerchantProductMapping[]
   merchantLocalInventories MerchantLocalInventoryState[]
   merchantProductIssues MerchantProductIssue[]
+  virtualNumbers       VirtualNumber[]
+  calls                Call[]
+  callEvents           CallEvent[]
 
   @@map("tenants")
 }
@@ -269,6 +272,8 @@ model Brand {
   merchantProductMappings MerchantProductMapping[]
   merchantLocalInventories MerchantLocalInventoryState[]
   merchantProductIssues MerchantProductIssue[]
+  virtualNumbers       VirtualNumber[]
+  calls                Call[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -315,6 +320,7 @@ model Location {
   latitude         Float?
   longitude        Float?
   googlePlaceId    String?   @map("google_place_id")
+  phone            String?
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -339,6 +345,8 @@ model Location {
   storeCompetitors StoreCompetitor[]
   merchantLocalInventories MerchantLocalInventoryState[]
   merchantProductIssues MerchantProductIssue[]
+  virtualNumbers       VirtualNumber[]
+  calls                Call[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -1031,6 +1039,8 @@ model WebSurface {
   attributionEvents AttributionEvent[]
   leads             Lead[]
   visitorSessions   VisitorSession[]
+  virtualNumbers   VirtualNumber[]
+  calls            Call[]
 
   @@unique([tenantId, id], name: "uq_web_surface_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_web_surface_tenant_brand_id")
@@ -1329,7 +1339,9 @@ model Lead {
   webSurface            WebSurface  @relation(fields: [webSurfaceId], references: [id], onDelete: Cascade)
   store                 Location?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
   product               Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  calls                 Call[]
 
+  @@unique([tenantId, id], name: "uq_lead_tenant_id")
   @@unique([tenantId, idempotencyKey], name: "uq_lead_tenant_idempotency")
   @@index([tenantId, createdAt], name: "idx_leads_tenant_created")
   @@index([tenantId, status, createdAt], name: "idx_leads_tenant_status_created")
@@ -1740,6 +1752,109 @@ model MerchantProductIssue {
   @@index([tenantId, mappingId, isResolved], name: "idx_merchant_issue_resolved")
   @@index([tenantId, brandId, severity], name: "idx_merchant_issue_severity")
   @@map("merchant_product_issues")
+}
+
+// =============================================================================
+// TELEPHONY & CALL ATTRIBUTION (Phase 9)
+// =============================================================================
+
+model VirtualNumber {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  brandId          String    @map("brand_id")
+  storeId          String?   @map("store_id")
+  webSurfaceId     String?   @map("web_surface_id")
+  provider         String    // TWILIO, EXOTEL, TEST_ADAPTER, MANUAL
+  providerNumberId String?   @map("provider_number_id")
+  phoneNumber      String    @map("phone_number") // Normalized E.164 (e.g. +914441234567)
+  countryCode      String    @default("IN") @map("country_code")
+  forwardingNumber String?   @map("forwarding_number") // Destination phone number (real store phone)
+  status           String    @default("AVAILABLE") // AVAILABLE, PROVISIONING, ACTIVE, SUSPENDED, RELEASE_PENDING, RELEASED, ERROR
+  capabilities     Json?     // voice, sms
+  createdAt        DateTime  @default(now()) @map("created_at")
+  activatedAt      DateTime? @map("activated_at")
+  releasedAt       DateTime? @map("released_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand            Brand       @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store            Location?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  webSurface       WebSurface? @relation(fields: [webSurfaceId], references: [id], onDelete: SetNull)
+  calls            Call[]
+
+  @@unique([tenantId, id], name: "uq_virtual_number_tenant_id")
+  @@unique([tenantId, phoneNumber], name: "uq_virtual_number_phone")
+  @@index([tenantId, brandId, status], name: "idx_vnumber_brand_status")
+  @@index([tenantId, storeId, status], name: "idx_vnumber_store_status")
+  @@map("virtual_numbers")
+}
+
+model Call {
+  id                    String    @id @default(cuid())
+  tenantId              String    @map("tenant_id")
+  brandId               String    @map("brand_id")
+  storeId               String?   @map("store_id")
+  webSurfaceId          String?   @map("web_surface_id")
+  pageId                String?   @map("page_id")
+  productId             String?   @map("product_id")
+  virtualNumberId       String    @map("virtual_number_id")
+  provider              String    // TWILIO, EXOTEL, TEST_ADAPTER, MANUAL
+  providerCallId        String    @map("provider_call_id") // Provider's Call SID / ID
+  direction             String    @default("INBOUND") // INBOUND
+  callerNumber          String?   @map("caller_number") // E.164 caller phone (PII)
+  callerNumberMasked    String?   @map("caller_number_masked") // Masked for non-PII roles (e.g. +91 ******1234)
+  destinationNumber     String?   @map("destination_number") // Forwarded destination
+  status                String    // INITIATED, RINGING, ANSWERED, COMPLETED, MISSED, BUSY, FAILED, CANCELLED
+  startedAt             DateTime  @default(now()) @map("started_at")
+  answeredAt            DateTime? @map("answered_at")
+  endedAt               DateTime? @map("ended_at")
+  durationSeconds       Int       @default(0) @map("duration_seconds")
+  talkDurationSeconds   Int       @default(0) @map("talk_duration_seconds")
+  recordingUrl          String?   @map("recording_url") // Protected provider recording reference
+  attributionConfidence String    @default("STORE_NUMBER") @map("attribution_confidence") // STORE_NUMBER, SESSION_DNI, CALL_CLICK_CORRELATED, DIRECT, UNKNOWN
+  source                String?   // google_organic, direct, google_ads, gbp
+  medium                String?
+  campaign              String?
+  attributionSessionId  String?   @map("attribution_session_id")
+  leadId                String?   @map("lead_id")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  tenant                Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                 Brand          @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store                 Location?      @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  webSurface            WebSurface?    @relation(fields: [webSurfaceId], references: [id], onDelete: SetNull)
+  virtualNumber         VirtualNumber  @relation(fields: [virtualNumberId], references: [id], onDelete: Cascade)
+  lead                  Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  events                CallEvent[]
+
+  @@unique([tenantId, id], name: "uq_call_tenant_id")
+  @@unique([tenantId, provider, providerCallId], name: "uq_call_provider_call_id")
+  @@index([tenantId, brandId, startedAt], name: "idx_calls_brand_started")
+  @@index([tenantId, storeId, startedAt], name: "idx_calls_store_started")
+  @@index([tenantId, status, startedAt], name: "idx_calls_status_started")
+  @@map("calls")
+}
+
+model CallEvent {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  callId          String   @map("call_id")
+  provider        String
+  providerEventId String   @map("provider_event_id") // Provider's unique event/sequence ID
+  eventType       String   @map("event_type") // initiated, ringing, answered, completed, hangup, etc.
+  occurredAt      DateTime @default(now()) @map("occurred_at")
+  payloadHash     String   @map("payload_hash") // SHA-256 for idempotency
+  details         Json?    // Normalized non-PII details
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  call            Call     @relation(fields: [tenantId, callId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_call_event_tenant_id")
+  @@unique([tenantId, provider, providerEventId], name: "uq_call_event_provider_event")
+  @@index([tenantId, callId, occurredAt], name: "idx_call_events_call_occurred")
+  @@map("call_events")
 }
 
 

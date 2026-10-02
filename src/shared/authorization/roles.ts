@@ -49,6 +49,10 @@ export const Action = {
   PRODUCT_DELETE: 'product:delete',
   CATEGORY_MANAGE: 'category:manage',
   STORE_PRODUCT_MANAGE: 'store_product:manage',
+  CALL_VIEW: 'call:view',
+  CALL_MANAGE_NUMBERS: 'call:manage_numbers',
+  CALL_EXPORT: 'call:export',
+  CALL_RECORDING_VIEW: 'call:recording_view',
 } as const;
 
 export type ActionType = typeof Action[keyof typeof Action];
@@ -65,6 +69,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.DASHBOARD_VIEW,
     Action.MICROSITE_VIEW,
     Action.PRODUCT_VIEW,
+    Action.CALL_VIEW,
   ]),
   CLIENT_OWNER: new Set(Object.values(Action)),
   CLIENT_ADMIN: new Set([
@@ -97,6 +102,10 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.PRODUCT_DELETE,
     Action.CATEGORY_MANAGE,
     Action.STORE_PRODUCT_MANAGE,
+    Action.CALL_VIEW,
+    Action.CALL_MANAGE_NUMBERS,
+    Action.CALL_EXPORT,
+    Action.CALL_RECORDING_VIEW,
   ]),
   BRAND_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -118,6 +127,9 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.PRODUCT_DELETE,
     Action.CATEGORY_MANAGE,
     Action.STORE_PRODUCT_MANAGE,
+    Action.CALL_VIEW,
+    Action.CALL_MANAGE_NUMBERS,
+    Action.CALL_EXPORT,
   ]),
   LOCATION_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -129,6 +141,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.MICROSITE_UPDATE,
     Action.PRODUCT_VIEW,
     Action.STORE_PRODUCT_MANAGE,
+    Action.CALL_VIEW,
   ]),
   ANALYST: new Set([
     Action.TENANT_VIEW,
@@ -138,6 +151,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.DASHBOARD_EXPORT,
     Action.MICROSITE_VIEW,
     Action.PRODUCT_VIEW,
+    Action.CALL_VIEW,
+    Action.CALL_EXPORT,
   ]),
   VIEWER: new Set([
     Action.TENANT_VIEW,
@@ -146,6 +161,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.DASHBOARD_VIEW,
     Action.MICROSITE_VIEW,
     Action.PRODUCT_VIEW,
+    Action.CALL_VIEW,
   ]),
 };
 

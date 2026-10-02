@@ -27,6 +27,7 @@ import {
   Package,
   Radar,
   ShoppingBag,
+  PhoneCall,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -263,6 +264,13 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: MousePointerClick,
         pillBadge: 'Live',
         badgeVariant: 'indigo',
+      },
+      {
+        label: 'Call Tracking & Numbers',
+        href: `/client/${slug}/telephony`,
+        icon: PhoneCall,
+        pillBadge: 'Voice',
+        badgeVariant: 'emerald',
       },
       {
         label: 'Microsite Leads & Visitors',
