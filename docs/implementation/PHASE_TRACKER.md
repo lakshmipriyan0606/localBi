@@ -5,7 +5,7 @@ Overall roadmap: 20 phases
 CURRENT_PHASE: 6
 CURRENT_STATUS: NOT_STARTED
 LAST_COMPLETED_PHASE: 5
-LAST_COMMIT: pending (Phase 5)
+LAST_COMMIT: 431d28f
 NEXT_PHASE: 6
 BLOCKERS: NONE
 
@@ -30,7 +30,7 @@ BLOCKERS: NONE
 | 2 | Catalog Engine (Categories, Products, StoreProduct) | COMPLETED | 2026-10-01 | 2026-10-01 | `4e3c3a4` | PASS | StoreProduct mapping, pricing, status, API routes & services |
 | 3 | Dynamic Website Engine (Puck CMS, BrandTheme, PageTemplate, SSR & SEO) | COMPLETED | 2026-10-01 | 2026-10-01 | `252e355` | PASS | Puck builder, dynamic SSR, theme tokens, structured data & SEO |
 | 4 | Web-Surface Analytics Isolation (GA4 + GSC + LocalBi-Only Performance) | COMPLETED | 2026-10-02 | 2026-10-02 | `79e3783` | PASS | GA4 hostname dimension filter, GSC URL prefix aggregation, surface compare view |
-| 5 | Lead & Conversion Attribution Engine (Calls + WhatsApp + Directions + Forms + Bookings) | COMPLETED | 2026-10-02 | 2026-10-02 | pending | PASS | Attribution events, leads inbox, short-window deduplication, RLS on 45 tables |
+| 5 | Lead & Conversion Attribution Engine (Calls + WhatsApp + Directions + Forms + Bookings) | COMPLETED | 2026-10-02 | 2026-10-02 | `431d28f` | PASS | Attribution events, leads inbox, short-window deduplication, RLS on 45 tables |
 | 6 | Google Business Profile Operations (Locations + Reviews + Posts + Media + Location Intelligence) | NOT_STARTED | | | | | |
 | 7 | Hyper Rank / Local Search Visibility Engine (Keywords + Geo-Grid Rank Tracking + Competitor Intelligence) | NOT_STARTED | | | | | |
 | 8 | Google Merchant Center + Local Product Inventory (Products + Store Inventory + Feed Sync + Diagnostics) | NOT_STARTED | | | | | |
