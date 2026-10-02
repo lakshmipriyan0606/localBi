@@ -117,18 +117,80 @@ export class LocalBiTracker {
     return clean;
   }
 
+  public static getVisitorId(): string {
+    if (typeof window === 'undefined') return '';
+    try {
+      let vid = localStorage.getItem('lb_vid');
+      if (!vid) {
+        vid = 'v_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+        localStorage.setItem('lb_vid', vid);
+      }
+      return vid;
+    } catch {
+      return '';
+    }
+  }
+
+  public static getSessionId(): string {
+    if (typeof window === 'undefined') return '';
+    try {
+      let sid = sessionStorage.getItem('lb_sid');
+      if (!sid) {
+        sid = 's_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+        sessionStorage.setItem('lb_sid', sid);
+      }
+      return sid;
+    } catch {
+      return '';
+    }
+  }
+
   /**
-   * Dispatches a standardized LocalBi event to GA4 dataLayer.
+   * Dispatches a standardized LocalBi event to GA4 dataLayer and LocalBi internal database.
    */
   public static track(eventName: LocalBiEventType, params: LocalBiEventParams): void {
     if (typeof window === 'undefined') return;
 
     const sanitized = this.sanitizeParams(params);
 
+    // 1. Dispatch to GA4 dataLayer
     if (window.gtag) {
       window.gtag('event', eventName, sanitized);
     } else if (window.dataLayer) {
       window.dataLayer.push({ event: eventName, ...sanitized });
+    }
+
+    // 2. Dispatch to LocalBi Internal Event Ingestion API
+    try {
+      const visitorId = this.getVisitorId();
+      const sessionId = this.getSessionId();
+      const payload = JSON.stringify({
+        eventType: eventName,
+        visitorId,
+        sessionId,
+        brandId: params.brandId,
+        webSurfaceId: params.webSurfaceId,
+        storeId: params.storeId,
+        productId: params.productId,
+        categoryId: params.categoryId,
+        pageType: params.pageType,
+        url: window.location.pathname,
+        referrer: document.referrer || undefined,
+        metadata: sanitized,
+      });
+
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/v1/pixel/track', new Blob([payload], { type: 'application/json' }));
+      } else {
+        fetch('/api/v1/pixel/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } catch {
+      // Fire-and-forget: never break client-side execution
     }
   }
 }

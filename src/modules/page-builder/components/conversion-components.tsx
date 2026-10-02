@@ -196,26 +196,91 @@ export function LeadForm({
   subheading = 'Leave your details and a store representative will connect with you shortly.',
   submitLabel = 'Submit Inquiry',
 }: LeadFormProps) {
-  const { store, brand, webSurface, pageType } = usePageContext();
+  const { store, brand, webSurface, pageType, product } = usePageContext();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  const [honeypot, setHoneypot] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Stable client idempotency key to prevent accidental duplicate lead creation
+  const [idempotencyKey] = useState(() => {
+    return 'ik_' + Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone) return;
-    setSubmitted(true);
-    // Strictly zero PII sent to GA4
-    LocalBiTracker.track('lead_form_submit', {
-      brand: brand.name,
-      brandId: brand.id,
-      surface: webSurface.type,
-      webSurfaceId: webSurface.id,
-      pageType,
-      storeId: store?.id,
-      storeName: store?.name,
-    });
+    if (!phone || submitting) return;
+
+    try {
+      setSubmitting(true);
+      setErrorMessage(null);
+
+      // Parse UTM parameters from URL if in browser
+      const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const utmSource = searchParams.get('utm_source') || undefined;
+      const utmMedium = searchParams.get('utm_medium') || undefined;
+      const utmCampaign = searchParams.get('utm_campaign') || undefined;
+      const utmContent = searchParams.get('utm_content') || undefined;
+      const utmTerm = searchParams.get('utm_term') || undefined;
+      const gclid = searchParams.get('gclid') || undefined;
+
+      const visitorId = LocalBiTracker.getVisitorId();
+      const sessionId = LocalBiTracker.getSessionId();
+
+      const response = await fetch('/api/v1/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          phone,
+          message: notes,
+          idempotencyKey,
+          brandId: brand.id,
+          webSurfaceId: webSurface.id,
+          storeId: store?.id || undefined,
+          productId: product?.id || undefined,
+          visitorId,
+          sessionId,
+          currentPath: typeof window !== 'undefined' ? window.location.pathname : undefined,
+          referrer: typeof document !== 'undefined' ? document.referrer || undefined : undefined,
+          utmSource,
+          utmMedium,
+          utmCampaign,
+          utmContent,
+          utmTerm,
+          gclid,
+          _hp_company: honeypot, // Honeypot spam protection
+        }),
+      });
+
+      const resData = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(resData?.error || 'Unable to submit inquiry. Please try again.');
+      }
+
+      setSubmitted(true);
+
+      // Strictly zero PII sent to GA4
+      LocalBiTracker.track('lead_form_submit', {
+        brand: brand.name,
+        brandId: brand.id,
+        surface: webSurface.type,
+        webSurfaceId: webSurface.id,
+        pageType,
+        storeId: store?.id,
+        storeName: store?.name,
+        productId: product?.id,
+        productName: product?.name,
+      });
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An unexpected error occurred.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -237,6 +302,24 @@ export function LeadForm({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Hidden honeypot field to catch spam bots */}
+          <input
+            type="text"
+            name="_hp_company"
+            value={honeypot}
+            onChange={(e) => setHoneypot(e.target.value)}
+            style={{ display: 'none' }}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+          />
+
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Your Name
@@ -244,10 +327,11 @@ export function LeadForm({
             <input
               type="text"
               required
+              disabled={submitting}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Rahul Sharma"
-              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 disabled:opacity-50"
             />
           </div>
 
@@ -258,10 +342,11 @@ export function LeadForm({
             <input
               type="tel"
               required
+              disabled={submitting}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="e.g. +91 98765 43210"
-              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 disabled:opacity-50"
             />
           </div>
 
@@ -271,22 +356,24 @@ export function LeadForm({
             </label>
             <textarea
               rows={3}
+              disabled={submitting}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Tell us what you are looking for..."
-              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900"
+              className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 disabled:opacity-50"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl font-semibold text-xs text-white shadow-sm hover:opacity-95 transition-opacity"
+            disabled={submitting}
+            className="w-full py-3 rounded-xl font-semibold text-xs text-white shadow-sm hover:opacity-95 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             style={{
               backgroundColor: 'var(--brand-primary, #4F46E5)',
               borderRadius: 'var(--brand-button-radius, 0.5rem)',
             }}
           >
-            {submitLabel}
+            {submitting ? 'Submitting Inquiry...' : submitLabel}
           </button>
         </form>
       )}

@@ -228,6 +228,13 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: Globe,
       },
       {
+        label: 'Leads & Conversions',
+        href: `/client/${slug}/leads`,
+        icon: MousePointerClick,
+        pillBadge: 'Live',
+        badgeVariant: 'indigo',
+      },
+      {
         label: 'Microsite Leads & Visitors',
         href: `/client/${slug}/visitors`,
         icon: Fingerprint,

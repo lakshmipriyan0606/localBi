@@ -66,6 +66,9 @@ model Tenant {
   pages                Page[]
   seoConfigs           SeoConfig[]
   ga4DailyMetrics      Ga4DailyMetric[]
+  attributionEvents    AttributionEvent[]
+  leads                Lead[]
+  visitorSessions      VisitorSession[]
 
   @@map("tenants")
 }
@@ -242,6 +245,9 @@ model Brand {
   seoConfigs       SeoConfig[]
   resourceMappings InternalResourceMapping[]
   ga4DailyMetrics  Ga4DailyMetric[]
+  attributionEvents AttributionEvent[]
+  leads             Lead[]
+  visitorSessions   VisitorSession[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -295,6 +301,8 @@ model Location {
   gbpPosts         GbpPost[]
   gbpMedia         GbpMedia[]
   pages            Page[]
+  attributionEvents AttributionEvent[]
+  leads             Lead[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -337,6 +345,7 @@ model Category {
   children    Category[] @relation("CategoryHierarchy")
   products    Product[]
   pages       Page[]
+  attributionEvents AttributionEvent[]
 
   @@unique([tenantId, id], name: "uq_category_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_category_tenant_brand_id")
@@ -373,6 +382,8 @@ model Product {
   media            ProductMedia[]
   productLocations ProductLocation[] // Deprecated: legacy composite mapping preserved
   pages            Page[]
+  attributionEvents AttributionEvent[]
+  leads             Lead[]
 
   @@unique([tenantId, id], name: "uq_product_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
@@ -977,6 +988,9 @@ model WebSurface {
   seoConfigs       SeoConfig[]
   resourceMappings InternalResourceMapping[]
   ga4DailyMetrics  Ga4DailyMetric[]
+  attributionEvents AttributionEvent[]
+  leads             Lead[]
+  visitorSessions   VisitorSession[]
 
   @@unique([tenantId, id], name: "uq_web_surface_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_web_surface_tenant_brand_id")
@@ -1159,4 +1173,160 @@ model Ga4DailyMetric {
   @@index([tenantId, brandId, date], name: "idx_ga4_daily_metric_brand_date")
   @@map("ga4_daily_metrics")
 }
+
+// -----------------------------------------------------------------------------
+// PHASE 5: LEAD & CONVERSION ATTRIBUTION ENGINE
+// -----------------------------------------------------------------------------
+
+enum AttributionEventType {
+  PAGE_VIEW
+  CALL_CLICK
+  WHATSAPP_CLICK
+  DIRECTIONS_CLICK
+  FORM_START
+  FORM_SUBMIT
+  BOOKING_START
+  BOOKING_COMPLETE
+  CTA_CLICK
+}
+
+enum LeadType {
+  FORM
+  CALL
+  WHATSAPP
+  BOOKING
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  CLOSED
+  SPAM
+}
+
+model AttributionEvent {
+  id              String               @id @default(cuid())
+  tenantId        String               @map("tenant_id")
+  brandId         String               @map("brand_id")
+  webSurfaceId    String               @map("web_surface_id")
+  pageId          String?              @map("page_id")
+  pageType        String?              @map("page_type")
+  storeId         String?              @map("store_id")
+  productId       String?              @map("product_id")
+  categoryId      String?              @map("category_id")
+  visitorId       String?              @map("visitor_id")
+  sessionId       String?              @map("session_id")
+  eventType       AttributionEventType @map("event_type")
+  source          String               @default("direct")
+  medium          String               @default("none")
+  campaign        String?
+  landingPath     String?              @map("landing_path")
+  currentPath     String?              @map("current_path")
+  referrer        String?
+  utmSource       String?              @map("utm_source")
+  utmMedium       String?              @map("utm_medium")
+  utmCampaign     String?              @map("utm_campaign")
+  utmContent      String?              @map("utm_content")
+  utmTerm         String?              @map("utm_term")
+  gclid           String?
+  metadata        Json?
+  occurredAt      DateTime             @default(now()) @map("occurred_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand           Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  webSurface      WebSurface           @relation(fields: [webSurfaceId], references: [id], onDelete: Cascade)
+  store           Location?            @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  product         Product?             @relation(fields: [productId], references: [id], onDelete: SetNull)
+  category        Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, occurredAt], name: "idx_attr_event_tenant_occurred")
+  @@index([tenantId, brandId, occurredAt], name: "idx_attr_event_tenant_brand_occurred")
+  @@index([tenantId, webSurfaceId, occurredAt], name: "idx_attr_event_tenant_surface_occurred")
+  @@index([tenantId, storeId, occurredAt], name: "idx_attr_event_tenant_store_occurred")
+  @@index([tenantId, productId, occurredAt], name: "idx_attr_event_tenant_product_occurred")
+  @@index([tenantId, eventType, occurredAt], name: "idx_attr_event_tenant_type_occurred")
+  @@index([tenantId, sessionId], name: "idx_attr_event_tenant_session")
+  @@map("attribution_events")
+}
+
+model Lead {
+  id                    String      @id @default(cuid())
+  tenantId              String      @map("tenant_id")
+  brandId               String      @map("brand_id")
+  webSurfaceId          String      @map("web_surface_id")
+  pageId                String?     @map("page_id")
+  storeId               String?     @map("store_id")
+  productId             String?     @map("product_id")
+  visitorId             String?     @map("visitor_id")
+  sessionId             String?     @map("session_id")
+  type                  LeadType    @default(FORM)
+  status                LeadStatus  @default(NEW)
+  name                  String?
+  phone                 String?
+  email                 String?
+  message               String?     @db.Text
+  sourceEventId         String?     @map("source_event_id")
+  idempotencyKey        String?     @map("idempotency_key")
+  firstTouchSource      String?     @map("first_touch_source")
+  firstTouchMedium      String?     @map("first_touch_medium")
+  firstTouchCampaign    String?     @map("first_touch_campaign")
+  firstTouchLandingPage String?     @map("first_touch_landing_page")
+  lastTouchSource       String?     @map("last_touch_source")
+  lastTouchMedium       String?     @map("last_touch_medium")
+  lastTouchCampaign     String?     @map("last_touch_campaign")
+  lastTouchPage         String?     @map("last_touch_page")
+  provider              String?
+  providerInteractionId String?     @map("provider_interaction_id")
+  metadata              Json?
+  createdAt             DateTime    @default(now()) @map("created_at")
+  updatedAt             DateTime    @updatedAt @map("updated_at")
+
+  tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                 Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  webSurface            WebSurface  @relation(fields: [webSurfaceId], references: [id], onDelete: Cascade)
+  store                 Location?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  product               Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey], name: "uq_lead_tenant_idempotency")
+  @@index([tenantId, createdAt], name: "idx_leads_tenant_created")
+  @@index([tenantId, status, createdAt], name: "idx_leads_tenant_status_created")
+  @@index([tenantId, storeId, createdAt], name: "idx_leads_tenant_store_created")
+  @@index([tenantId, brandId, createdAt], name: "idx_leads_tenant_brand_created")
+  @@index([tenantId, webSurfaceId, createdAt], name: "idx_leads_tenant_surface_created")
+  @@index([tenantId, type, createdAt], name: "idx_leads_tenant_type_created")
+  @@map("leads")
+}
+
+model VisitorSession {
+  id                    String      @id @default(cuid())
+  tenantId              String      @map("tenant_id")
+  visitorId             String      @map("visitor_id")
+  sessionId             String      @map("session_id")
+  brandId               String?     @map("brand_id")
+  webSurfaceId          String?     @map("web_surface_id")
+  firstTouchSource      String?     @map("first_touch_source")
+  firstTouchMedium      String?     @map("first_touch_medium")
+  firstTouchCampaign    String?     @map("first_touch_campaign")
+  firstTouchLandingPage String?     @map("first_touch_landing_page")
+  lastTouchSource       String?     @map("last_touch_source")
+  lastTouchMedium       String?     @map("last_touch_medium")
+  lastTouchCampaign     String?     @map("last_touch_campaign")
+  lastTouchPage         String?     @map("last_touch_page")
+  devicePlatform        String?     @map("device_platform")
+  browser               String?
+  firstSeenAt           DateTime    @default(now()) @map("first_seen_at")
+  lastSeenAt            DateTime    @default(now()) @map("last_seen_at")
+
+  tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand                 Brand?      @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  webSurface            WebSurface? @relation(fields: [webSurfaceId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, sessionId], name: "uq_visitor_session_tenant_session")
+  @@index([tenantId, visitorId], name: "idx_visitor_session_visitor")
+  @@map("visitor_sessions")
+}
+
 
