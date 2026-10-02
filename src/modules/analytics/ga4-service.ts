@@ -5,6 +5,7 @@ import { logger } from '@/shared/observability/logger';
 import { getRedisClient } from '@/shared/database/redis-client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { Prisma } from '@prisma/client';
+import { AnalyticsUrlNormalizer } from './url-normalizer';
 export type Ga4ReportStatus =
   | 'ready'
   | 'empty'
@@ -125,6 +126,9 @@ export interface Ga4RealPropertyData {
   tenantSlug: string;
   propertyName: string;
   propertyId: string;
+  webSurfaceId?: string | undefined;
+  webSurfaceType?: string | undefined;
+  hostnameFilter?: string | undefined;
   dateRange: string;
   activeUsers: number;
   activeUsersDelta?: number | null;
@@ -151,6 +155,10 @@ export interface Ga4RealPropertyData {
   engagementOverview: Ga4EngagementOverviewData;
   trend: Ga4DailyDataPoint[];
   retention: Ga4RetentionPoint[];
+  compare?: {
+    original?: Ga4RealPropertyData | undefined;
+    localbi?: Ga4RealPropertyData | undefined;
+  } | undefined;
   lastSyncedAt?: string | undefined;
   code?: string | undefined;
   error?: string | undefined;
@@ -187,7 +195,12 @@ export class Ga4AnalyticsService {
     propertyName = '',
     status?: Ga4ReportStatus,
     error?: string,
-    code?: string
+    code?: string,
+    extra?: {
+      webSurfaceId?: string | undefined;
+      webSurfaceType?: string | undefined;
+      hostnameFilter?: string | undefined;
+    } | undefined
   ): Ga4RealPropertyData {
     const resolvedStatus: Ga4ReportStatus = status ?? (propertyId ? 'empty' : 'not_configured');
     return {
@@ -196,6 +209,9 @@ export class Ga4AnalyticsService {
       tenantSlug,
       propertyName: propertyName || (propertyId ? `GA4 Property: ${propertyId}` : 'Not Connected'),
       propertyId: propertyId ? Ga4AnalyticsService.normalizePropertyId(propertyId) : '',
+      webSurfaceId: extra?.webSurfaceId,
+      webSurfaceType: extra?.webSurfaceType,
+      hostnameFilter: extra?.hostnameFilter,
       dateRange: 'No data synced',
       activeUsers: 0,
       activeUsersDelta: null,
@@ -237,14 +253,67 @@ export class Ga4AnalyticsService {
   }
 
   /**
+   * Compares Original Website vs LocalBi Microsite side-by-side without summing non-additive metrics.
+   */
+  public static async getCompareGa4Data(params: {
+    tenantSlug: string;
+    brandId?: string | undefined;
+    locationId?: string | undefined;
+    startDate?: string | undefined;
+    endDate?: string | undefined;
+    days?: number | undefined;
+  }): Promise<Ga4RealPropertyData> {
+    const { tenantSlug, brandId } = params;
+    if (!brandId) {
+      return this.getEmptyGa4Data(tenantSlug, '', '', 'not_configured', 'brandId required for compare mode');
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug: tenantSlug },
+      select: { id: true },
+    });
+    if (!tenant) {
+      return this.getEmptyGa4Data(tenantSlug, '', '', 'not_configured', 'Tenant not found');
+    }
+
+    const surfaces = await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
+      return tx.webSurface.findMany({
+        where: { tenantId: tenant.id, brandId },
+      });
+    });
+
+    const originalSurface = surfaces.find((s) => s.type === 'ORIGINAL');
+    const localbiSurface = surfaces.find((s) => s.type === 'LOCALBI');
+
+    const [originalData, localbiData] = await Promise.all([
+      originalSurface
+        ? this.getTenantGa4Data({ ...params, webSurfaceId: originalSurface.id, mode: 'ORIGINAL' })
+        : Promise.resolve(this.getEmptyGa4Data(tenantSlug, '', 'Original Website', 'not_configured', 'Original website analytics not connected')),
+      localbiSurface
+        ? this.getTenantGa4Data({ ...params, webSurfaceId: localbiSurface.id, mode: 'LOCALBI' })
+        : Promise.resolve(this.getEmptyGa4Data(tenantSlug, '', 'LocalBi Microsite', 'not_configured', 'LocalBi microsite analytics not connected')),
+    ]);
+
+    return {
+      ...localbiData,
+      compare: {
+        original: originalData,
+        localbi: localbiData,
+      },
+    };
+  }
+
+  /**
    * Retrieves verified GA4 property telemetry for a tenant with full real-data pipeline.
-   * Respects Invariants: Tenant Isolation, Explicit Resource Mapping, and Real Data Only.
+   * Respects Invariants: Tenant Isolation, WebSurface Scope, Hostname Isolation, and Real Data Only.
    */
   public static async getTenantGa4Data(
     input: string | {
       tenantSlug: string;
       brandId?: string | undefined;
       locationId?: string | undefined;
+      webSurfaceId?: string | undefined;
+      mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
       startDate?: string | undefined;
       endDate?: string | undefined;
       days?: number | undefined;
@@ -252,6 +321,8 @@ export class Ga4AnalyticsService {
     options?: {
       brandId?: string | undefined;
       locationId?: string | undefined;
+      webSurfaceId?: string | undefined;
+      mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
       startDate?: string | undefined;
       endDate?: string | undefined;
       days?: number | undefined;
@@ -260,7 +331,12 @@ export class Ga4AnalyticsService {
     const params = typeof input === 'string'
       ? { tenantSlug: input, ...(options || {}) }
       : { ...input, ...(options || {}) };
-    const { tenantSlug, brandId, locationId } = params;
+    const { tenantSlug, brandId, locationId, webSurfaceId, mode } = params;
+
+    // Handle COMPARE mode
+    if (mode === 'COMPARE' && brandId) {
+      return this.getCompareGa4Data(params);
+    }
 
     // Default to last 30 days if not specified
     const today = new Date();
@@ -269,6 +345,11 @@ export class Ga4AnalyticsService {
     pastDate.setDate(today.getDate() - daysOffset);
     const startDate = params.startDate || pastDate.toISOString().slice(0, 10);
     const endDate = params.endDate || today.toISOString().slice(0, 10);
+
+    let cleanPropertyId = '';
+    let ga4Resource: any = null;
+    let resolvedSurface: any = null;
+    let cleanHostname: string | undefined = undefined;
 
     try {
       const tenant = await prisma.tenant.findUnique({
@@ -280,28 +361,67 @@ export class Ga4AnalyticsService {
         return Ga4AnalyticsService.getEmptyGa4Data(tenantSlug, '', '', 'not_configured', 'Tenant not found');
       }
 
-      const { effectiveMapping, connection } = await TenantContextService.withTenantContext(prisma, tenant.id, async (tx: Prisma.TransactionClient) => {
-        // 1. Resolve explicit internal resource mapping for GA4
-        const ga4Mapping = await tx.internalResourceMapping.findFirst({
-          where: {
-            tenantId: tenant.id,
-            resource: {
-              provider: 'GOOGLE_ANALYTICS_4',
-            },
-            ...(brandId
-              ? { internalType: 'BRAND', internalId: brandId }
-              : locationId
-              ? { internalType: 'LOCATION', internalId: locationId }
-              : {}),
-          },
-          include: {
-            resource: true,
-          },
-        });
+      const resContext = await TenantContextService.withTenantContext(
+        prisma,
+        tenant.id,
+        async (tx: Prisma.TransactionClient) => {
+          let targetSurface = null;
 
-        // If no mapping found for this brand/location, check if tenant has any mapped GA4 property
-        const effectiveMapping = ga4Mapping || (!brandId && !locationId
-          ? await tx.internalResourceMapping.findFirst({
+          if (webSurfaceId) {
+            targetSurface = await tx.webSurface.findFirst({
+              where: { tenantId: tenant.id, id: webSurfaceId },
+              include: { domains: true },
+            });
+          } else if (brandId) {
+            // LocalBi dashboard product requirement: default to LOCALBI surface
+            const targetType = mode === 'ORIGINAL' ? 'ORIGINAL' : 'LOCALBI';
+            targetSurface = await tx.webSurface.findFirst({
+              where: { tenantId: tenant.id, brandId, type: targetType },
+              include: { domains: true },
+            });
+          }
+
+          // 1. Resolve explicit internal resource mapping for WEBSURFACE
+          let ga4Mapping = null;
+          if (targetSurface) {
+            ga4Mapping = await tx.internalResourceMapping.findFirst({
+              where: {
+                tenantId: tenant.id,
+                internalType: 'WEBSURFACE',
+                internalId: targetSurface.id,
+                resource: {
+                  provider: 'GOOGLE_ANALYTICS_4',
+                },
+              },
+              include: {
+                resource: true,
+              },
+            });
+          }
+
+          // 2. If no WEBSURFACE mapping, check brand/location fallback
+          if (!ga4Mapping) {
+            ga4Mapping = await tx.internalResourceMapping.findFirst({
+              where: {
+                tenantId: tenant.id,
+                resource: {
+                  provider: 'GOOGLE_ANALYTICS_4',
+                },
+                ...(brandId
+                  ? { internalType: 'BRAND', internalId: brandId }
+                  : locationId
+                  ? { internalType: 'LOCATION', internalId: locationId }
+                  : {}),
+              },
+              include: {
+                resource: true,
+              },
+            });
+          }
+
+          // 3. Fallback to tenant-wide mapping ONLY if no brand, location, or surface requested
+          if (!ga4Mapping && !brandId && !locationId && !webSurfaceId) {
+            ga4Mapping = await tx.internalResourceMapping.findFirst({
               where: {
                 tenantId: tenant.id,
                 resource: {
@@ -311,34 +431,63 @@ export class Ga4AnalyticsService {
               include: {
                 resource: true,
               },
-            })
-          : null);
+            });
+          }
 
-        // 2. Resolve active Google OAuth Connection for this tenant
-        const connection = await tx.integrationConnection.findFirst({
-          where: {
-            tenantId: tenant.id,
-            provider: 'GOOGLE',
-            status: 'ACTIVE',
-          },
-        });
+          // 4. Resolve active Google OAuth Connection for this tenant
+          const connection = await tx.integrationConnection.findFirst({
+            where: {
+              tenantId: tenant.id,
+              provider: 'GOOGLE',
+              status: 'ACTIVE',
+            },
+          });
 
-        return { effectiveMapping, connection };
-      });
+          return { effectiveMapping: ga4Mapping, resolvedSurface: targetSurface, connection };
+        }
+      );
+
+      const { effectiveMapping, connection } = resContext;
+      resolvedSurface = resContext.resolvedSurface;
 
       if (!effectiveMapping || !effectiveMapping.resource) {
-        logger.info({ tenantSlug, brandId, locationId }, 'ga4.mapping.missing: No GA4 property mapped');
+        logger.info({ tenantSlug, brandId, locationId, webSurfaceId }, 'ga4.mapping.missing: No GA4 property mapped');
         return Ga4AnalyticsService.getEmptyGa4Data(
           tenantSlug,
           '',
-          '',
+          resolvedSurface?.type === 'ORIGINAL' ? 'Original Website' : 'LocalBi Microsite',
           'not_configured',
-          'No verified GA4 property is linked to this organization or brand.'
+          'No verified GA4 property is linked to this organization or brand.',
+          undefined,
+          {
+            webSurfaceId: resolvedSurface?.id,
+            webSurfaceType: resolvedSurface?.type,
+          }
         );
       }
 
-      const ga4Resource = effectiveMapping.resource;
-      const cleanPropertyId = ga4Resource.externalResourceId.replace(/^properties\//, '');
+      ga4Resource = effectiveMapping.resource;
+      cleanPropertyId = ga4Resource.externalResourceId.replace(/^properties\//, '');
+
+      // Derive clean hostname filter for surface isolation
+      let rawHostname: string | undefined = effectiveMapping.hostnameFilter || undefined;
+      if (!rawHostname && resolvedSurface?.domains?.length) {
+        const prim = resolvedSurface.domains.find((d: any) => d.isPrimary) || resolvedSurface.domains[0];
+        rawHostname = prim?.hostname;
+      }
+      cleanHostname = rawHostname ? AnalyticsUrlNormalizer.normalizeHostname(rawHostname) : undefined;
+
+      const hostDimensionFilter = cleanHostname
+        ? {
+            filter: {
+              fieldName: 'hostName',
+              stringFilter: {
+                matchType: 'EXACT',
+                value: cleanHostname,
+              },
+            },
+          }
+        : undefined;
 
       if (!connection) {
         logger.warn({ tenantSlug, propertyId: ga4Resource.externalResourceId }, 'ga4.auth.missing: No active Google connection');
@@ -346,9 +495,14 @@ export class Ga4AnalyticsService {
           tenantSlug,
           ga4Resource.externalResourceId,
           ga4Resource.resourceName,
-          'error',
-          'Google integration connection is missing or revoked.',
-          'GA4_AUTH_REQUIRED'
+          'permission_required',
+          'Google integration connection requires re-authentication or has been revoked.',
+          'GA4_AUTH_REQUIRED',
+          {
+            webSurfaceId: resolvedSurface?.id,
+            webSurfaceType: resolvedSurface?.type,
+            hostnameFilter: cleanHostname,
+          }
         );
       }
 
@@ -365,13 +519,19 @@ export class Ga4AnalyticsService {
           ga4Resource.resourceName,
           'permission_required',
           'Connected Google account has not been granted Google Analytics permission (analytics.readonly).',
-          'GA4_PERMISSION_REQUIRED'
+          'GA4_PERMISSION_REQUIRED',
+          {
+            webSurfaceId: resolvedSurface?.id,
+            webSurfaceType: resolvedSurface?.type,
+            hostnameFilter: cleanHostname,
+          }
         );
       }
 
-      // 4. Check Redis cache for authorized real telemetry
+      // 4. Check Redis cache for authorized real telemetry with surface-aware key
       const redis = getRedisClient();
-      const cacheKey = `ga4:report:${tenant.id}:${brandId || 'all'}:${cleanPropertyId}:${startDate}:${endDate}`;
+      const resolvedSurfaceId = resolvedSurface?.id || 'all';
+      const cacheKey = `ga4:report:${tenant.id}:${brandId || 'all'}:${resolvedSurfaceId}:${cleanPropertyId}:${cleanHostname || 'all'}:${startDate}:${endDate}`;
       if (redis) {
         try {
           const cached = await redis.get(cacheKey);
@@ -401,7 +561,7 @@ export class Ga4AnalyticsService {
       const prevEnd = new Date(startMs - 1000 * 60 * 60 * 24).toISOString().slice(0, 10);
       const prevStart = new Date(startMs - durationDays * 1000 * 60 * 60 * 24).toISOString().slice(0, 10);
 
-      // 7. Query Real GA4 Data API for Primary Overview & Timeseries
+      // 7. Query Real GA4 Data API for Primary Overview & Timeseries with hostname isolation
       const primaryReport = await GoogleApiClient.queryGa4AnalyticsReport({
         accessToken,
         propertyId: cleanPropertyId,
@@ -421,10 +581,11 @@ export class Ga4AnalyticsService {
           'keyEvents',
           'screenPageViews',
         ],
+        dimensionFilter: hostDimensionFilter,
         orderBys: [{ dimension: { dimensionName: 'date' }, desc: false }],
       });
 
-      // 8. Query Real Acquisition Channels
+      // 8. Query Real Acquisition Channels with hostname isolation
       let channelsReport: any = null;
       try {
         channelsReport = await GoogleApiClient.queryGa4AnalyticsReport({
@@ -433,13 +594,14 @@ export class Ga4AnalyticsService {
           dateRanges: [{ startDate, endDate }],
           dimensions: ['sessionDefaultChannelGroup'],
           metrics: ['sessions', 'activeUsers', 'newUsers'],
+          dimensionFilter: hostDimensionFilter,
           limit: 10,
         });
       } catch (chErr) {
         logger.warn({ chErr }, 'Failed querying GA4 channels breakdown');
       }
 
-      // 9. Query Real Top Pages & Screens
+      // 9. Query Real Top Pages & Screens with hostname isolation
       let pagesReport: any = null;
       try {
         pagesReport = await GoogleApiClient.queryGa4AnalyticsReport({
@@ -448,13 +610,14 @@ export class Ga4AnalyticsService {
           dateRanges: [{ startDate, endDate }],
           dimensions: ['pagePath', 'pageTitle'],
           metrics: ['screenPageViews', 'activeUsers', 'eventCount', 'bounceRate', 'averageSessionDuration'],
+          dimensionFilter: hostDimensionFilter,
           limit: 15,
         });
       } catch (pErr) {
         logger.warn({ pErr }, 'Failed querying GA4 pages breakdown');
       }
 
-      // 10. Query Real Devices & Platforms
+      // 10. Query Real Devices & Platforms with hostname isolation
       let devicesReport: any = null;
       try {
         devicesReport = await GoogleApiClient.queryGa4AnalyticsReport({
@@ -463,13 +626,14 @@ export class Ga4AnalyticsService {
           dateRanges: [{ startDate, endDate }],
           dimensions: ['deviceCategory'],
           metrics: ['sessions'],
+          dimensionFilter: hostDimensionFilter,
           limit: 5,
         });
       } catch (devErr) {
         logger.warn({ devErr }, 'Failed querying GA4 devices breakdown');
       }
 
-      // 11. Query Real Geographic Markets
+      // 11. Query Real Geographic Markets with hostname isolation
       let countriesReport: any = null;
       try {
         countriesReport = await GoogleApiClient.queryGa4AnalyticsReport({
@@ -478,13 +642,14 @@ export class Ga4AnalyticsService {
           dateRanges: [{ startDate, endDate }],
           dimensions: ['country'],
           metrics: ['sessions', 'activeUsers'],
+          dimensionFilter: hostDimensionFilter,
           limit: 10,
         });
       } catch (cntErr) {
         logger.warn({ cntErr }, 'Failed querying GA4 countries breakdown');
       }
 
-      // 12. Query Real Event Name Breakdown
+      // 12. Query Real Event Name Breakdown with hostname isolation
       let eventsReport: any = null;
       try {
         eventsReport = await GoogleApiClient.queryGa4AnalyticsReport({
@@ -493,6 +658,7 @@ export class Ga4AnalyticsService {
           dateRanges: [{ startDate, endDate }],
           dimensions: ['eventName'],
           metrics: ['eventCount', 'totalUsers'],
+          dimensionFilter: hostDimensionFilter,
           limit: 20,
         });
       } catch (evErr) {
@@ -644,6 +810,9 @@ export class Ga4AnalyticsService {
         tenantSlug,
         propertyName: ga4Resource.resourceName,
         propertyId: `properties/${cleanPropertyId}`,
+        webSurfaceId: resolvedSurface?.id,
+        webSurfaceType: resolvedSurface?.type,
+        hostnameFilter: cleanHostname,
         dateRange: `${startDate} to ${endDate}`,
         activeUsers: totalActiveUsers,
         activeUsersDelta: null,
@@ -699,6 +868,57 @@ export class Ga4AnalyticsService {
         }
       }
 
+      // Persist daily metrics into ga4_daily_metrics table if surface and brand are resolved
+      if (resolvedSurface && brandId && trendPoints.length > 0) {
+        try {
+          await TenantContextService.withTenantContext(prisma, tenant.id, async (tx: Prisma.TransactionClient) => {
+            for (const pt of trendPoints) {
+              const ptDate = new Date(pt.date);
+              await tx.ga4DailyMetric.upsert({
+                where: {
+                  uq_ga4_daily_metric: {
+                    tenantId: tenant.id,
+                    webSurfaceId: resolvedSurface.id,
+                    date: ptDate,
+                    resourceId: ga4Resource.externalResourceId,
+                  },
+                },
+                create: {
+                  tenantId: tenant.id,
+                  brandId,
+                  webSurfaceId: resolvedSurface.id,
+                  resourceId: ga4Resource.externalResourceId,
+                  date: ptDate,
+                  activeUsers: pt.activeUsers,
+                  newUsers: pt.newUsers,
+                  sessions: pt.sessions,
+                  engagedSessions: pt.engagedSessions || 0,
+                  eventCount: pt.eventCount,
+                  keyEvents: pt.keyEvents,
+                  screenPageViews: pt.eventCount,
+                  avgEngagementTime: pt.avgEngagementTimeSeconds,
+                  freshnessTimestamp: new Date(),
+                },
+                update: {
+                  activeUsers: pt.activeUsers,
+                  newUsers: pt.newUsers,
+                  sessions: pt.sessions,
+                  engagedSessions: pt.engagedSessions || 0,
+                  eventCount: pt.eventCount,
+                  keyEvents: pt.keyEvents,
+                  screenPageViews: pt.eventCount,
+                  avgEngagementTime: pt.avgEngagementTimeSeconds,
+                  freshnessTimestamp: new Date(),
+                  updatedAt: new Date(),
+                },
+              });
+            }
+          });
+        } catch (dbErr) {
+          logger.warn({ dbErr }, 'Non-fatal: failed writing Ga4DailyMetric to database');
+        }
+      }
+
       return result;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -707,11 +927,16 @@ export class Ga4AnalyticsService {
 
       return Ga4AnalyticsService.getEmptyGa4Data(
         tenantSlug,
-        '',
-        '',
+        cleanPropertyId || ga4Resource?.externalResourceId || '',
+        ga4Resource?.resourceName || '',
         'error',
         errorMsg,
-        errorCode
+        errorCode,
+        {
+          webSurfaceId: resolvedSurface?.id,
+          webSurfaceType: resolvedSurface?.type,
+          hostnameFilter: cleanHostname,
+        }
       );
     }
   }

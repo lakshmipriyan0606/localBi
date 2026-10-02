@@ -30,6 +30,10 @@ import { ChartTooltipFrame } from '@/components/charts';
 import { formatNumber } from '@/shared/lib/formatters';
 import { Ga4StreamDetails } from './ga4-stream-details';
 import type { Ga4RealPropertyData } from '@/modules/analytics/ga4-service';
+import { SurfaceSelector, WebSurfaceOption } from './surface-selector';
+import { SurfaceCompareView } from './surface-compare-view';
+
+export type { WebSurfaceOption };
 
 export interface Ga4RealKpi {
   users: number;
@@ -141,6 +145,10 @@ export interface WebsiteAnalyticsViewProps {
   countries?: Ga4CountryRow[] | undefined;
   hasRealData?: boolean | undefined;
   ga4RealData?: Ga4RealPropertyData | undefined;
+  webSurfaces?: WebSurfaceOption[] | undefined;
+  activeSurfaceId?: string | undefined;
+  mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
+  originalHasMapping?: boolean | undefined;
 }
 
 type TabKey = 'Overview' | 'Acquisition' | 'Pages' | 'Engagement & Retention' | 'Audience' | 'Events';
@@ -203,6 +211,10 @@ export function WebsiteAnalyticsView({
   countries: _countries = [],
   hasRealData = false,
   ga4RealData,
+  webSurfaces,
+  activeSurfaceId,
+  mode = 'LOCALBI',
+  originalHasMapping = true,
 }: WebsiteAnalyticsViewProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>('eventCount');
@@ -856,6 +868,25 @@ export function WebsiteAnalyticsView({
             hasRealData={hasRealData}
           />
         </div>
+      )}
+
+      {/* ── Web Surface Selector ── */}
+      {webSurfaces && webSurfaces.length > 0 && (
+        <SurfaceSelector
+          surfaces={webSurfaces}
+          currentSurfaceId={activeSurfaceId}
+          currentMode={mode}
+          originalHasMapping={originalHasMapping}
+        />
+      )}
+
+      {/* ── Side-by-Side Surface Comparison (Compare Mode) ── */}
+      {mode === 'COMPARE' && (
+        <SurfaceCompareView
+          compareData={ga4RealData?.compare}
+          originalHostname={webSurfaces?.find((s) => s.type === 'ORIGINAL')?.hostname}
+          localbiHostname={webSurfaces?.find((s) => s.type === 'LOCALBI')?.hostname}
+        />
       )}
 
       {/* ── Status Guards: Gating when GA4 is not configured, permission required, or errored ── */}

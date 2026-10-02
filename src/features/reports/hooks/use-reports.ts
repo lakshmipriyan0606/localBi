@@ -12,6 +12,8 @@ export interface UseReportsFilter {
   tenantSlug: string;
   brandId: string;
   locationId?: string | undefined;
+  webSurfaceId?: string | undefined;
+  mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
   startDate: string;
   endDate: string;
 }
@@ -24,6 +26,8 @@ export function usePerformanceSummary(filters: UseReportsFilter) {
       filters.tenantSlug,
       filters.brandId,
       filters.locationId || 'all',
+      filters.webSurfaceId || 'default',
+      filters.mode || 'LOCALBI',
       filters.startDate,
       filters.endDate,
     ],
@@ -33,9 +37,9 @@ export function usePerformanceSummary(filters: UseReportsFilter) {
         startDate: filters.startDate,
         endDate: filters.endDate,
       });
-      if (filters.locationId) {
-        params.append('locationId', filters.locationId);
-      }
+      if (filters.locationId) params.append('locationId', filters.locationId);
+      if (filters.webSurfaceId) params.append('webSurfaceId', filters.webSurfaceId);
+      if (filters.mode) params.append('mode', filters.mode);
 
       const res = await browserClient.get<{ success: boolean; data: PerformanceSummaryDto }>(
         `/tenants/${filters.tenantSlug}/reports/summary?${params.toString()}`,
@@ -56,6 +60,8 @@ export function usePerformanceTimeseries(filters: UseReportsFilter) {
       filters.tenantSlug,
       filters.brandId,
       filters.locationId || 'all',
+      filters.webSurfaceId || 'default',
+      filters.mode || 'LOCALBI',
       filters.startDate,
       filters.endDate,
     ],
@@ -65,9 +71,9 @@ export function usePerformanceTimeseries(filters: UseReportsFilter) {
         startDate: filters.startDate,
         endDate: filters.endDate,
       });
-      if (filters.locationId) {
-        params.append('locationId', filters.locationId);
-      }
+      if (filters.locationId) params.append('locationId', filters.locationId);
+      if (filters.webSurfaceId) params.append('webSurfaceId', filters.webSurfaceId);
+      if (filters.mode) params.append('mode', filters.mode);
 
       const res = await browserClient.get<{ success: boolean; data: TimeseriesPoint[] }>(
         `/tenants/${filters.tenantSlug}/reports/timeseries?${params.toString()}`,
@@ -88,6 +94,8 @@ export function usePerformanceDimensions(filters: UseReportsFilter) {
       filters.tenantSlug,
       filters.brandId,
       filters.locationId || 'all',
+      filters.webSurfaceId || 'default',
+      filters.mode || 'LOCALBI',
       filters.startDate,
       filters.endDate,
     ],
@@ -97,9 +105,9 @@ export function usePerformanceDimensions(filters: UseReportsFilter) {
         startDate: filters.startDate,
         endDate: filters.endDate,
       });
-      if (filters.locationId) {
-        params.append('locationId', filters.locationId);
-      }
+      if (filters.locationId) params.append('locationId', filters.locationId);
+      if (filters.webSurfaceId) params.append('webSurfaceId', filters.webSurfaceId);
+      if (filters.mode) params.append('mode', filters.mode);
 
       const res = await browserClient.get<{
         success: boolean;
@@ -133,6 +141,8 @@ export function useReportsDrilldown<T = unknown>(filters: UseDrilldownFilter) {
       filters.tenantSlug,
       filters.brandId,
       filters.locationId || 'all',
+      filters.webSurfaceId || 'default',
+      filters.mode || 'LOCALBI',
       filters.dimension,
       filters.startDate,
       filters.endDate,
@@ -150,6 +160,8 @@ export function useReportsDrilldown<T = unknown>(filters: UseDrilldownFilter) {
         endDate: filters.endDate,
       });
       if (filters.locationId) params.append('locationId', filters.locationId);
+      if (filters.webSurfaceId) params.append('webSurfaceId', filters.webSurfaceId);
+      if (filters.mode) params.append('mode', filters.mode);
       if (filters.search) params.append('q', filters.search);
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
       if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
@@ -179,3 +191,36 @@ export function useReportsDrilldown<T = unknown>(filters: UseDrilldownFilter) {
   });
 }
 
+export function useGa4Report(filters: UseReportsFilter) {
+  return useQuery({
+    queryKey: [
+      'reports',
+      'ga4',
+      filters.tenantSlug,
+      filters.brandId,
+      filters.locationId || 'all',
+      filters.webSurfaceId || 'default',
+      filters.mode || 'LOCALBI',
+      filters.startDate,
+      filters.endDate,
+    ],
+    queryFn: async ({ signal }) => {
+      const params = new URLSearchParams({
+        brandId: filters.brandId,
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+      });
+      if (filters.locationId) params.append('locationId', filters.locationId);
+      if (filters.webSurfaceId) params.append('webSurfaceId', filters.webSurfaceId);
+      if (filters.mode) params.append('mode', filters.mode);
+
+      const res = await browserClient.get<{ success: boolean; data: any }>(
+        `/tenants/${filters.tenantSlug}/reports/ga4?${params.toString()}`,
+        { signal }
+      );
+      return res.data.data;
+    },
+    enabled: Boolean(filters.tenantSlug && filters.brandId),
+    staleTime: 0,
+  });
+}

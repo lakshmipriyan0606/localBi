@@ -9,6 +9,18 @@ export interface ScopedBrandDto {
   slug: string;
 }
 
+export interface ScopedWebSurfaceDto {
+  id: string;
+  brandId: string;
+  type: 'ORIGINAL' | 'LOCALBI';
+  name: string;
+  domains: Array<{
+    id: string;
+    hostname: string;
+    isPrimary: boolean;
+  }>;
+}
+
 export interface ScopedLocationDto {
   id: string;
   brandId: string;
@@ -22,10 +34,12 @@ export interface TenantReportContext {
   authorizedContext: AuthorizedContext;
   user: ResolvedRequestContext['user'];
   brands: ScopedBrandDto[];
+  webSurfaces: ScopedWebSurfaceDto[];
   locations: ScopedLocationDto[];
   isConnected: boolean;
   isGbpConnected: boolean;
   isGscConnected: boolean;
+  isGa4Connected: boolean;
   propertyUrl: string;
 }
 
@@ -76,6 +90,21 @@ export class ReportContextService {
           orderBy: { name: 'asc' },
         });
 
+        const wsList = await tx.webSurface.findMany({
+          where: {
+            tenantId: tenant.id,
+            ...(isRestricted && authorizedContext.grantedBrandIds.size > 0
+              ? { brandId: { in: Array.from(authorizedContext.grantedBrandIds) } }
+              : {}),
+          },
+          include: {
+            domains: {
+              select: { id: true, hostname: true, isPrimary: true },
+            },
+          },
+          orderBy: { createdAt: 'asc' },
+        });
+
         const lList = await tx.location.findMany({
           where: {
             tenantId: tenant.id,
@@ -104,13 +133,25 @@ export class ReportContextService {
           isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/business.manage') ?? false);
         const hasGscScope =
           isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/webmasters.readonly') ?? false);
+        const hasGa4Scope =
+          isServiceAccount || (activeConnection?.grantedScopes.includes('https://www.googleapis.com/auth/analytics.readonly') ?? false);
 
         const mappings = await tx.internalResourceMapping.findMany({
           where: { tenantId: tenant.id },
+          include: { resource: true },
         });
 
         const hasGbpMapping = mappings.some((m) => m.internalType === 'LOCATION');
-        const hasGscMapping = mappings.some((m) => m.internalType === 'BRAND');
+        const hasGscMapping = mappings.some(
+          (m) =>
+            (m.internalType === 'BRAND' || m.internalType === 'WEBSURFACE') &&
+            m.resource?.provider === 'GOOGLE_SEARCH_CONSOLE'
+        );
+        const hasGa4Mapping = mappings.some(
+          (m) =>
+            (m.internalType === 'BRAND' || m.internalType === 'WEBSURFACE') &&
+            m.resource?.provider === 'GOOGLE_ANALYTICS_4'
+        );
 
         const prop = await tx.gscProperty.findFirst({
           where: { tenantId: tenant.id },
@@ -118,10 +159,18 @@ export class ReportContextService {
 
         return {
           brands: bList,
+          webSurfaces: wsList.map((ws) => ({
+            id: ws.id,
+            brandId: ws.brandId,
+            type: ws.type as 'ORIGINAL' | 'LOCALBI',
+            name: ws.name,
+            domains: ws.domains,
+          })),
           locations: lList,
           isConnected: Boolean(activeConnection),
           isGbpConnected: hasGbpScope && hasGbpMapping,
           isGscConnected: hasGscScope && hasGscMapping,
+          isGa4Connected: hasGa4Scope && hasGa4Mapping,
           propertyUrl: prop?.propertyUrl || '',
         };
       }
@@ -132,10 +181,12 @@ export class ReportContextService {
       authorizedContext,
       user,
       brands: data.brands,
+      webSurfaces: data.webSurfaces,
       locations: data.locations,
       isConnected: data.isConnected,
       isGbpConnected: data.isGbpConnected,
       isGscConnected: data.isGscConnected,
+      isGa4Connected: data.isGa4Connected,
       propertyUrl: data.propertyUrl,
     };
   }

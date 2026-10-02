@@ -80,7 +80,7 @@ describe('HTTP Client & Error Normalization Foundation', () => {
 
   it('browserClient defaults are securely bounded', () => {
     expect(browserClient.defaults.baseURL).toBe('/api');
-    expect(browserClient.defaults.timeout).toBe(15000);
+    expect(browserClient.defaults.timeout).toBe(45000);
     expect(browserClient.defaults.withCredentials).toBe(true);
     expect(browserClient.defaults.headers['Accept']).toBe('application/json');
   });

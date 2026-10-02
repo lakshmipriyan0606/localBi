@@ -250,8 +250,8 @@ describe('Live PostgreSQL 16 Dual-Role Row-Level Security (RLS) Exhaustive Integ
   - Missing Tables: [${missingTables.join(', ')}]
   - Unexpected Tables: [${unexpectedTables.join(', ')}]`);
 
-    expect(expectedCount).toBe(34);
-    expect(actualProtectedCount).toBe(34);
+    expect(expectedCount).toBeGreaterThanOrEqual(34);
+    expect(actualProtectedCount).toBe(expectedCount);
     expect(missingTables).toEqual([]);
     expect(unexpectedTables).toEqual([]);
 

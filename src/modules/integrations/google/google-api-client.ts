@@ -340,6 +340,14 @@ export class GoogleApiClient {
     endDate: string,
     dimensions: string[] = ["date"],
     searchType: string = "WEB",
+    dimensionFilterGroups?: Array<{
+      groupType?: 'and';
+      filters: Array<{
+        dimension: 'page' | 'query' | 'country' | 'device' | 'searchAppearance' | string;
+        operator: 'contains' | 'equals' | 'notContains' | 'notEquals' | 'includingRegex' | 'excludingRegex' | string;
+        expression: string;
+      }>;
+    }>,
   ): Promise<GscSearchAnalyticsRow[]> {
     const encodedSiteUrl = encodeURIComponent(propertyUrl);
     const rowLimit = 25000;
@@ -347,7 +355,7 @@ export class GoogleApiClient {
     const allRows: GscSearchAnalyticsRow[] = [];
 
     while (true) {
-      const bodyPayload = {
+      const bodyPayload: Record<string, unknown> = {
         startDate,
         endDate,
         dimensions,
@@ -356,6 +364,10 @@ export class GoogleApiClient {
         rowLimit,
         aggregationType: "auto",
       };
+
+      if (dimensionFilterGroups && dimensionFilterGroups.length > 0) {
+        bodyPayload['dimensionFilterGroups'] = dimensionFilterGroups;
+      }
 
       const response = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`,
@@ -601,15 +613,16 @@ export class GoogleApiClient {
   public static async queryGa4AnalyticsReport(params: {
     accessToken: string;
     propertyId: string;
-    dateRanges: Array<{ startDate: string; endDate: string; name?: string }>;
-    dimensions?: string[];
+    dateRanges: Array<{ startDate: string; endDate: string; name?: string | undefined }>;
+    dimensions?: string[] | undefined;
     metrics: string[];
-    limit?: number;
+    limit?: number | undefined;
+    dimensionFilter?: Record<string, unknown> | undefined;
     orderBys?: Array<{
       metric?: { metricName: string };
       dimension?: { dimensionName: string };
       desc?: boolean;
-    }>;
+    }> | undefined;
   }): Promise<{
     dimensionHeaders?: Array<{ name: string }>;
     metricHeaders?: Array<{ name: string; type: string }>;
@@ -648,6 +661,10 @@ export class GoogleApiClient {
       body["limit"] = params.limit;
     }
 
+    if (params.dimensionFilter) {
+      body["dimensionFilter"] = params.dimensionFilter;
+    }
+
     if (params.orderBys && params.orderBys.length > 0) {
       body["orderBys"] = params.orderBys;
     }
@@ -658,6 +675,7 @@ export class GoogleApiClient {
         propertyId: `properties/${cleanPropId}`,
         metrics: params.metrics,
         dimensions: params.dimensions || [],
+        dimensionFilter: params.dimensionFilter,
         dateRanges: params.dateRanges,
       },
       "Initiating GA4 Data API runReport"

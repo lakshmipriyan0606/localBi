@@ -10,17 +10,25 @@ import {
   createResourceNotFoundError,
   createTenantAccessDeniedError,
 } from '@/shared/errors';
+import { AnalyticsUrlNormalizer } from '@/modules/analytics/url-normalizer';
 
 export interface PerformanceSummaryParams {
   tenantId: string;
   brandId: string;
   locationId?: string | undefined;
+  webSurfaceId?: string | undefined;
+  mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
   startDate: string;
   endDate: string;
   context: AuthorizedContext;
 }
 
 export interface PerformanceSummaryDto {
+  source: 'GOOGLE_SEARCH_CONSOLE' | 'GOOGLE_BUSINESS_PROFILE';
+  webSurfaceId?: string | undefined;
+  webSurfaceType?: string | undefined;
+  isDomainProperty?: boolean | undefined;
+  urlPrefixFilter?: string | null | undefined;
   period: {
     startDate: string;
     endDate: string;
@@ -148,36 +156,35 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // Resolve brand, GSC property IDs, and permitted location IDs
-      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
-        tenantId,
-        brandId,
-        locationId,
-        context,
-      });
+      // Resolve brand, GSC property IDs, and permitted location IDs with surface awareness
+      const { propertyIds, allowedLocationIds, targetSurface, isDomainProperty, urlPrefixFilter } =
+        await this.resolveReportingContext(tx, {
+          tenantId,
+          brandId,
+          locationId,
+          webSurfaceId: params.webSurfaceId,
+          mode: params.mode,
+          context,
+        });
 
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      // 5+6+7. Aggregate current and previous period metrics in parallel
+      // Aggregate current and previous period metrics in parallel
       const durationMs = end.getTime() - start.getTime();
       const prevStart = new Date(start.getTime() - durationMs);
       const prevEnd = new Date(start.getTime());
 
-      const [currentGscTotals, currentGbpMetrics, prevGscTotals, prevGbpMetrics, gbpLocationMappings] = await Promise.all([
-        propertyIds.length > 0
-          ? tx.gscDailyPropertyTotal.findMany({
-              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
-            })
-          : Promise.resolve([]),
+      let totalClicks = 0;
+      let totalImpressions = 0;
+      let sumPositionImpressions = 0;
+      let prevGscClicks = 0;
+      let prevGscImpressions = 0;
+
+      const [currentGbpMetrics, prevGbpMetrics, gbpLocationMappings] = await Promise.all([
         allowedLocationIds.length > 0
           ? tx.gbpDailyMetric.findMany({
               where: { tenantId, locationId: { in: allowedLocationIds }, date: { gte: start, lte: end } },
-            })
-          : Promise.resolve([]),
-        propertyIds.length > 0
-          ? tx.gscDailyPropertyTotal.findMany({
-              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: prevStart, lte: prevEnd } },
             })
           : Promise.resolve([]),
         allowedLocationIds.length > 0
@@ -197,14 +204,60 @@ export class ReportingService {
           : Promise.resolve([]),
       ]);
 
-      let totalClicks = 0;
-      let totalImpressions = 0;
-      let sumPositionImpressions = 0;
+      if (propertyIds.length > 0) {
+        if (isDomainProperty && urlPrefixFilter) {
+          // Domain property LocalBi isolation: query page-level data matching urlPrefixFilter
+          const [currPageMetrics, prevPageMetrics] = await Promise.all([
+            tx.gscDailyPageMetric.findMany({
+              where: {
+                tenantId,
+                propertyId: { in: propertyIds },
+                date: { gte: start, lte: end },
+                page: { fullUrl: { startsWith: urlPrefixFilter } },
+              },
+              select: { clicks: true, impressions: true, sumPositionImpressions: true },
+            }),
+            tx.gscDailyPageMetric.findMany({
+              where: {
+                tenantId,
+                propertyId: { in: propertyIds },
+                date: { gte: prevStart, lte: prevEnd },
+                page: { fullUrl: { startsWith: urlPrefixFilter } },
+              },
+              select: { clicks: true, impressions: true },
+            }),
+          ]);
 
-      for (const row of currentGscTotals) {
-        totalClicks += row.clicks;
-        totalImpressions += row.impressions;
-        sumPositionImpressions += row.sumPositionImpressions;
+          for (const row of currPageMetrics) {
+            totalClicks += row.clicks;
+            totalImpressions += row.impressions;
+            sumPositionImpressions += row.sumPositionImpressions;
+          }
+          for (const row of prevPageMetrics) {
+            prevGscClicks += row.clicks;
+            prevGscImpressions += row.impressions;
+          }
+        } else {
+          // Direct URL-prefix property (or no filter) — use property daily totals directly
+          const [currentGscTotals, prevGscTotals] = await Promise.all([
+            tx.gscDailyPropertyTotal.findMany({
+              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
+            }),
+            tx.gscDailyPropertyTotal.findMany({
+              where: { tenantId, propertyId: { in: propertyIds }, date: { gte: prevStart, lte: prevEnd } },
+            }),
+          ]);
+
+          for (const row of currentGscTotals) {
+            totalClicks += row.clicks;
+            totalImpressions += row.impressions;
+            sumPositionImpressions += row.sumPositionImpressions;
+          }
+          for (const row of prevGscTotals) {
+            prevGscClicks += row.clicks;
+            prevGscImpressions += row.impressions;
+          }
+        }
       }
 
       const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
@@ -237,13 +290,6 @@ export class ReportingService {
             directionRequests += val;
             break;
         }
-      }
-
-      let prevGscClicks = 0;
-      let prevGscImpressions = 0;
-      for (const row of prevGscTotals) {
-        prevGscClicks += row.clicks;
-        prevGscImpressions += row.impressions;
       }
 
       let prevSearchViews = 0;
@@ -296,6 +342,11 @@ export class ReportingService {
       }
 
       return {
+        source: 'GOOGLE_SEARCH_CONSOLE',
+        webSurfaceId: targetSurface?.id,
+        webSurfaceType: targetSurface?.type,
+        isDomainProperty,
+        urlPrefixFilter,
         period: { startDate, endDate },
         gsc: {
           totalClicks,
@@ -337,22 +388,84 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
+      const { propertyIds, allowedLocationIds, isDomainProperty, urlPrefixFilter } = await this.resolveReportingContext(tx, {
         tenantId,
         brandId,
         locationId,
+        webSurfaceId: params.webSurfaceId,
+        mode: params.mode,
         context,
       });
 
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      const gscTotals = propertyIds.length > 0
-        ? await tx.gscDailyPropertyTotal.findMany({
+      const dailyMap = new Map<string, TimeseriesPoint>();
+
+      if (propertyIds.length > 0) {
+        if (isDomainProperty && urlPrefixFilter) {
+          const pageMetrics = await tx.gscDailyPageMetric.findMany({
+            where: {
+              tenantId,
+              propertyId: { in: propertyIds },
+              date: { gte: start, lte: end },
+              page: { fullUrl: { startsWith: urlPrefixFilter } },
+            },
+            select: { date: true, clicks: true, impressions: true, sumPositionImpressions: true },
+          });
+
+          for (const row of pageMetrics) {
+            const dStr = row.date.toISOString().slice(0, 10);
+            const existing = dailyMap.get(dStr) || {
+              date: dStr,
+              clicks: 0,
+              impressions: 0,
+              ctr: 0,
+              position: 0,
+              views: 0,
+              calls: 0,
+              websiteClicks: 0,
+              directions: 0,
+            };
+
+            existing.clicks += row.clicks;
+            existing.impressions += row.impressions;
+            if (existing.impressions > 0) {
+              existing.ctr = Math.round((existing.clicks / existing.impressions) * 10000) / 10000;
+              existing.position = Math.round((row.sumPositionImpressions / row.impressions) * 10) / 10;
+            }
+            dailyMap.set(dStr, existing);
+          }
+        } else {
+          const gscTotals = await tx.gscDailyPropertyTotal.findMany({
             where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
             orderBy: { date: 'asc' },
-          })
-        : [];
+          });
+
+          for (const row of gscTotals) {
+            const dStr = row.date.toISOString().slice(0, 10);
+            const existing = dailyMap.get(dStr) || {
+              date: dStr,
+              clicks: 0,
+              impressions: 0,
+              ctr: 0,
+              position: 0,
+              views: 0,
+              calls: 0,
+              websiteClicks: 0,
+              directions: 0,
+            };
+
+            existing.clicks += row.clicks;
+            existing.impressions += row.impressions;
+            if (existing.impressions > 0) {
+              existing.ctr = Math.round((existing.clicks / existing.impressions) * 10000) / 10000;
+              existing.position = Math.round((row.sumPositionImpressions / row.impressions) * 10) / 10;
+            }
+            dailyMap.set(dStr, existing);
+          }
+        }
+      }
 
       const gbpRows = allowedLocationIds.length > 0
         ? await tx.gbpDailyMetric.findMany({
@@ -360,31 +473,6 @@ export class ReportingService {
             orderBy: { date: 'asc' },
           })
         : [];
-
-      const dailyMap = new Map<string, TimeseriesPoint>();
-
-      for (const row of gscTotals) {
-        const dStr = row.date.toISOString().slice(0, 10);
-        const existing = dailyMap.get(dStr) || {
-          date: dStr,
-          clicks: 0,
-          impressions: 0,
-          ctr: 0,
-          position: 0,
-          views: 0,
-          calls: 0,
-          websiteClicks: 0,
-          directions: 0,
-        };
-
-        existing.clicks += row.clicks;
-        existing.impressions += row.impressions;
-        if (existing.impressions > 0) {
-          existing.ctr = Math.round((existing.clicks / existing.impressions) * 10000) / 10000;
-          existing.position = Math.round((row.sumPositionImpressions / row.impressions) * 10) / 10;
-        }
-        dailyMap.set(dStr, existing);
-      }
 
       for (const m of gbpRows) {
         const dStr = m.date.toISOString().slice(0, 10);
@@ -428,10 +516,12 @@ export class ReportingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const { propertyIds } = await this.resolveReportingContext(tx, {
+      const { propertyIds, isDomainProperty, urlPrefixFilter } = await this.resolveReportingContext(tx, {
         tenantId,
         brandId,
         locationId,
+        webSurfaceId: params.webSurfaceId,
+        mode: params.mode,
         context,
       });
 
@@ -477,6 +567,7 @@ export class ReportingService {
           tenantId,
           propertyId: { in: propertyIds },
           date: { gte: start, lte: end },
+          ...(isDomainProperty && urlPrefixFilter ? { page: { fullUrl: { startsWith: urlPrefixFilter } } } : {}),
         },
         include: { page: true },
       });
@@ -557,10 +648,12 @@ export class ReportingService {
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
 
-      const { propertyIds, allowedLocationIds } = await this.resolveReportingContext(tx, {
+      const { propertyIds, allowedLocationIds, isDomainProperty, urlPrefixFilter } = await this.resolveReportingContext(tx, {
         tenantId,
         brandId,
         locationId,
+        webSurfaceId: params.webSurfaceId,
+        mode: params.mode,
         context,
       });
 
@@ -615,13 +708,27 @@ export class ReportingService {
 
       if (dimension === 'page') {
         if (propertyIds.length === 0) return { items: [], totalCount: 0, page, pageSize };
+
+        const pageWhere: any = {
+          tenantId,
+          propertyId: { in: propertyIds },
+          date: { gte: start, lte: end },
+        };
+
+        const fullUrlFilter: any = {};
+        if (isDomainProperty && urlPrefixFilter) {
+          fullUrlFilter.startsWith = urlPrefixFilter;
+        }
+        if (search) {
+          fullUrlFilter.contains = search;
+          fullUrlFilter.mode = 'insensitive';
+        }
+        if (Object.keys(fullUrlFilter).length > 0) {
+          pageWhere.page = { fullUrl: fullUrlFilter };
+        }
+
         const pageMetrics = await tx.gscDailyPageMetric.findMany({
-          where: {
-            tenantId,
-            propertyId: { in: propertyIds },
-            date: { gte: start, lte: end },
-            ...(search ? { page: { fullUrl: { contains: search, mode: 'insensitive' } } } : {}),
-          },
+          where: pageWhere,
           include: { page: true },
         });
 
@@ -752,21 +859,55 @@ export class ReportingService {
 
       if (dimension === 'date') {
         if (propertyIds.length === 0) return { items: [], totalCount: 0, page, pageSize };
-        const totals = await tx.gscDailyPropertyTotal.findMany({
-          where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
-          orderBy: { date: 'desc' },
-        });
+        let items: DateDimensionRow[] = [];
 
-        const items: DateDimensionRow[] = totals.map((t) => ({
-          date: t.date.toISOString().slice(0, 10),
-          clicks: t.clicks,
-          impressions: t.impressions,
-          ctr: t.impressions > 0 ? Math.round((t.clicks / t.impressions) * 10000) / 10000 : 0,
-          position: t.impressions > 0 ? Math.round((t.sumPositionImpressions / t.impressions) * 10) / 10 : 0,
-          dataState: (t.dataState as 'FINAL' | 'FRESH') || 'FINAL',
-        }));
+        if (isDomainProperty && urlPrefixFilter) {
+          const pageMetrics = await tx.gscDailyPageMetric.findMany({
+            where: {
+              tenantId,
+              propertyId: { in: propertyIds },
+              date: { gte: start, lte: end },
+              page: { fullUrl: { startsWith: urlPrefixFilter } },
+            },
+          });
 
-        return { items, totalCount: items.length, page, pageSize };
+          const dateMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+          for (const p of pageMetrics) {
+            const d = p.date.toISOString().slice(0, 10);
+            const curr = dateMap.get(d) || { clicks: 0, impressions: 0, sumPos: 0 };
+            curr.clicks += p.clicks;
+            curr.impressions += p.impressions;
+            curr.sumPos += p.sumPositionImpressions;
+            dateMap.set(d, curr);
+          }
+
+          items = Array.from(dateMap.entries()).map(([date, stats]) => ({
+            date,
+            clicks: stats.clicks,
+            impressions: stats.impressions,
+            ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+            position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
+            dataState: 'FINAL' as const,
+          })).sort((a, b) => b.date.localeCompare(a.date));
+        } else {
+          const totals = await tx.gscDailyPropertyTotal.findMany({
+            where: { tenantId, propertyId: { in: propertyIds }, date: { gte: start, lte: end } },
+            orderBy: { date: 'desc' },
+          });
+
+          items = totals.map((t) => ({
+            date: t.date.toISOString().slice(0, 10),
+            clicks: t.clicks,
+            impressions: t.impressions,
+            ctr: t.impressions > 0 ? Math.round((t.clicks / t.impressions) * 10000) / 10000 : 0,
+            position: t.impressions > 0 ? Math.round((t.sumPositionImpressions / t.impressions) * 10) / 10 : 0,
+            dataState: (t.dataState as 'FINAL' | 'FRESH') || 'FINAL',
+          }));
+        }
+
+        const totalCount = items.length;
+        const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+        return { items: paginatedItems, totalCount, page, pageSize };
       }
 
       if (dimension === 'location') {
@@ -1059,20 +1200,25 @@ export class ReportingService {
       tenantId: string;
       brandId: string;
       locationId: string | undefined;
+      webSurfaceId?: string | undefined;
+      mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
       context: AuthorizedContext;
     }
-  ): Promise<{ propertyIds: string[]; allowedLocationIds: string[] }> {
-    const { tenantId, brandId, locationId, context } = params;
+  ): Promise<{
+    propertyIds: string[];
+    allowedLocationIds: string[];
+    targetSurface: any | null;
+    isDomainProperty: boolean;
+    urlPrefixFilter: string | null;
+  }> {
+    const { tenantId, brandId, locationId, webSurfaceId, mode, context } = params;
 
-    // Fetch brand and brand mappings in parallel
-    const [brand, brandMappings] = await Promise.all([
+    // Fetch brand and permitted locations in parallel
+    const [brand, allowedLocationIds] = await Promise.all([
       tx.brand.findUnique({
         where: { uq_brand_tenant_id: { tenantId, id: brandId } },
       }),
-      tx.internalResourceMapping.findMany({
-        where: { tenantId, internalType: 'BRAND', internalId: brandId },
-        include: { resource: true },
-      }),
+      this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context),
     ]);
 
     if (!brand || brand.isArchived) {
@@ -1081,19 +1227,83 @@ export class ReportingService {
 
     await this.assertReportingAccess(tx, tenantId, brandId, locationId, context);
 
-    const gscPropertyUrls = brandMappings.map((m) => m.resource.externalResourceId);
+    // Resolve target surface: explicit webSurfaceId or default to LOCALBI surface
+    let targetSurface = null;
+    if (webSurfaceId) {
+      targetSurface = await tx.webSurface.findFirst({
+        where: { tenantId, id: webSurfaceId, brandId },
+        include: { domains: true },
+      });
+    } else {
+      const surfaceType = mode === 'ORIGINAL' ? 'ORIGINAL' : 'LOCALBI';
+      targetSurface = await tx.webSurface.findFirst({
+        where: { tenantId, brandId, type: surfaceType },
+        include: { domains: true },
+      });
+    }
 
-    // Fetch GSC properties and allowed location IDs in parallel
-    const [gscProperties, allowedLocationIds] = await Promise.all([
-      tx.gscProperty.findMany({
-        where: { tenantId, propertyUrl: { in: gscPropertyUrls } },
-      }),
-      this.resolvePermittedLocationIds(tx, tenantId, brandId, locationId, context),
-    ]);
+    // 1. Check WEBSURFACE mapping for GSC
+    let gscMapping = null;
+    if (targetSurface) {
+      gscMapping = await tx.internalResourceMapping.findFirst({
+        where: {
+          tenantId,
+          internalType: 'WEBSURFACE',
+          internalId: targetSurface.id,
+          resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+        },
+        include: { resource: true },
+      });
+    }
+
+    // 2. Fallback to legacy BRAND mapping
+    if (!gscMapping) {
+      gscMapping = await tx.internalResourceMapping.findFirst({
+        where: {
+          tenantId,
+          internalType: 'BRAND',
+          internalId: brandId,
+          resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+        },
+        include: { resource: true },
+      });
+    }
+
+    if (!gscMapping || !gscMapping.resource) {
+      return {
+        propertyIds: [],
+        allowedLocationIds,
+        targetSurface,
+        isDomainProperty: false,
+        urlPrefixFilter: null,
+      };
+    }
+
+    const gscPropertyUrl = gscMapping.resource.externalResourceId;
+    const isDomainProperty = gscPropertyUrl.startsWith('sc-domain:');
+
+    // Fetch matching GscProperty
+    const gscProp = await tx.gscProperty.findFirst({
+      where: { tenantId, propertyUrl: gscPropertyUrl },
+    });
+
+    // Derive urlPrefixFilter
+    let urlPrefixFilter: string | null = gscMapping.urlPrefixFilter || null;
+    if (!urlPrefixFilter && targetSurface) {
+      const primDomain = targetSurface.domains?.find((d: any) => d.isPrimary) || targetSurface.domains?.[0];
+      if (primDomain) {
+        urlPrefixFilter = AnalyticsUrlNormalizer.toCanonicalUrlPrefix(primDomain.hostname);
+      } else if (targetSurface.type === 'LOCALBI') {
+        urlPrefixFilter = AnalyticsUrlNormalizer.toCanonicalUrlPrefix(`locate.${brand.slug}.com`);
+      }
+    }
 
     return {
-      propertyIds: gscProperties.map((p) => p.id),
+      propertyIds: gscProp ? [gscProp.id] : [],
       allowedLocationIds,
+      targetSurface,
+      isDomainProperty,
+      urlPrefixFilter,
     };
   }
 }

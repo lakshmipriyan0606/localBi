@@ -12,6 +12,7 @@ import {
 } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
 import { getRedisClient } from '@/shared/database/redis-client';
+import { AnalyticsUrlNormalizer } from '@/modules/analytics/url-normalizer';
 
 export interface LocationMatchSuggestion {
   internalLocationId: string;
@@ -551,6 +552,232 @@ export class ResourceMappingService {
   }
 
   /**
+   * Maps an external Google Analytics 4 or Google Search Console resource to an internal WebSurface.
+   * Enables surface-isolated telemetry while allowing the SAME external resource (e.g. GA4 property)
+   * to be mapped to multiple WebSurfaces (e.g. ORIGINAL and LOCALBI) with distinct hostname/prefix scopes.
+   */
+  public static async mapResourceToWebSurface(params: {
+    tenantId: string;
+    brandId: string;
+    webSurfaceId: string;
+    externalResourceId: string;
+    filterStrategy?: 'HOSTNAME' | 'URL_PREFIX' | 'NONE';
+    customHostname?: string;
+    customUrlPrefix?: string;
+    context: AuthorizedContext;
+  }) {
+    const {
+      tenantId,
+      brandId,
+      webSurfaceId,
+      externalResourceId,
+      filterStrategy,
+      customHostname,
+      customUrlPrefix,
+      context,
+    } = params;
+
+    AuthorizationService.assertCan(context, Action.INTEGRATION_MAP);
+    AuthorizationService.assertBrandAccess(context, brandId);
+
+    if (context.tenantId !== tenantId) {
+      throw createTenantAccessDeniedError(tenantId);
+    }
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // 1. Verify Brand
+      const brand = await tx.brand.findUnique({
+        where: { uq_brand_tenant_id: { tenantId, id: brandId } },
+      });
+      if (!brand || brand.isArchived) {
+        throw createResourceNotFoundError('Brand', brandId);
+      }
+
+      // 2. Verify WebSurface
+      const webSurface = await tx.webSurface.findUnique({
+        where: { uq_web_surface_tenant_brand_id: { tenantId, brandId, id: webSurfaceId } },
+        include: { domains: true },
+      });
+      if (!webSurface) {
+        throw createResourceNotFoundError('WebSurface', webSurfaceId);
+      }
+
+      // 3. Find ExternalResource
+      const extRes = await tx.externalResource.findFirst({
+        where: {
+          tenantId,
+          OR: [
+            { id: externalResourceId },
+            { externalResourceId: externalResourceId },
+          ],
+        },
+      });
+
+      if (!extRes) {
+        throw createResourceNotFoundError('ExternalResource', externalResourceId);
+      }
+
+      if (
+        extRes.provider !== 'GOOGLE_ANALYTICS_4' &&
+        extRes.provider !== 'GOOGLE_SEARCH_CONSOLE'
+      ) {
+        throw createValidationError(
+          `Resource provider ${extRes.provider} cannot be mapped to a WebSurface. Only GA4 and GSC map to WebSurfaces.`
+        );
+      }
+
+      // 4. Resolve Domain and filtering strategy
+      const primaryDomain =
+        webSurface.domains.find((d) => d.isPrimary) || webSurface.domains[0];
+
+      let strategy = filterStrategy;
+      let hostnameFilter: string | null = null;
+      let urlPrefixFilter: string | null = null;
+
+      if (extRes.provider === 'GOOGLE_ANALYTICS_4') {
+        strategy = strategy || 'HOSTNAME';
+        if (customHostname) {
+          hostnameFilter = AnalyticsUrlNormalizer.normalizeHostname(customHostname);
+        } else if (primaryDomain) {
+          hostnameFilter = primaryDomain.hostname;
+        } else {
+          hostnameFilter = webSurface.type === 'LOCALBI' ? `locate.${brand.slug}.com` : `${brand.slug}.com`;
+        }
+      } else if (extRes.provider === 'GOOGLE_SEARCH_CONSOLE') {
+        strategy = strategy || 'URL_PREFIX';
+        const isDomainProp = extRes.externalResourceId.startsWith('sc-domain:');
+
+        if (customUrlPrefix) {
+          urlPrefixFilter = customUrlPrefix;
+        } else if (isDomainProp) {
+          const host = primaryDomain?.hostname || (webSurface.type === 'LOCALBI' ? `locate.${brand.slug}.com` : `${brand.slug}.com`);
+          urlPrefixFilter = AnalyticsUrlNormalizer.toCanonicalUrlPrefix(host);
+        } else {
+          urlPrefixFilter = extRes.externalResourceId;
+        }
+
+        // Ensure GscProperty record exists
+        const propertyType = isDomainProp ? 'DOMAIN' : 'URL_PREFIX';
+        await tx.gscProperty.upsert({
+          where: {
+            uq_gsc_property_url: {
+              tenantId,
+              propertyUrl: extRes.externalResourceId,
+            },
+          },
+          create: {
+            tenantId,
+            resourceId: extRes.id,
+            propertyUrl: extRes.externalResourceId,
+            propertyType,
+          },
+          update: {
+            resourceId: extRes.id,
+            propertyType,
+          },
+        });
+      }
+
+      // 5. Enforce uniqueness: replace prior mapping of the SAME provider on THIS webSurface
+      await tx.internalResourceMapping.deleteMany({
+        where: {
+          tenantId,
+          internalType: 'WEBSURFACE',
+          internalId: webSurfaceId,
+          resource: {
+            provider: extRes.provider,
+          },
+        },
+      });
+
+      // 6. Upsert the new mapping
+      const mapping = await tx.internalResourceMapping.upsert({
+        where: {
+          uq_internal_resource_mapping: {
+            tenantId,
+            internalType: 'WEBSURFACE',
+            internalId: webSurfaceId,
+            resourceId: extRes.id,
+          },
+        },
+        create: {
+          tenantId,
+          internalType: 'WEBSURFACE',
+          internalId: webSurfaceId,
+          brandId,
+          webSurfaceId,
+          resourceId: extRes.id,
+          filterStrategy: strategy || 'NONE',
+          hostnameFilter,
+          urlPrefixFilter,
+          status: 'ACTIVE',
+        },
+        update: {
+          brandId,
+          webSurfaceId,
+          filterStrategy: strategy || 'NONE',
+          hostnameFilter,
+          urlPrefixFilter,
+          status: 'ACTIVE',
+          updatedAt: new Date(),
+        },
+      });
+
+      logger.info(
+        {
+          tenantId,
+          brandId,
+          webSurfaceId,
+          surfaceType: webSurface.type,
+          provider: extRes.provider,
+          resourceId: extRes.externalResourceId,
+          strategy,
+          hostnameFilter,
+          urlPrefixFilter,
+        },
+        'Mapped Google resource to WebSurface with isolated scope'
+      );
+
+      // Invalidate relevant Redis caches
+      try {
+        const redis = getRedisClient();
+        if (redis) {
+          const ga4Pattern = `ga4:report:${tenantId}:*:${webSurfaceId}:*`;
+          const keys = await redis.keys(ga4Pattern);
+          if (keys.length > 0) {
+            await redis.del(...keys);
+          }
+          const cleanPropId = extRes.externalResourceId.replace(/^properties\//, '');
+          const legacyKeys = await redis.keys(`ga4:report:${tenantId}:*:${cleanPropId}:*`);
+          if (legacyKeys.length > 0) {
+            await redis.del(...legacyKeys);
+          }
+        }
+      } catch (cacheErr) {
+        logger.warn({ cacheErr }, 'Failed invalidating analytics Redis cache after surface mapping');
+      }
+
+      return mapping;
+    });
+  }
+
+  /**
+   * Invalidates cached analytics reports for a given web surface.
+   */
+  public static async invalidateSurfaceAnalyticsCache(tenantId: string, webSurfaceId: string): Promise<void> {
+    try {
+      const redis = getRedisClient();
+      if (!redis) return;
+      const keys = await redis.keys(`ga4:report:${tenantId}:*:${webSurfaceId}:*`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } catch {
+      // Redis optional
+    }
+  }
+
+  /**
    * Lists all mappings and available resources for mapping in a tenant workspace.
    */
   public static async listTenantMappingState(tenantId: string, context: AuthorizedContext) {
@@ -559,7 +786,7 @@ export class ResourceMappingService {
     }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const [connections, externalResources, internalMappings, brands, locations] =
+      const [connections, externalResources, internalMappings, brands, locations, webSurfaces] =
         await Promise.all([
           tx.integrationConnection.findMany({
             where: { tenantId, status: 'ACTIVE' },
@@ -609,6 +836,13 @@ export class ResourceMappingService {
               timezone: true,
             },
           }),
+          tx.webSurface.findMany({
+            where: { tenantId },
+            include: {
+              domains: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          }),
         ]);
 
       return {
@@ -617,6 +851,7 @@ export class ResourceMappingService {
         internalMappings,
         brands,
         locations,
+        webSurfaces,
       };
     });
   }
@@ -648,8 +883,15 @@ export class ResourceMappingService {
       // Invalidate relevant Redis caches
       try {
         const redis = getRedisClient();
-        if (mapping.internalType === 'LOCATION') {
-          await redis.del(`gbp:profile:${tenantId}:${mapping.internalId}`);
+        if (redis) {
+          if (mapping.internalType === 'LOCATION') {
+            await redis.del(`gbp:profile:${tenantId}:${mapping.internalId}`);
+          } else if (mapping.internalType === 'WEBSURFACE') {
+            const keys = await redis.keys(`ga4:report:${tenantId}:*:${mapping.internalId}:*`);
+            if (keys.length > 0) {
+              await redis.del(...keys);
+            }
+          }
         }
       } catch {
         // Redis optional

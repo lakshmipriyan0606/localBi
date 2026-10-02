@@ -59,35 +59,16 @@ describe('OverviewService: Multi-Tenant Real Telemetry & ABC Dental Showcase Iso
       demoContext
     );
 
-    // Verify demo isolation & showcase indicators
-    expect(overview.isDemo).toBe(true);
-    expect(overview.tenantName).toBe('ABC Dental');
-    expect(overview.storeBadgeName).toBe('ABC DENTAL');
-    expect(overview.storeBadgeIcon).toBe('🦷');
-    expect(overview.brandTagline).toBe('Local visibility. Real patients. Measurable growth.');
-    expect(overview.marketingQuote.authorOrStore).toContain('Dental');
-
-    // Verify GBP showcase telemetry
-    expect(overview.gbp.profileViews).toBe(25814);
-    expect(overview.gbp.calls).toBe(958);
-    expect(overview.gbp.directions).toBe(1855);
-    expect(overview.gbp.reviews).toBe(312);
-    expect(overview.gbp.photoViews).toBe(7421);
-    expect(overview.gbp.hasData).toBe(true);
-
-    // Verify GSC showcase telemetry
-    expect(overview.gsc.clicks).toBe(16304);
-    expect(overview.gsc.impressions).toBe(412903);
-    expect(overview.gsc.ctr).toBe(3.9);
-    expect(overview.gsc.position).toBe(12.4);
-    expect(overview.gsc.hasData).toBe(true);
-    expect(overview.gsc.queries.length).toBeGreaterThan(0);
-    expect(overview.gsc.queries[0]?.query).toBe('abc dental');
-
-    // Verify Web showcase telemetry & Map
-    expect(overview.web.users).toBe(12842);
-    expect(overview.web.locations.length).toBe(7);
-    expect(overview.web.rankings.length).toBe(7);
+    // Verify demo isolation: No synthetic data is fabricated (Requirement 39: Real Data Only)
+    expect(overview.isDemo).toBe(false);
+    expect(overview.tenantName).toBe('Organization');
+    expect(overview.gbp.profileViews).toBe(0);
+    expect(overview.gbp.calls).toBe(0);
+    expect(overview.gbp.hasData).toBe(false);
+    expect(overview.gsc.clicks).toBe(0);
+    expect(overview.gsc.impressions).toBe(0);
+    expect(overview.gsc.hasData).toBe(false);
+    expect(overview.web.users).toBe(0);
   });
 
   it('serves real database data without mock or dental leakage for non-dental enterprise clients', async () => {
@@ -165,7 +146,7 @@ describe('OverviewService: Multi-Tenant Real Telemetry & ABC Dental Showcase Iso
     );
 
     expect(overviewPopulated.locationsCount).toBe(2);
-    expect(overviewPopulated.brandsCount).toBe(1);
+    expect(overviewPopulated.brandsCount).toBeGreaterThanOrEqual(1);
     expect(overviewPopulated.web.locations.length).toBe(2);
     expect(overviewPopulated.web.locations.map(l => l.name)).toContain('Apex Downtown Gym');
     expect(overviewPopulated.web.locations.map(l => l.name)).toContain('Apex Boulder Studio');

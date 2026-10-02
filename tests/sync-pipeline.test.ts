@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 import { prisma } from '../src/shared/database/client';
 import { TenantService } from '../src/modules/tenancy/tenant-service';
 import { BrandService } from '../src/modules/brands/brand-service';
@@ -6,6 +6,8 @@ import { LocationService } from '../src/modules/locations/location-service';
 import { SyncQueueService } from '../src/modules/sync/sync-queue';
 import { SyncWorkerService } from '../src/modules/sync/sync-worker';
 import { CryptoEnvelopeService } from '../src/shared/crypto/envelope';
+import { GoogleOAuthService } from '../src/modules/integrations/google/google-oauth-service';
+import { GoogleApiClient } from '../src/modules/integrations/google/google-api-client';
 import { TenantContextService } from '../src/shared/database/tenant-context';
 import { Role, ScopeMode, AuthorizedContext } from '../src/shared/authorization/policy';
 import { normalizeEmail } from '../src/modules/auth/email-normalizer';
@@ -195,6 +197,23 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
       },
     } as Job<import('../src/modules/sync/sync-queue').SyncJobData>;
 
+    vi.spyOn(GoogleOAuthService, 'refreshAccessToken').mockResolvedValue('mock_access_token');
+    vi.spyOn(GoogleApiClient, 'queryGscSearchAnalytics').mockImplementation(async (_token, _url, _start, _end, dims = []) => {
+      const dim = dims[0];
+      if (dim === 'date') {
+        return [{ keys: ['2026-09-02'], clicks: 5, impressions: 50, ctr: 0.1, position: 2.1 }];
+      } else if (dim === 'query') {
+        return [{ keys: ['dentist chennai'], clicks: 3, impressions: 30, ctr: 0.1, position: 1.5 }];
+      } else if (dim === 'page') {
+        return [{ keys: ['https://abcdental.example/chennai'], clicks: 4, impressions: 40, ctr: 0.1, position: 1.8 }];
+      } else if (dim === 'device') {
+        return [{ keys: ['DESKTOP'], clicks: 3, impressions: 35, ctr: 0.08, position: 2.0 }];
+      } else if (dim === 'country') {
+        return [{ keys: ['IND'], clicks: 5, impressions: 50, ctr: 0.1, position: 2.1 }];
+      }
+      return [];
+    });
+
     const result = await SyncWorkerService.processJob(mockJob);
     expect(result.status).toBe('SUCCESS');
     expect(result.rowsIngested).toBeGreaterThan(0);
@@ -247,6 +266,7 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
       data: {
         type: 'GBP_SYNC' as const,
         tenantId,
+        connectionId,
         locationId,
         locationResourceName: 'locations/293847192837',
         startDate: '2026-09-01',
@@ -254,6 +274,12 @@ describe('Background Sync Pipeline, Multi-Grain Ingestion & Idempotency', () => 
         businessKey,
       },
     } as Job<import('../src/modules/sync/sync-queue').SyncJobData>;
+
+    vi.spyOn(GoogleOAuthService, 'refreshAccessToken').mockResolvedValue('mock_access_token');
+    vi.spyOn(GoogleApiClient, 'queryGbpPerformanceMetrics').mockResolvedValue([
+      { date: '2026-09-02', metricType: 'CALL_CLICKS', value: 3 },
+      { date: '2026-09-02', metricType: 'WEBSITE_CLICKS', value: 7 },
+    ]);
 
     const result = await SyncWorkerService.processJob(mockJob);
     expect(result.status).toBe('SUCCESS');

@@ -100,8 +100,24 @@ export async function POST(
         externalResourceId,
         authorizedContext
       );
+    } else if (type === 'WEBSURFACE') {
+      const targetWebSurfaceId = body.webSurfaceId || internalId;
+      const targetBrandId = body.brandId;
+      if (!targetWebSurfaceId || !targetBrandId || !externalResourceId) {
+        throw createValidationError('Missing required fields for WEBSURFACE mapping: brandId, webSurfaceId, externalResourceId');
+      }
+      result = await ResourceMappingService.mapResourceToWebSurface({
+        tenantId: tenant.id,
+        brandId: targetBrandId,
+        webSurfaceId: targetWebSurfaceId,
+        externalResourceId,
+        filterStrategy: body.filterStrategy,
+        customHostname: body.customHostname,
+        customUrlPrefix: body.customUrlPrefix,
+        context: authorizedContext,
+      });
     } else {
-      throw createValidationError(`Unsupported mapping type: "${type}". Expected LOCATION, BRAND, GA4_PROPERTY, or AUTO_BRAND.`);
+      throw createValidationError(`Unsupported mapping type: "${type}". Expected WEBSURFACE, LOCATION, BRAND, GA4_PROPERTY, or AUTO_BRAND.`);
     }
 
     return NextResponse.json({ success: true, data: result });

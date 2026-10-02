@@ -30,6 +30,8 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const brandId = searchParams.get('brandId');
     const locationId = searchParams.get('locationId') || undefined;
+    const webSurfaceId = searchParams.get('webSurfaceId') || undefined;
+    const mode = (searchParams.get('mode') as 'LOCALBI' | 'ORIGINAL' | 'COMPARE') || undefined;
 
     if (!brandId) {
       throw createValidationError('Missing required query parameter: brandId');
@@ -43,12 +45,17 @@ export async function GET(
     const startDate = searchParams.get('startDate') || thirtyDaysAgo.toISOString().slice(0, 10);
     const endDate = searchParams.get('endDate') || today.toISOString().slice(0, 10);
 
-    logger.info({ brandId, startDate, endDate }, 'Calling ReportingService.getPerformanceSummary');
+    logger.info(
+      { brandId, locationId, webSurfaceId, mode, startDate, endDate },
+      'Calling ReportingService.getPerformanceSummary'
+    );
 
     const summary = await ReportingService.getPerformanceSummary({
       tenantId: tenant.id,
       brandId,
       locationId,
+      webSurfaceId,
+      mode,
       startDate,
       endDate,
       context: authorizedContext,

@@ -30,11 +30,13 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const brandId = searchParams.get('brandId') || undefined;
     const locationId = searchParams.get('locationId') || undefined;
+    const webSurfaceId = searchParams.get('webSurfaceId') || undefined;
+    const mode = (searchParams.get('mode') as 'LOCALBI' | 'ORIGINAL' | 'COMPARE') || undefined;
     const startDate = searchParams.get('startDate') || undefined;
     const endDate = searchParams.get('endDate') || undefined;
 
     logger.info(
-      { tenantSlug, brandId, locationId, startDate, endDate },
+      { tenantSlug, brandId, locationId, webSurfaceId, mode, startDate, endDate },
       'Fetching GA4 report from Ga4AnalyticsService'
     );
 
@@ -42,6 +44,8 @@ export async function GET(
       tenantSlug,
       brandId,
       locationId,
+      webSurfaceId,
+      mode,
       startDate,
       endDate,
     });

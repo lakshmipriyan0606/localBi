@@ -31,6 +31,8 @@ export default async function Ga4ReportingPage({
     days?: string;
     brandId?: string;
     locationId?: string;
+    webSurfaceId?: string;
+    mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE';
     startDate?: string;
     endDate?: string;
   }>;
@@ -64,6 +66,19 @@ export default async function Ga4ReportingPage({
         where: { tenantId: tenant.id, isArchived: false },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
+      });
+
+      const webSurfaces = await tx.webSurface.findMany({
+        where: { tenantId: tenant.id },
+        include: { domains: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+      const ga4Mappings = await tx.internalResourceMapping.findMany({
+        where: {
+          tenantId: tenant.id,
+          resource: { provider: "GOOGLE_ANALYTICS_4" },
+        },
       });
 
       const locations = await tx.location.findMany({
@@ -136,6 +151,8 @@ export default async function Ga4ReportingPage({
 
       return {
         brands,
+        webSurfaces,
+        ga4Mappings,
         locations,
         brand: brands[0]?.name || tenant.name,
         location: locations[0],
@@ -158,6 +175,42 @@ export default async function Ga4ReportingPage({
   const selectedBrand = dbData.brands.find((b) => b.id === sParams.brandId) || dbData.brands[0];
   const selectedLocation = dbData.locations.find((l) => l.id === sParams.locationId) || dbData.locations[0];
 
+  const brandSurfaces = dbData.webSurfaces.filter(
+    (ws) => !selectedBrand || ws.brandId === selectedBrand.id
+  );
+
+  const surfaceOptions = brandSurfaces.map((ws) => {
+    const primDomain = ws.domains?.find((d) => d.isPrimary) || ws.domains?.[0];
+    const hasGa4 = dbData.ga4Mappings.some(
+      (m) =>
+        (m.internalType === "WEBSURFACE" && m.internalId === ws.id) ||
+        (m.internalType === "BRAND" && m.internalId === ws.brandId)
+    );
+    return {
+      id: ws.id,
+      brandId: ws.brandId,
+      type: ws.type as "LOCALBI" | "ORIGINAL",
+      name: ws.name,
+      hostname: primDomain?.hostname || null,
+      hasGa4Mapping: hasGa4,
+    };
+  });
+
+  const originalSurface = surfaceOptions.find((s) => s.type === "ORIGINAL");
+  const localbiSurface = surfaceOptions.find((s) => s.type === "LOCALBI");
+  const originalHasMapping = Boolean(originalSurface?.hasGa4Mapping);
+
+  const activeMode: "LOCALBI" | "ORIGINAL" | "COMPARE" =
+    sParams.mode === "ORIGINAL" && originalHasMapping
+      ? "ORIGINAL"
+      : sParams.mode === "COMPARE" && originalHasMapping
+      ? "COMPARE"
+      : "LOCALBI";
+
+  const activeSurfaceId =
+    sParams.webSurfaceId ||
+    (activeMode === "ORIGINAL" ? originalSurface?.id : localbiSurface?.id);
+
   const daysNum = sParams.days ? parseInt(sParams.days, 10) : 30;
   const today = new Date();
   const pastDate = new Date();
@@ -170,6 +223,8 @@ export default async function Ga4ReportingPage({
     tenantSlug: tenant.slug,
     brandId: selectedBrand?.id,
     locationId: selectedLocation?.id,
+    webSurfaceId: activeSurfaceId,
+    mode: activeMode,
     startDate,
     endDate,
   });
@@ -301,6 +356,10 @@ export default async function Ga4ReportingPage({
       countries={realCountries}
       hasRealData={hasRealData}
       ga4RealData={ga4RealData}
+      webSurfaces={surfaceOptions}
+      activeSurfaceId={activeSurfaceId}
+      mode={activeMode}
+      originalHasMapping={originalHasMapping}
     />
   );
 }

@@ -58,6 +58,14 @@ model Tenant {
   categories           Category[]
   storeProducts        StoreProduct[]
   productMedia         ProductMedia[]
+  webSurfaces          WebSurface[]
+  domains              Domain[]
+  brandThemes          BrandTheme[]
+  pageTemplates        PageTemplate[]
+  pageTemplateVersions PageTemplateVersion[]
+  pages                Page[]
+  seoConfigs           SeoConfig[]
+  ga4DailyMetrics      Ga4DailyMetric[]
 
   @@map("tenants")
 }
@@ -226,6 +234,14 @@ model Brand {
   categories    Category[]
   storeProducts StoreProduct[]
   scopes        BrandAccessScope[]
+  webSurfaces   WebSurface[]
+  domains       Domain[]
+  theme         BrandTheme?
+  pageTemplates    PageTemplate[]
+  pages            Page[]
+  seoConfigs       SeoConfig[]
+  resourceMappings InternalResourceMapping[]
+  ga4DailyMetrics  Ga4DailyMetric[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -278,6 +294,7 @@ model Location {
   gbpAggregate     GbpLocationAggregate?
   gbpPosts         GbpPost[]
   gbpMedia         GbpMedia[]
+  pages            Page[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -319,6 +336,7 @@ model Category {
   parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children    Category[] @relation("CategoryHierarchy")
   products    Product[]
+  pages       Page[]
 
   @@unique([tenantId, id], name: "uq_category_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_category_tenant_brand_id")
@@ -354,6 +372,7 @@ model Product {
   storeProducts    StoreProduct[]
   media            ProductMedia[]
   productLocations ProductLocation[] // Deprecated: legacy composite mapping preserved
+  pages            Page[]
 
   @@unique([tenantId, id], name: "uq_product_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
@@ -515,17 +534,28 @@ model ConnectionResourceAccess {
 }
 
 model InternalResourceMapping {
-  id           String   @id @default(cuid())
-  tenantId     String   @map("tenant_id")
-  resourceId   String   @map("resource_id")
-  internalType String   @map("internal_type") // LOCATION, BRAND
-  internalId   String   @map("internal_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  resourceId      String   @map("resource_id")
+  internalType    String   @map("internal_type") // LOCATION, BRAND, WEBSURFACE
+  internalId      String   @map("internal_id")
+  brandId         String?  @map("brand_id")
+  webSurfaceId    String?  @map("web_surface_id")
+  filterStrategy  String   @default("NONE") @map("filter_strategy") // NONE, HOSTNAME, URL_PREFIX
+  hostnameFilter  String?  @map("hostname_filter")
+  urlPrefixFilter String?  @map("url_prefix_filter")
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
 
-  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  resource     ExternalResource @relation(fields: [tenantId, resourceId], references: [tenantId, id], onDelete: Cascade)
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resource        ExternalResource @relation(fields: [tenantId, resourceId], references: [tenantId, id], onDelete: Cascade)
+  brand           Brand?           @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface      WebSurface?      @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
 
   @@unique([tenantId, internalType, internalId, resourceId], name: "uq_internal_resource_mapping")
+  @@index([tenantId, webSurfaceId], name: "idx_resource_mapping_surface")
+  @@index([tenantId, brandId], name: "idx_resource_mapping_brand")
   @@map("internal_resource_mappings")
 }
 
@@ -927,3 +957,206 @@ model MicrositeVisitor {
   @@index([tenantId, lastSeenAt(sort: Desc)], name: "idx_visitors_tenant_last_seen")
   @@map("microsite_visitors")
 }
+
+model WebSurface {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  brandId   String   @map("brand_id")
+  type      String   @default("LOCALBI") // ORIGINAL, LOCALBI
+  name      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand     Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  domains          Domain[]
+  pageTemplates    PageTemplate[]
+  pages            Page[]
+  seoConfigs       SeoConfig[]
+  resourceMappings InternalResourceMapping[]
+  ga4DailyMetrics  Ga4DailyMetric[]
+
+  @@unique([tenantId, id], name: "uq_web_surface_tenant_id")
+  @@unique([tenantId, brandId, id], name: "uq_web_surface_tenant_brand_id")
+  @@unique([tenantId, brandId, type], name: "uq_web_surface_tenant_brand_type")
+  @@index([tenantId, brandId, status], name: "idx_web_surfaces_brand")
+  @@map("web_surfaces")
+}
+
+model Domain {
+  id           String     @id @default(cuid())
+  tenantId     String     @map("tenant_id")
+  brandId      String     @map("brand_id")
+  webSurfaceId String     @map("web_surface_id")
+  hostname     String     @unique
+  isPrimary    Boolean    @default(false) @map("is_primary")
+  isVerified   Boolean    @default(false) @map("is_verified")
+  sslStatus    String     @default("ACTIVE") @map("ssl_status")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand      @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface   WebSurface @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_domain_tenant_id")
+  @@index([tenantId, brandId, webSurfaceId], name: "idx_domains_surface")
+  @@map("domains")
+}
+
+model BrandTheme {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  brandId         String   @unique @map("brand_id")
+  primaryColor    String   @default("#4F46E5") @map("primary_color")
+  secondaryColor  String   @default("#0F172A") @map("secondary_color")
+  accentColor     String   @default("#F59E0B") @map("accent_color")
+  backgroundColor String   @default("#FFFFFF") @map("background_color")
+  textColor       String   @default("#0F172A") @map("text_color")
+  fontHeading     String   @default("Inter, sans-serif") @map("font_heading")
+  fontBody        String   @default("Inter, sans-serif") @map("font_body")
+  buttonRadius    String   @default("0.5rem") @map("button_radius")
+  cardRadius      String   @default("0.75rem") @map("card_radius")
+  customCss       String?  @map("custom_css") @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand           Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_brand_theme_tenant_id")
+  @@unique([tenantId, brandId], name: "uq_brand_theme_tenant_brand")
+  @@map("brand_themes")
+}
+
+model PageTemplate {
+  id              String                @id @default(cuid())
+  tenantId        String                @map("tenant_id")
+  brandId         String                @map("brand_id")
+  webSurfaceId    String                @map("web_surface_id")
+  name            String
+  type            String                @default("STORE") // HOME, CITY, STORE, CATEGORY, PRODUCT, STORE_PRODUCT, CUSTOM
+  status          String                @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
+  activeVersionId String?               @map("active_version_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand           Brand                 @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface      WebSurface            @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+
+  versions        PageTemplateVersion[]
+  pages           Page[]
+
+  @@unique([tenantId, id], name: "uq_page_template_tenant_id")
+  @@unique([tenantId, brandId, webSurfaceId, type, name], name: "uq_page_template_unique")
+  @@index([tenantId, brandId, webSurfaceId, type], name: "idx_page_templates_lookup")
+  @@map("page_templates")
+}
+
+model PageTemplateVersion {
+  id             String       @id @default(cuid())
+  tenantId       String       @map("tenant_id")
+  pageTemplateId String       @map("page_template_id")
+  version        Int          @default(1)
+  puckData       Json         @default("{\"content\":[],\"root\":{\"props\":{\"title\":\"\"}}}") @map("puck_data")
+  status         String       @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  createdBy      String?      @map("created_by")
+  publishedAt    DateTime?    @map("published_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pageTemplate   PageTemplate @relation(fields: [pageTemplateId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_page_template_version_tenant_id")
+  @@unique([pageTemplateId, version], name: "uq_page_template_version")
+  @@index([tenantId, pageTemplateId, status], name: "idx_page_template_versions_status")
+  @@map("page_template_versions")
+}
+
+model Page {
+  id           String       @id @default(cuid())
+  tenantId     String       @map("tenant_id")
+  brandId      String       @map("brand_id")
+  webSurfaceId String       @map("web_surface_id")
+  templateId   String       @map("template_id")
+  pageType     String       @default("STORE") @map("page_type") // HOME, CITY, STORE, CATEGORY, PRODUCT, STORE_PRODUCT, CUSTOM
+  slug         String
+  citySlug     String?      @map("city_slug")
+  storeId      String?      @map("store_id")
+  categoryId   String?      @map("category_id")
+  productId    String?      @map("product_id")
+  status       String       @default("PUBLISHED") // PUBLISHED, DRAFT, UNPUBLISHED
+  canonicalUrl String?      @map("canonical_url")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand        @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface   WebSurface   @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+  template     PageTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  store        Location?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, id], name: "uq_page_tenant_id")
+  @@unique([tenantId, brandId, webSurfaceId, slug], name: "uq_page_slug")
+  @@index([tenantId, webSurfaceId, pageType, slug], name: "idx_pages_resolution")
+  @@index([tenantId, storeId], name: "idx_pages_store")
+  @@index([tenantId, productId], name: "idx_pages_product")
+  @@map("pages")
+}
+
+model SeoConfig {
+  id                  String      @id @default(cuid())
+  tenantId            String      @map("tenant_id")
+  brandId             String      @map("brand_id")
+  webSurfaceId        String?     @map("web_surface_id")
+  pageType            String?     @map("page_type")
+  titleTemplate       String      @map("title_template")
+  descriptionTemplate String      @map("description_template")
+  keywords            String?
+  robotsPolicy        String      @default("index, follow") @map("robots_policy")
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  tenant              Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand               Brand       @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface          WebSurface? @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_seo_config_tenant_id")
+  @@unique([tenantId, brandId, webSurfaceId, pageType], name: "uq_seo_config_scope")
+  @@index([tenantId, brandId, pageType], name: "idx_seo_configs_lookup")
+  @@map("seo_configs")
+}
+
+model Ga4DailyMetric {
+  id                 BigInt   @id @default(autoincrement())
+  tenantId           String   @map("tenant_id")
+  brandId            String   @map("brand_id")
+  webSurfaceId       String   @map("web_surface_id")
+  resourceId         String   @map("resource_id")
+  date               DateTime @db.Date
+  activeUsers        Int      @default(0) @map("active_users")
+  newUsers           Int      @default(0) @map("new_users")
+  sessions           Int      @default(0)
+  engagedSessions    Int      @default(0) @map("engaged_sessions")
+  eventCount         Int      @default(0) @map("event_count")
+  keyEvents          Int      @default(0) @map("key_events")
+  screenPageViews    Int      @default(0) @map("screen_page_views")
+  avgEngagementTime  Float    @default(0.0) @map("avg_engagement_time")
+  freshnessTimestamp DateTime @default(now()) @map("freshness_timestamp")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant             Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand      @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  webSurface         WebSurface @relation(fields: [tenantId, webSurfaceId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, webSurfaceId, date, resourceId], name: "uq_ga4_daily_metric")
+  @@index([tenantId, brandId, date], name: "idx_ga4_daily_metric_brand_date")
+  @@map("ga4_daily_metrics")
+}
+
