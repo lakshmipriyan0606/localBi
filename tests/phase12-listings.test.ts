@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import crypto from 'node:crypto';
 import { prisma } from '../src/shared/database/client';
 import { TenantContextService } from '../src/shared/database/tenant-context';
-import { Role, AuthorizedContext, ScopeMode } from '../src/shared/authorization/policy';
 import { normalizeEmail } from '../src/modules/auth/email-normalizer';
 import {
   NapNormalizer,
@@ -10,7 +9,6 @@ import {
   ListingMatchService,
   ListingService,
   DuplicateDetectionService,
-  ListingOpportunityBridge,
   DirectoryRegistry,
   ListingProvider,
   MatchStatus,
@@ -23,13 +21,9 @@ describe('Phase 12: Local Listings + Citations + Directory Presence Tests', () =
   let tenantAId: string;
   let tenantBId: string;
   let brandAId: string;
-  let brandBId: string;
   let storeA1Id: string;
   let storeA2Id: string;
   let userAId: string;
-  let userBId: string;
-  let contextA: AuthorizedContext;
-  let contextB: AuthorizedContext;
 
   const idSuffix = crypto.randomBytes(4).toString('hex');
 
@@ -44,14 +38,13 @@ describe('Phase 12: Local Listings + Citations + Directory Presence Tests', () =
     });
     userAId = userA.id;
 
-    const userB = await prisma.user.create({
+    await prisma.user.create({
       data: {
         email: normalizeEmail(`owner-listing-b-${idSuffix}@example.com`),
         fullName: 'Tenant B Listing Owner',
         status: 'ACTIVE',
       },
     });
-    userBId = userB.id;
 
     // 2. Create Tenants
     const tenantA = await prisma.tenant.create({
@@ -129,34 +122,15 @@ describe('Phase 12: Local Listings + Citations + Directory Presence Tests', () =
     });
 
     await TenantContextService.withTenantContext(prisma, tenantBId, async (tx) => {
-      const brandB = await tx.brand.create({
+      await tx.brand.create({
         data: {
           tenantId: tenantBId,
           name: `Oasis Fragrance ${idSuffix}`,
           slug: `oasis-fragrance-${idSuffix}`,
         },
       });
-      brandBId = brandB.id;
     });
 
-    // 4. Authorized Contexts
-    contextA = {
-      userId: userAId,
-      tenantId: tenantAId,
-      role: Role.CLIENT_OWNER,
-      scopeMode: ScopeMode.ALL,
-      grantedBrandIds: new Set([brandAId]),
-      grantedLocationIds: new Set([storeA1Id, storeA2Id]),
-    };
-
-    contextB = {
-      userId: userBId,
-      tenantId: tenantBId,
-      role: Role.CLIENT_OWNER,
-      scopeMode: ScopeMode.ALL,
-      grantedBrandIds: new Set([brandBId]),
-      grantedLocationIds: new Set(),
-    };
   });
 
   describe('1. NAP Normalization Utilities', () => {
@@ -461,7 +435,7 @@ describe('Phase 12: Local Listings + Citations + Directory Presence Tests', () =
   describe('7. Duplicate Listing Detection Engine', () => {
     it('detects duplicate candidates sharing the same phone or place ID across listings', async () => {
       // Connect duplicate listing for the same phone on Bing
-      const bingListing1 = await ListingService.connectListing(tenantAId, storeA1Id, {
+      await ListingService.connectListing(tenantAId, storeA1Id, {
         provider: ListingProvider.BING_PLACES,
         externalListingId: `bing_1_${idSuffix}`,
         snapshot: {
@@ -472,7 +446,7 @@ describe('Phase 12: Local Listings + Citations + Directory Presence Tests', () =
       });
 
       // Connect another listing on Bing with identical phone and similar name
-      const bingListing2 = await ListingService.connectListing(tenantAId, storeA2Id, {
+      await ListingService.connectListing(tenantAId, storeA2Id, {
         provider: ListingProvider.BING_PLACES,
         externalListingId: `bing_2_${idSuffix}`,
         snapshot: {

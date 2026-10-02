@@ -38,7 +38,6 @@ export async function GET(
     const categoryId = searchParams.get('categoryId') || undefined;
     const authorId = searchParams.get('authorId') || undefined;
     const search = searchParams.get('search') || undefined;
-    const tag = searchParams.get('tag') || undefined;
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
 
@@ -52,7 +51,6 @@ export async function GET(
         categoryId,
         authorId,
         search,
-        tag,
         page,
         limit,
       },
@@ -101,13 +99,11 @@ export async function POST(
         excerpt: body.excerpt,
         contentMarkdown: body.contentMarkdown,
         contentBlocks: body.contentBlocks,
-        metaTitle: body.metaTitle,
-        metaDescription: body.metaDescription,
+        seoTitle: body.seoTitle || body.metaTitle,
+        seoDescription: body.seoDescription || body.metaDescription,
         canonicalUrl: body.canonicalUrl,
         ogImageUrl: body.ogImageUrl,
         featuredImageUrl: body.featuredImageUrl,
-        tags: body.tags,
-        isIndexable: body.isIndexable,
         origin: body.origin,
         userId: authorizedContext.userId,
         changeSummary: body.changeSummary,

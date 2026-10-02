@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Building2,
   CheckCircle2,
@@ -9,13 +9,9 @@ import {
   Copy,
   ExternalLink,
   RefreshCw,
-  ShieldAlert,
-  ArrowRight,
-  SlidersHorizontal,
   FileEdit,
   Check,
   X,
-  HelpCircle,
 } from 'lucide-react';
 
 interface ScopedBrand {
@@ -59,7 +55,7 @@ export function ListingsDashboard({
 
   useEffect(() => {
     if (filteredStores.length > 0 && !filteredStores.some((s) => s.id === selectedStoreId)) {
-      setSelectedStoreId(filteredStores[0].id);
+      setSelectedStoreId(filteredStores[0]!.id);
     }
   }, [selectedBrandId, filteredStores, selectedStoreId]);
 

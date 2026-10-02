@@ -8,7 +8,7 @@ import { handleRouteError, createValidationError } from '@/shared/errors';
 import { StoreDayHours } from '@/modules/listings/listing-types';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string; storeId: string }> }
 ) {
   try {

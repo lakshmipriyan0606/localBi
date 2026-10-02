@@ -7,7 +7,7 @@ import { ContentService } from '@/modules/content/content-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string; contentId: string }> }
 ) {
   try {

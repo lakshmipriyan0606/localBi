@@ -203,7 +203,7 @@ export class NapNormalizer {
     cleaned = cleaned.replace(/^www\./, '');
 
     // Strip query strings and hash
-    cleaned = cleaned.split('?')[0].split('#')[0];
+    cleaned = (cleaned.split('?')[0] || '').split('#')[0] || '';
 
     // Strip trailing slashes
     cleaned = cleaned.replace(/\/+$/, '');
@@ -249,7 +249,7 @@ export class NapNormalizer {
 
     // Matches "9:30 AM" or "09:30 PM"
     const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (ampmMatch) {
+    if (ampmMatch && ampmMatch[1] && ampmMatch[2] && ampmMatch[3]) {
       let hours = parseInt(ampmMatch[1], 10);
       const minutes = ampmMatch[2];
       const meridiem = ampmMatch[3].toUpperCase();

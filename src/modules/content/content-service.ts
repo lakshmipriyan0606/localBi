@@ -319,7 +319,7 @@ export class ContentService {
       });
 
       // 2. Create immutable initial version (v1)
-      const version = await tx.contentVersion.create({
+      await tx.contentVersion.create({
         data: {
           tenantId,
           contentItemId: item.id,

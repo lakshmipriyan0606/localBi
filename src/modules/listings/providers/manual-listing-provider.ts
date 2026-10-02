@@ -151,8 +151,8 @@ export class ManualListingProvider extends DirectoryProvider {
   }
 
   public async discover(
-    tenantId: string,
-    canonical: CanonicalStoreProfile
+    _tenantId: string,
+    _canonical: CanonicalStoreProfile
   ): Promise<ProviderListingSnapshot[]> {
     // Manual providers do not support automatic API discovery
     return [];

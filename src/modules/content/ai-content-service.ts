@@ -45,8 +45,8 @@ export class AiContentService {
       });
       if (brand) {
         brandName = brand.name;
-        brandIndustry = brand.industry || undefined;
-        brandDescription = brand.description || undefined;
+        brandIndustry = (brand as any).industry || undefined;
+        brandDescription = (brand as any).description || undefined;
       }
 
       // 2. Load verified Locations
@@ -91,11 +91,11 @@ export class AiContentService {
           const firstEv = opp.evidence?.[0];
           const ev = (firstEv?.details as Record<string, any>) || {};
           opportunityEvidence = {
-            primaryKeyword: ev.keywordText || firstEv?.entityLabel || opp.title,
-            secondaryKeywords: Array.isArray(ev.secondaryKeywords) ? ev.secondaryKeywords : [],
-            searchVolume: typeof ev.searchVolume === 'number' ? ev.searchVolume : undefined,
+            primaryKeyword: ev['keywordText'] || firstEv?.entityLabel || opp.title,
+            secondaryKeywords: Array.isArray(ev['secondaryKeywords']) ? ev['secondaryKeywords'] : [],
+            searchVolume: typeof ev['searchVolume'] === 'number' ? ev['searchVolume'] : undefined,
             opportunityType: opp.type,
-            intent: ev.intent || 'INFORMATIONAL',
+            intent: ev['intent'] || 'INFORMATIONAL',
           };
         }
       }

@@ -7,7 +7,7 @@ import { ListingService } from '@/modules/listings/listing-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string; storeId: string }> }
 ) {
   try {
@@ -36,7 +36,7 @@ export async function GET(
 }
 
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string; storeId: string }> }
 ) {
   try {

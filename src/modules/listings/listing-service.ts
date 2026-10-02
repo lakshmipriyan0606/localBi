@@ -3,21 +3,17 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import {
   createResourceNotFoundError,
   createValidationError,
-  AppError,
 } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
 import {
   ListingProviderType,
   ListingStatus,
-  MatchStatus,
-  MatchConfidence,
   NapFieldStatus,
   NapOverallStatus,
   ChangeSetStatus,
   NapComparisonResult,
   NapFieldDifference,
   ProviderListingSnapshot,
-  StoreDayHours,
 } from './listing-types';
 import { NapNormalizer } from './nap-normalizer';
 import { ListingProfileService } from './listing-profile-service';
@@ -119,9 +115,13 @@ export class ListingService {
     const canonical = await ListingProfileService.getCanonicalStoreProfile(tenantId, storeId);
 
     // Evaluate match status if snapshot or external listing is provided
-    const snapshot = input.snapshot || {
-      externalListingId: input.externalListingId,
-      url: input.providerUrl,
+    const snapshot: ProviderListingSnapshot = input.snapshot || {
+      name: '',
+      phone: null,
+      address: '',
+      website: null,
+      url: input.providerUrl ?? null,
+      externalListingId: input.externalListingId ?? null,
     };
 
     const matchEvaluation = ListingMatchService.evaluateMatch(canonical, snapshot);
@@ -156,16 +156,16 @@ export class ListingService {
           lastDiscoveredAt: new Date(),
         },
         update: {
-          externalListingId: input.externalListingId ?? undefined,
-          providerUrl: input.providerUrl ?? undefined,
+          externalListingId: input.externalListingId ?? null,
+          providerUrl: input.providerUrl ?? null,
           matchStatus: matchEvaluation.status,
           matchConfidence: matchEvaluation.confidence,
           matchEvidenceSummary: matchEvaluation.evidenceSummary,
-          snapshotName: snapshot.name ?? undefined,
-          snapshotPhone: snapshot.phone ?? undefined,
-          snapshotAddress: snapshot.address ?? undefined,
-          snapshotWebsite: snapshot.website ?? undefined,
-          snapshotHours: (snapshot.hours as any) ?? undefined,
+          snapshotName: snapshot.name || null,
+          snapshotPhone: snapshot.phone ?? null,
+          snapshotAddress: snapshot.address || null,
+          snapshotWebsite: snapshot.website ?? null,
+          snapshotHours: (snapshot.hours as any) ?? null,
         },
       });
     });
@@ -543,7 +543,7 @@ export class ListingService {
           providerError: writeResult.error ?? null,
           reviewNote: writeResult.manualInstructions
             ? `${reviewNote ? reviewNote + '\n\n' : ''}${writeResult.manualInstructions}`
-            : reviewNote,
+            : (reviewNote ?? null),
         },
       });
     });
@@ -559,7 +559,7 @@ export class ListingService {
    */
   public static async getChangeSets(
     tenantId: string,
-    options?: { listingId?: string; status?: string }
+    options?: { listingId?: string | undefined; status?: string | undefined }
   ) {
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       return tx.listingChangeSet.findMany({

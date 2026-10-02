@@ -2,11 +2,11 @@
 
 Overall roadmap: 20 phases
 
-CURRENT_PHASE: 13
+CURRENT_PHASE: 14
 CURRENT_STATUS: IN_PROGRESS
-LAST_COMPLETED_PHASE: 12
-LAST_COMMIT: 6aa1043
-NEXT_PHASE: 14
+LAST_COMPLETED_PHASE: 13
+LAST_COMMIT: PENDING_COMMIT
+NEXT_PHASE: 15
 BLOCKERS: NONE
 
 ---
@@ -38,8 +38,8 @@ BLOCKERS: NONE
 | 10 | Keyword Intelligence + SEO Opportunity Engine (Factual Signals + Explainable Recommendations + Prioritization) | COMPLETED | 2026-10-02 | 2026-10-02 | `679bd76` | PASS | Multi-source signals, 10 deterministic rules, explainable evidence, human review workflow, dual-role RLS on 64 tables |
 | 11 | Content & Growth Engine (Blog CMS + SEO Content + Editorial Workflow + Internal Linking) | COMPLETED | 2026-10-02 | 2026-10-02 | `6aa1043` | PASS | Blog CMS, editorial revision history, automated SEO internal linking suggestions, dual-role RLS on 6 tables (70 total) |
 | 12 | Local Listings + Citations + Directory Presence (NAP Consistency + Duplicate Detection + Controlled Sync) | COMPLETED | 2026-10-02 | 2026-10-02 | `6aa1043` | PASS | NAP consistency audit, store hours override, directory listings, duplicate detection, controlled sync change sets, dual-role RLS on 4 tables (74 total) |
-| 13 | Unified Executive / Client Reporting (Cross-Module Dashboard + Client Reports + Exports + Scheduled Delivery) | IN_PROGRESS | 2026-10-02 | | | | Executive KPI rollup, custom client report builder, PDF/CSV/Excel exports, automated delivery schedules |
-| 14 | White-Label / Agency / Multi-Client Portal (Client Hierarchy + Branding + Access Control + Invitations + Entitlements) | NOT_STARTED | | | | | |
+| 13 | Unified Executive / Client Reporting (Cross-Module Dashboard + Client Reports + Exports + Scheduled Delivery) | COMPLETED | 2026-10-02 | 2026-10-02 | PENDING | PASS | Cross-module KPI rollup, multi-module adapters, zero-safe comparison math, ReportSnapshot, CSV formula sanitization, HTML/PDF, scheduled cron delivery, 20/20 tests pass |
+| 14 | White-Label / Agency / Multi-Client Portal (Client Hierarchy + Branding + Access Control + Invitations + Entitlements) | IN_PROGRESS | 2026-10-02 | | | | Agency mode, ClientAccount, scoped RBAC, secure invitations, WhiteLabelConfig, portal domains, EntitlementService |
 | 15 | Subscriptions + Usage Metering + Billing + Payments + Invoices (Plan Entitlements + Quotas + Billing Provider + Payment Webhooks) | NOT_STARTED | | | | | |
 | 16 | Platform Operations + Enterprise Hardening (Observability + Audit + Tenant Health + Job Health + Integration Health) | NOT_STARTED | | | | | |
 | 17 | Production Validation + Scale Testing + Capacity Planning (Multi-Tenant Load + Queue Stress + Database/Redis Validation + Failure Drills) | NOT_STARTED | | | | | |

@@ -11,7 +11,6 @@ import {
   AuthorizationService,
   Action,
 } from '@/shared/authorization/policy';
-import { logger } from '@/shared/observability/logger';
 import {
   DetectedMention,
   InternalLinkSuggestion,

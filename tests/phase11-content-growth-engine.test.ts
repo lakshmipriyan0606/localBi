@@ -268,8 +268,6 @@ describe('Phase 11: Content & Growth Engine Tests', () => {
   });
 
   describe('2. Content Item Creation and Version 1 Generation', () => {
-    let createdItemId: string;
-
     it('creates a new article with initial immutable version 1', async () => {
       const item = await ContentService.createContentItem(
         {
@@ -290,8 +288,6 @@ describe('Phase 11: Content & Growth Engine Tests', () => {
       expect(item.currentVersion).toBeDefined();
       expect(item.currentVersion?.version).toBe(1);
       expect(item.currentVersion?.title).toBe('The Ultimate Guide to Pure Cambodian Oud');
-
-      createdItemId = item.id;
     });
 
     it('rejects duplicate slug within the same brand', async () => {

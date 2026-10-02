@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BookOpen,
   FileText,
@@ -8,17 +8,14 @@ import {
   Link2,
   Plus,
   CheckCircle,
-  Clock,
   AlertTriangle,
   ArrowRight,
   RefreshCw,
   Search,
-  ExternalLink,
   ShieldCheck,
   Send,
   Eye,
   History,
-  RotateCcw,
 } from 'lucide-react';
 
 interface BrandOption {

@@ -1,8 +1,8 @@
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
-import { createResourceNotFoundError, AppError } from '@/shared/errors';
+import { createResourceNotFoundError } from '@/shared/errors';
 import { NapNormalizer } from './nap-normalizer';
-import { DuplicateCandidateStatusType, MatchConfidence } from './listing-types';
+import { DuplicateCandidateStatusType, MatchConfidence, MatchConfidenceType } from './listing-types';
 import { logger } from '@/shared/observability/logger';
 
 export interface DuplicateDetectionResult {
@@ -87,7 +87,7 @@ export class DuplicateDetectionService {
 
           // If evidence threshold met (e.g. shared phone + shared address, or shared Place ID)
           if (score >= 0.5 || sharedPlaceId || (sharedPhone && sharedAddress)) {
-            let confidence = MatchConfidence.LOW;
+            let confidence: MatchConfidenceType = MatchConfidence.LOW;
             if (score >= 0.75 || sharedPlaceId) {
               confidence = MatchConfidence.HIGH;
             } else if (score >= 0.5) {
@@ -148,7 +148,7 @@ export class DuplicateDetectionService {
    */
   public static async getDuplicates(
     tenantId: string,
-    options?: { storeId?: string; provider?: string; status?: string }
+    options?: { storeId?: string | undefined; provider?: string | undefined; status?: string | undefined }
   ) {
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       return tx.duplicateListingCandidate.findMany({

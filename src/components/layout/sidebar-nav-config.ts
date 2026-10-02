@@ -82,6 +82,13 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: LayoutDashboard,
         exact: true,
       },
+      {
+        label: 'Executive Report',
+        href: `/client/${slug}/reports/executive`,
+        icon: BarChart2,
+        pillBadge: 'Cross-Module',
+        badgeVariant: 'indigo',
+      },
     ],
   },
   {

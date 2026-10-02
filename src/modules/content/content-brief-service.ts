@@ -83,15 +83,15 @@ export class ContentBriefService {
       const firstEv = opportunity.evidence?.[0];
       const evDetails = (firstEv?.details as Record<string, any>) || {};
       const primaryKeyword =
-        evDetails.keywordText ||
+        evDetails['keywordText'] ||
         firstEv?.entityLabel ||
         opportunity.title.replace(/^(Improve|Create|Update|Add)\s+/i, '').trim();
 
-      const secondaryKeywords: string[] = Array.isArray(evDetails.secondaryKeywords)
-        ? evDetails.secondaryKeywords
+      const secondaryKeywords: string[] = Array.isArray(evDetails['secondaryKeywords'])
+        ? evDetails['secondaryKeywords']
         : [];
 
-      const intent = evDetails.intent || 'INFORMATIONAL';
+      const intent = evDetails['intent'] || 'INFORMATIONAL';
       const workingTitle = `Comprehensive Guide: ${primaryKeyword}`;
       const primaryTopic = primaryKeyword;
 

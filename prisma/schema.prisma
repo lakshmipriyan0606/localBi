@@ -99,6 +99,10 @@ model Tenant {
   directoryListings    DirectoryListing[]
   duplicateCandidates  DuplicateListingCandidate[]
   listingChangeSets    ListingChangeSet[]
+  reportSnapshots      ReportSnapshot[]
+  reportSchedules      ReportSchedule[]
+  reportDeliveries     ReportDelivery[]
+  reportPresets        ReportPreset[]
 
   @@map("tenants")
 }
@@ -293,6 +297,9 @@ model Brand {
   contentBriefs        ContentBrief[]
   contentItems         ContentItem[]
   directoryListings    DirectoryListing[]
+  reportSnapshots      ReportSnapshot[]
+  reportSchedules      ReportSchedule[]
+  reportPresets        ReportPreset[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -2339,3 +2346,115 @@ model ListingChangeSet {
   @@index([tenantId, status, priority], name: "idx_change_set_status_priority")
   @@map("listing_change_sets")
 }
+
+// -----------------------------------------------------------------------------
+// UNIFIED EXECUTIVE / CLIENT REPORTING ENGINE (Phase 13)
+// Cross-Module Dashboard + Client Reports + Exports + Scheduled Delivery
+// -----------------------------------------------------------------------------
+
+model ReportSnapshot {
+  id                 String           @id @default(cuid())
+  tenantId           String           @map("tenant_id")
+  brandId            String           @map("brand_id")
+  title              String
+  reportType         String           @default("EXECUTIVE") @map("report_type") // EXECUTIVE, STORE, PAGE, CUSTOM
+  reportVersion      String           @default("1.0.0") @map("report_version")
+  dateRange          Json             @map("date_range") // { startDate, endDate, daysCount, preset }
+  comparisonRange    Json?            @map("comparison_range") // { startDate, endDate, daysCount, type }
+  filterConfig       Json             @map("filter_config") // { webSurfaceId, storeIds, scope, sections }
+  payload            Json             // Full frozen ExecutiveReportDto
+  partial            Boolean          @default(false)
+  unavailableModules Json             @default("[]") @map("unavailable_modules") // Array of string module keys
+  dataFreshness      Json             @map("data_freshness") // Record of module -> ISO string
+  generatedAt        DateTime         @default(now()) @map("generated_at")
+  createdBy          String?          @map("created_by")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand              Brand            @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  deliveries         ReportDelivery[]
+
+  @@unique([tenantId, id], name: "uq_report_snapshot_tenant_id")
+  @@index([tenantId, brandId, generatedAt(sort: Desc)], name: "idx_report_snapshot_brand_gen")
+  @@index([tenantId, reportType, generatedAt(sort: Desc)], name: "idx_report_snapshot_type_gen")
+  @@map("report_snapshots")
+}
+
+model ReportSchedule {
+  id           String           @id @default(cuid())
+  tenantId     String           @map("tenant_id")
+  brandId      String           @map("brand_id")
+  name         String
+  frequency    String           @default("WEEKLY") // DAILY, WEEKLY, MONTHLY, QUARTERLY
+  timezone     String           @default("UTC")
+  dayOfWeek    Int?             @map("day_of_week") // 0-6 (0=Sun, 1=Mon)
+  dayOfMonth   Int?             @map("day_of_month") // 1-31
+  hourOfDay    Int              @default(9) @map("hour_of_day") // 0-23
+  recipients   Json             @default("[]") // Array of email strings
+  format       String           @default("PDF") // PDF, EMAIL_SUMMARY, CSV
+  status       String           @default("ACTIVE") // ACTIVE, PAUSED, ARCHIVED
+  filterConfig Json             @default("{}") @map("filter_config") // { webSurfaceId, storeIds, sections }
+  nextRunAt    DateTime?        @map("next_run_at")
+  lastRunAt    DateTime?        @map("last_run_at")
+  createdBy    String?          @map("created_by")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand            @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  deliveries   ReportDelivery[]
+
+  @@unique([tenantId, id], name: "uq_report_schedule_tenant_id")
+  @@index([tenantId, status, nextRunAt], name: "idx_report_schedule_status_next_run")
+  @@index([tenantId, brandId], name: "idx_report_schedule_brand")
+  @@map("report_schedules")
+}
+
+model ReportDelivery {
+  id           String          @id @default(cuid())
+  tenantId     String          @map("tenant_id")
+  scheduleId   String          @map("schedule_id")
+  snapshotId   String?         @map("snapshot_id")
+  periodKey    String          @map("period_key") // e.g. weekly_2026_w40, monthly_2026_10
+  recipient    String
+  format       String          @default("PDF")
+  status       String          @default("PENDING") // PENDING, SENT, FAILED, SKIPPED
+  attempts     Int             @default(0)
+  sentAt       DateTime?       @map("sent_at")
+  errorCode    String?         @map("error_code")
+  errorMessage String?         @map("error_message") @db.Text
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedule     ReportSchedule  @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  snapshot     ReportSnapshot? @relation(fields: [snapshotId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, scheduleId, periodKey, recipient], name: "uq_report_delivery_idempotency")
+  @@index([tenantId, scheduleId, createdAt(sort: Desc)], name: "idx_report_delivery_schedule_created")
+  @@index([tenantId, status], name: "idx_report_delivery_status")
+  @@map("report_deliveries")
+}
+
+model ReportPreset {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  brandId      String   @map("brand_id")
+  name         String
+  description  String?  @db.Text
+  scope        String   @default("BRAND") // BRAND, STORE, WEB_SURFACE, PAGE, PRODUCT
+  filterConfig Json     @map("filter_config") // { webSurfaceId, storeIds, sections, datePreset }
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdBy    String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand        Brand    @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_report_preset_tenant_id")
+  @@index([tenantId, brandId, isDefault], name: "idx_report_preset_brand_default")
+  @@map("report_presets")
+}
+

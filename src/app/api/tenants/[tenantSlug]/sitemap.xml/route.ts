@@ -21,7 +21,7 @@ export async function GET(
       return new NextResponse('Tenant not found', { status: 404 });
     }
 
-    const host = tenant.domains[0]?.domain || request.headers.get('host') || 'localhost';
+    const host = tenant.domains[0]?.hostname || request.headers.get('host') || 'localhost';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
@@ -36,7 +36,7 @@ export async function GET(
           }),
           tx.location.findMany({
             where: { tenantId: tenant.id, isClosed: false },
-            select: { slug: true, id: true, updatedAt: true },
+            select: { storeCode: true, id: true, updatedAt: true },
           }),
           tx.product.findMany({
             where: { tenantId: tenant.id, status: 'ACTIVE' },
@@ -72,7 +72,7 @@ export async function GET(
 
     for (const l of locations) {
       urls.push({
-        loc: `${baseUrl}/stores/${l.slug || l.id}`,
+        loc: `${baseUrl}/stores/${l.storeCode || l.id}`,
         lastmod: (l.updatedAt || new Date()).toISOString().split('T')[0]!,
         changefreq: 'weekly',
         priority: '0.7',

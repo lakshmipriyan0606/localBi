@@ -99,11 +99,11 @@ export class GbpListingProvider extends DirectoryProvider {
       const updatedSnapshot: Partial<ProviderListingSnapshot> = {};
       for (const diff of differences) {
         if (diff.field === 'name') updatedSnapshot.name = canonical.name;
-        if (diff.field === 'phone') updatedSnapshot.phone = canonical.phone;
+        if (diff.field === 'phone') updatedSnapshot.phone = canonical.phone ?? null;
         if (diff.field === 'address') {
           updatedSnapshot.address = `${canonical.addressLine1}, ${canonical.city}, ${canonical.state} ${canonical.postalCode}`;
         }
-        if (diff.field === 'website') updatedSnapshot.website = canonical.website;
+        if (diff.field === 'website') updatedSnapshot.website = canonical.website ?? null;
         if (diff.field === 'hours') updatedSnapshot.hours = canonical.hours;
       }
 
@@ -160,7 +160,7 @@ export class GbpListingProvider extends DirectoryProvider {
   }
 
   public async discover(
-    tenantId: string,
+    _tenantId: string,
     canonical: CanonicalStoreProfile
   ): Promise<ProviderListingSnapshot[]> {
     // If store already has a googlePlaceId or listing, return it
@@ -168,9 +168,9 @@ export class GbpListingProvider extends DirectoryProvider {
       return [
         {
           name: canonical.name,
-          phone: canonical.phone,
+          phone: canonical.phone ?? null,
           address: `${canonical.addressLine1}, ${canonical.city}, ${canonical.postalCode}`,
-          website: canonical.website,
+          website: canonical.website ?? null,
           url: `https://maps.google.com/?cid=${canonical.googlePlaceId}`,
           externalListingId: canonical.googlePlaceId,
           extra: { placeId: canonical.googlePlaceId },
