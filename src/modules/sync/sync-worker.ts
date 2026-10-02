@@ -6,8 +6,10 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleApiClient, GbpDailyMetricEntry } from '../integrations/google/google-api-client';
 import { GoogleOAuthService } from '../integrations/google/google-oauth-service';
 import { GoogleConnectionResolver } from '../integrations/google/google-connection-resolver';
-import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData, GbpReviewSyncJobData } from './sync-queue';
+import { SYNC_QUEUE_NAME, SyncJobData, GscSyncJobData, GbpSyncJobData, GbpReviewSyncJobData, GbpProfileSyncJobData } from './sync-queue';
 import { GbpReviewSyncJob } from './jobs/gbp-review-sync-job';
+import { GbpWriteClient } from '../integrations/google/gbp-write-client';
+import { GbpLocationService } from '../reports/gbp-location-service';
 import { logger } from '@/shared/observability/logger';
 
 export class SyncWorkerService {
@@ -158,6 +160,8 @@ export class SyncWorkerService {
       } else if (data.type === 'GBP_REVIEW_SYNC') {
         const result = await GbpReviewSyncJob.execute(accessToken, data as GbpReviewSyncJobData);
         rowsIngested = result.processed;
+      } else if (data.type === 'GBP_PROFILE_SYNC') {
+        rowsIngested = await this.processGbpProfileJob(data as GbpProfileSyncJobData, accessToken);
       }
 
       // 3. Mark SyncRun SUCCESS
@@ -706,5 +710,65 @@ export class SyncWorkerService {
     }
 
     return { gscRows, gbpRows };
+  }
+
+  /**
+   * Processes a GBP_PROFILE_SYNC job.
+   *
+   * Direction: Google → LocalBi (READ-ONLY snapshot).
+   * Never pushes LocalBi fields back to Google.
+   * On success: updates Location.gbpSyncStatus = 'SYNCED'.
+   * On failure: updates Location.gbpSyncStatus = 'ERROR'.
+   */
+  private static async processGbpProfileJob(
+    data: GbpProfileSyncJobData,
+    accessToken: string
+  ): Promise<number> {
+    const { tenantId, locationId, locationResourceName } = data;
+
+    // Mark location as SYNCING before calling Google
+    await GbpLocationService.updateGbpSyncStatus(tenantId, locationId, 'SYNCING');
+
+    try {
+      const profile = await GbpWriteClient.getProfile(accessToken, locationResourceName);
+
+      // Compute profile completeness from the live profile data
+      const completeness = GbpLocationService.computeProfileCompleteness(profile);
+
+      logger.info(
+        {
+          tenantId,
+          locationId,
+          locationResourceName,
+          completenessScore: completeness.score,
+          operation: 'gbp.profile_sync.success',
+        },
+        'GBP profile sync completed successfully'
+      );
+
+      // Mark location as SYNCED
+      await GbpLocationService.updateGbpSyncStatus(tenantId, locationId, 'SYNCED');
+
+      // Return 1 row ingested (the profile snapshot counts as 1 unit)
+      return 1;
+    } catch (err: unknown) {
+      const errObj = err as { code?: string; message?: string; statusCode?: number };
+      const isReAuth =
+        errObj.code === 'GBP_CONNECTION_REVOKED' ||
+        errObj.code === 'GOOGLE_AUTH_REQUIRED' ||
+        errObj.statusCode === 401 ||
+        errObj.statusCode === 403;
+
+      const newStatus = isReAuth ? 'REAUTH_REQUIRED' : 'ERROR';
+      const errorMessage = errObj.message?.slice(0, 500) ?? 'Unknown GBP profile sync error';
+
+      logger.error(
+        { tenantId, locationId, locationResourceName, err, operation: 'gbp.profile_sync.failed', newStatus },
+        'GBP profile sync failed'
+      );
+
+      await GbpLocationService.updateGbpSyncStatus(tenantId, locationId, newStatus, errorMessage);
+      throw err; // Allow BullMQ retry
+    }
   }
 }

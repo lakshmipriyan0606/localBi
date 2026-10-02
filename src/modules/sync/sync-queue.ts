@@ -41,7 +41,16 @@ export interface GbpReviewSyncJobData {
   businessKey: string;
 }
 
-export type SyncJobData = GscSyncJobData | GbpSyncJobData | GbpReviewSyncJobData;
+export interface GbpProfileSyncJobData {
+  type: 'GBP_PROFILE_SYNC';
+  tenantId: string;
+  connectionId?: string | undefined;
+  locationId: string;
+  locationResourceName: string; // e.g. locations/293847192837
+  businessKey: string;
+}
+
+export type SyncJobData = GscSyncJobData | GbpSyncJobData | GbpReviewSyncJobData | GbpProfileSyncJobData;
 
 let syncQueueInstance: Queue<SyncJobData> | null = null;
 
@@ -301,6 +310,73 @@ export class SyncQueueService {
     );
 
     logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GBP Review synchronization job');
+    return { jobId, businessKey, id: job.id };
+  }
+
+  /**
+   * Schedules a GBP profile sync job for a specific location.
+   * Profile sync is READ-ONLY: Google → LocalBi snapshot.
+   * Never auto-pushes LocalBi fields to Google.
+   */
+  public static async scheduleGbpProfileSync(params: {
+    tenantId: string;
+    connectionId?: string | undefined;
+    locationId: string;
+    locationResourceName: string;
+  }) {
+    const queue = getSyncQueue();
+    const businessKey = `${params.tenantId}:gbp_profile:${params.locationId}`;
+    const { jobId } = this.generateJobId('gbp-profile-sync', businessKey);
+
+    let resolvedConnectionId = params.connectionId;
+    if (!resolvedConnectionId) {
+      try {
+        const resolved = await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+          return GoogleConnectionResolver.resolveForLocation(tx, params.tenantId, params.locationId);
+        });
+        resolvedConnectionId = resolved.connectionId;
+      } catch (err) {
+        logger.warn({ err, locationId: params.locationId }, 'Could not resolve Google connection for GBP profile sync');
+      }
+    }
+
+    await TenantContextService.withTenantContext(prisma, params.tenantId, async (tx) => {
+      const existing = await tx.syncRun.findFirst({
+        where: { tenantId: params.tenantId, businessKey },
+      });
+      if (existing) {
+        await tx.syncRun.update({
+          where: { id: existing.id },
+          data: { status: 'RUNNING', startedAt: new Date(), completedAt: null, errorCode: null },
+        });
+      } else {
+        await tx.syncRun.create({
+          data: {
+            tenantId: params.tenantId,
+            provider: 'GBP_PROFILE',
+            resourceId: params.locationId,
+            businessKey,
+            status: 'RUNNING',
+            startedAt: new Date(),
+          },
+        });
+      }
+    });
+
+    const job = await queue.add(
+      'gbp-profile-sync',
+      {
+        type: 'GBP_PROFILE_SYNC',
+        tenantId: params.tenantId,
+        connectionId: resolvedConnectionId,
+        locationId: params.locationId,
+        locationResourceName: params.locationResourceName,
+        businessKey,
+      },
+      { jobId }
+    );
+
+    logger.info({ jobId, businessKey, connectionId: resolvedConnectionId }, 'Enqueued GBP Profile synchronization job');
     return { jobId, businessKey, id: job.id };
   }
 

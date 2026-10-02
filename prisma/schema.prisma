@@ -50,6 +50,7 @@ model Tenant {
   gbpLocationAggregates GbpLocationAggregate[]
   gbpPosts             GbpPost[]
   gbpMedia             GbpMedia[]
+  gbpSearchTerms       GbpSearchTerm[]
   syncRuns             SyncRun[]
   syncCursors          SyncCursor[]
   auditLogs            AuditLog[]
@@ -286,6 +287,10 @@ model Location {
   archivedAt   DateTime? @map("archived_at")
   isClosed     Boolean   @default(false) @map("is_closed")
   closedAt     DateTime? @map("closed_at")
+  // GBP Sync State (Phase 6)
+  gbpSyncStatus String?   @map("gbp_sync_status") // ACTIVE, SYNCING, SYNCED, STALE, ERROR, REAUTH_REQUIRED, RESOURCE_UNAVAILABLE
+  gbpSyncedAt   DateTime? @map("gbp_synced_at")
+  gbpSyncError  String?   @map("gbp_sync_error")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -300,6 +305,7 @@ model Location {
   gbpAggregate     GbpLocationAggregate?
   gbpPosts         GbpPost[]
   gbpMedia         GbpMedia[]
+  gbpSearchTerms   GbpSearchTerm[]
   pages            Page[]
   attributionEvents AttributionEvent[]
   leads             Lead[]
@@ -913,7 +919,7 @@ model Microsite {
   state               String?
   postalCode          String?   @map("postal_code")
   hours               String    @default("9:00 AM - 9:00 PM")
-  googleRating        Float     @default(4.9) @map("google_rating")
+  googleRating        Float     @default(0.0) @map("google_rating") // 0.0 = not set; synced from GbpLocationAggregate
   reviewCount         Int       @default(0) @map("review_count")
   googleMapsUrl       String    @default("") @map("google_maps_url")
   heroImageUrl        String    @default("") @map("hero_image_url")
@@ -1298,6 +1304,31 @@ model Lead {
   @@index([tenantId, webSurfaceId, createdAt], name: "idx_leads_tenant_surface_created")
   @@index([tenantId, type, createdAt], name: "idx_leads_tenant_type_created")
   @@map("leads")
+}
+
+// -----------------------------------------------------------------------------
+// GBP SEARCH TERMS (Phase 6)
+// Keyword impressions from GBP Performance API — distinct from GSC queries
+// -----------------------------------------------------------------------------
+
+model GbpSearchTerm {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  locationId   String   @map("location_id")
+  term         String
+  impressions  BigInt   @default(0)
+  periodStart  DateTime @map("period_start") @db.Date
+  periodEnd    DateTime @map("period_end") @db.Date
+  source       String   @default("GOOGLE_BUSINESS_PROFILE") // Provenance label — never mix with GSC
+  syncedAt     DateTime @default(now()) @map("synced_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location     Location @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, locationId, term, periodStart], name: "uq_gbp_search_term")
+  @@index([tenantId, locationId, periodStart(sort: Desc)], name: "idx_gbp_search_term_location_period")
+  @@map("gbp_search_terms")
 }
 
 model VisitorSession {
