@@ -53,6 +53,9 @@ export const Action = {
   CALL_MANAGE_NUMBERS: 'call:manage_numbers',
   CALL_EXPORT: 'call:export',
   CALL_RECORDING_VIEW: 'call:recording_view',
+  OPPORTUNITY_VIEW: 'opportunity:view',
+  OPPORTUNITY_MANAGE: 'opportunity:manage',
+  OPPORTUNITY_DISMISS: 'opportunity:dismiss',
 } as const;
 
 export type ActionType = typeof Action[keyof typeof Action];
@@ -70,6 +73,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.MICROSITE_VIEW,
     Action.PRODUCT_VIEW,
     Action.CALL_VIEW,
+    Action.OPPORTUNITY_VIEW,
   ]),
   CLIENT_OWNER: new Set(Object.values(Action)),
   CLIENT_ADMIN: new Set([
@@ -106,6 +110,9 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.CALL_MANAGE_NUMBERS,
     Action.CALL_EXPORT,
     Action.CALL_RECORDING_VIEW,
+    Action.OPPORTUNITY_VIEW,
+    Action.OPPORTUNITY_MANAGE,
+    Action.OPPORTUNITY_DISMISS,
   ]),
   BRAND_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -130,6 +137,9 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.CALL_VIEW,
     Action.CALL_MANAGE_NUMBERS,
     Action.CALL_EXPORT,
+    Action.OPPORTUNITY_VIEW,
+    Action.OPPORTUNITY_MANAGE,
+    Action.OPPORTUNITY_DISMISS,
   ]),
   LOCATION_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -142,6 +152,9 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.PRODUCT_VIEW,
     Action.STORE_PRODUCT_MANAGE,
     Action.CALL_VIEW,
+    Action.OPPORTUNITY_VIEW,
+    Action.OPPORTUNITY_MANAGE,
+    Action.OPPORTUNITY_DISMISS,
   ]),
   ANALYST: new Set([
     Action.TENANT_VIEW,
@@ -153,6 +166,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.PRODUCT_VIEW,
     Action.CALL_VIEW,
     Action.CALL_EXPORT,
+    Action.OPPORTUNITY_VIEW,
+    Action.OPPORTUNITY_MANAGE,
   ]),
   VIEWER: new Set([
     Action.TENANT_VIEW,
@@ -162,6 +177,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.MICROSITE_VIEW,
     Action.PRODUCT_VIEW,
     Action.CALL_VIEW,
+    Action.OPPORTUNITY_VIEW,
   ]),
 };
 

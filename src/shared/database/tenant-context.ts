@@ -13,6 +13,16 @@ export class TenantContextService {
   ): Promise<T> {
     return this.withTenantContext(prisma, context.tenantId, operation);
   }
+
+  /**
+   * Executes a database operation within a tenant scope using default prisma client.
+   */
+  public static async runWithTenantContext<T>(
+    tenantId: string,
+    operation: (tx: Prisma.TransactionClient) => Promise<T>
+  ): Promise<T> {
+    return this.withTenantContext(prisma, tenantId, operation);
+  }
   /**
    * Executes a database operation within a dedicated PostgreSQL transaction,
    * strictly setting `app.current_tenant_id` for row-level security enforcement.

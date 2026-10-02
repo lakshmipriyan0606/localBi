@@ -28,6 +28,7 @@ import {
   Radar,
   ShoppingBag,
   PhoneCall,
+  Lightbulb,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -79,6 +80,20 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         href: `/client/${slug}`,
         icon: LayoutDashboard,
         exact: true,
+      },
+    ],
+  },
+  {
+    heading: 'SEO & Growth Engine',
+    sourceBadge: 'OPP',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    items: [
+      {
+        label: 'SEO Opportunities',
+        href: `/client/${slug}/opportunities`,
+        icon: Lightbulb,
+        pillBadge: 'Explainable',
+        badgeVariant: 'amber',
       },
     ],
   },

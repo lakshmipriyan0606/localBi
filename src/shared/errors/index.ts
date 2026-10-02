@@ -46,6 +46,10 @@ export const ErrorCode = {
   TELEPHONY_PROVIDER_ERROR: 'TELEPHONY_PROVIDER_ERROR',
   CALL_RECORDING_ACCESS_DENIED: 'CALL_RECORDING_ACCESS_DENIED',
   INVALID_PHONE_NUMBER: 'INVALID_PHONE_NUMBER',
+  OPPORTUNITY_NOT_FOUND: 'OPPORTUNITY_NOT_FOUND',
+  OPPORTUNITY_ALREADY_RESOLVED: 'OPPORTUNITY_ALREADY_RESOLVED',
+  INVALID_OPPORTUNITY_STATUS: 'INVALID_OPPORTUNITY_STATUS',
+  DISMISSAL_REASON_REQUIRED: 'DISMISSAL_REASON_REQUIRED',
 } as const;
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];
@@ -253,6 +257,32 @@ export function createGa4Error(
     message,
     statusCode,
     details,
+    requestId,
+  });
+}
+
+export function createOpportunityNotFoundError(
+  opportunityId: string,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code: ErrorCode.OPPORTUNITY_NOT_FOUND,
+    message: `Opportunity '${opportunityId}' not found.`,
+    statusCode: 404,
+    requestId,
+  });
+}
+
+export function createOpportunityWorkflowError(
+  message: string,
+  code: ErrorCodeType = ErrorCode.INVALID_OPPORTUNITY_STATUS,
+  statusCode = 400,
+  requestId?: string
+): AppError {
+  return new AppError({
+    code,
+    message,
+    statusCode,
     requestId,
   });
 }

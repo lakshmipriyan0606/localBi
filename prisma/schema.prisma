@@ -86,6 +86,8 @@ model Tenant {
   virtualNumbers       VirtualNumber[]
   calls                Call[]
   callEvents           CallEvent[]
+  opportunities        Opportunity[]
+  opportunityEvidence  OpportunityEvidence[]
 
   @@map("tenants")
 }
@@ -274,6 +276,7 @@ model Brand {
   merchantProductIssues MerchantProductIssue[]
   virtualNumbers       VirtualNumber[]
   calls                Call[]
+  opportunities        Opportunity[]
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
@@ -347,6 +350,7 @@ model Location {
   merchantProductIssues MerchantProductIssue[]
   virtualNumbers       VirtualNumber[]
   calls                Call[]
+  opportunities        Opportunity[]
 
   @@unique([tenantId, id], name: "uq_location_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_location_tenant_brand_id")
@@ -390,6 +394,7 @@ model Category {
   products    Product[]
   pages       Page[]
   attributionEvents AttributionEvent[]
+  opportunities     Opportunity[]
 
   @@unique([tenantId, id], name: "uq_category_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_category_tenant_brand_id")
@@ -432,6 +437,7 @@ model Product {
   merchantMapping   MerchantProductMapping?
   merchantLocalInventories MerchantLocalInventoryState[]
   merchantIssues    MerchantProductIssue[]
+  opportunities     Opportunity[]
 
   @@unique([tenantId, id], name: "uq_product_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_product_tenant_brand_id")
@@ -1041,6 +1047,7 @@ model WebSurface {
   visitorSessions   VisitorSession[]
   virtualNumbers   VirtualNumber[]
   calls            Call[]
+  opportunities    Opportunity[]
 
   @@unique([tenantId, id], name: "uq_web_surface_tenant_id")
   @@unique([tenantId, brandId, id], name: "uq_web_surface_tenant_brand_id")
@@ -1164,6 +1171,7 @@ model Page {
   store        Location?    @relation(fields: [storeId], references: [id], onDelete: SetNull)
   category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  opportunities Opportunity[]
 
   @@unique([tenantId, id], name: "uq_page_tenant_id")
   @@unique([tenantId, brandId, webSurfaceId, slug], name: "uq_page_slug")
@@ -1428,6 +1436,7 @@ model Keyword {
   brand          Brand          @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
   storeKeywords  StoreKeyword[]
   rankRuns       RankRun[]
+  opportunities  Opportunity[]
 
   @@unique([tenantId, brandId, normalizedTerm], name: "uq_keyword_tenant_brand_term")
   @@index([tenantId, brandId, status], name: "idx_keywords_tenant_brand_status")
@@ -1856,6 +1865,92 @@ model CallEvent {
   @@index([tenantId, callId, occurredAt], name: "idx_call_events_call_occurred")
   @@map("call_events")
 }
+
+// =============================================================================
+// KEYWORD INTELLIGENCE & SEO OPPORTUNITY ENGINE (Phase 10)
+// Factual Signals + Explainable Recommendations + Transparent Prioritization
+// =============================================================================
+
+model Opportunity {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  brandId          String    @map("brand_id")
+  storeId          String?   @map("store_id")
+  webSurfaceId     String?   @map("web_surface_id")
+  pageId           String?   @map("page_id")
+  productId        String?   @map("product_id")
+  categoryId       String?   @map("category_id")
+  keywordId        String?   @map("keyword_id")
+
+  type             String    // HIGH_IMPRESSIONS_LOW_CTR, HIGH_DEMAND_LOW_RANK, HIGH_CONVERSION_LOW_VISIBILITY, PAGE_WITH_TRAFFIC_NO_CONVERSIONS, MISSING_LANDING_PAGE, GBP_PROFILE_INCOMPLETE, UNANSWERED_REVIEWS, MERCHANT_PRODUCT_ISSUE, LOCAL_RANK_DECLINE, SEARCH_DEMAND_GROWTH
+  status           String    @default("OPEN") // OPEN, IN_REVIEW, ACCEPTED, DISMISSED, COMPLETED, STALE
+  priority         String    @default("MEDIUM") // CRITICAL, HIGH, MEDIUM, LOW
+  priorityScore    Float     @default(0.0) @map("priority_score")
+  confidence       String    @default("MEDIUM") // HIGH, MEDIUM, LOW
+
+  title            String
+  summary          String    @db.Text
+  actionType       String    @map("action_type") // UPDATE_METADATA, IMPROVE_EXISTING_PAGE, CREATE_PAGE, ADD_PRODUCT_TO_STORE, FIX_GBP_PROFILE, RESPOND_TO_REVIEWS, FIX_MERCHANT_PRODUCT, INVESTIGATE_RANK_DECLINE, IMPROVE_CTA, ADD_KEYWORD_TRACKING
+  actionPayload    Json?     @map("action_payload")
+
+  ruleId           String    @map("rule_id")
+  ruleVersion      String    @default("1.0.0") @map("rule_version")
+  identityHash     String    @map("identity_hash")
+
+  detectedAt       DateTime  @default(now()) @map("detected_at")
+  lastEvaluatedAt  DateTime  @default(now()) @map("last_evaluated_at")
+  resolvedAt       DateTime? @map("resolved_at")
+  dismissedAt      DateTime? @map("dismissed_at")
+  dismissalReason  String?   @map("dismissal_reason")
+  dismissedBy      String?   @map("dismissed_by")
+  acceptedAt       DateTime? @map("accepted_at")
+  acceptedBy       String?   @map("accepted_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brand            Brand      @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  store            Location?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  webSurface       WebSurface? @relation(fields: [webSurfaceId], references: [id], onDelete: SetNull)
+  page             Page?      @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  product          Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  category         Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  keyword          Keyword?   @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+
+  evidence         OpportunityEvidence[]
+
+  @@unique([tenantId, id], name: "uq_opportunity_tenant_id")
+  @@unique([tenantId, identityHash], name: "uq_opportunity_identity_hash")
+  @@index([tenantId, brandId, status, priorityScore(sort: Desc)], name: "idx_opp_brand_status_priority")
+  @@index([tenantId, storeId, status], name: "idx_opp_store_status")
+  @@index([tenantId, type, status], name: "idx_opp_type_status")
+  @@map("opportunities")
+}
+
+model OpportunityEvidence {
+  id               String    @id @default(cuid())
+  tenantId         String    @map("tenant_id")
+  opportunityId    String    @map("opportunity_id")
+  source           String    // GSC, GBP, LOCAL_RANK, GA4, LOCALBI, MERCHANT
+  metric           String    // impressions, clicks, ctr, average_position, top3_coverage, top10_coverage, average_rank, conversions, call_count, unanswered_reviews, etc.
+  value            Float
+  comparisonValue  Float?    @map("comparison_value")
+  formattedValue   String?   @map("formatted_value")
+  dateRange        String?   @map("date_range")
+  entityType       String?   @map("entity_type") // KEYWORD, PAGE, LOCATION, PRODUCT
+  entityId         String?   @map("entity_id")
+  entityLabel      String?   @map("entity_label")
+  details          Json?
+  capturedAt       DateTime  @default(now()) @map("captured_at")
+
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunity      Opportunity @relation(fields: [tenantId, opportunityId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_opportunity_evidence_tenant_id")
+  @@index([tenantId, opportunityId], name: "idx_opp_evidence_opportunity")
+  @@map("opportunity_evidence")
+}
+
 
 
 
