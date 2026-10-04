@@ -152,6 +152,10 @@ export interface ListingsReportDto {
     healthyCount: MetricComparisonResult;
     needsReviewCount: MetricComparisonResult;
     duplicatesCount: MetricComparisonResult;
+    totalBacklinks?: number;
+    referringDomains?: number;
+    newLinksLast30Days?: number;
+    lostLinksLast30Days?: number;
   };
   providerSummary: Array<{
     provider: string;

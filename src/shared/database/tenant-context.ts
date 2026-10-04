@@ -46,12 +46,15 @@ export class TenantContextService {
       throw new Error('SECURITY_VIOLATION: Valid tenantId is required for tenant data plane execution');
     }
 
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // Parameterized configuration parameter set inside transaction boundary (is_local = true)
-      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
+    return prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        // Parameterized configuration parameter set inside transaction boundary (is_local = true)
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
 
-      return operation(tx);
-    });
+        return operation(tx);
+      },
+      { timeout: 15000 }
+    );
   }
 
   /**

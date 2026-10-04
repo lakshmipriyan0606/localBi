@@ -401,6 +401,22 @@ export function RecommendationsSection({
           />
         ))}
       </div>
+
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 flex items-center justify-between">
+        <div>
+          <h4 className="text-xs font-bold text-indigo-950">Off-Page Authority Intelligence</h4>
+          <p className="text-xs text-indigo-800 mt-0.5">
+            Audit external referring domains, competitor backlink gaps, and business directory citations.
+          </p>
+        </div>
+        <a
+          href={`/client/${tenantSlug}/authority`}
+          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition flex items-center gap-1 shrink-0"
+        >
+          View Authority
+          <ArrowRight className="h-3 w-3" />
+        </a>
+      </div>
     </div>
   );
 }

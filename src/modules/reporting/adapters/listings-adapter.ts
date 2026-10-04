@@ -60,6 +60,27 @@ export class ListingsReportingAdapter {
 
       const baseline = comparisonRange?.label;
 
+      // Fetch authority backlink metrics if available
+      let totalBacklinks = 0;
+      let referringDomains = 0;
+      let newLinksLast30Days = 0;
+      let lostLinksLast30Days = 0;
+
+      try {
+        const { BacklinkRepository } = await import('../../seo-authority/backlink-repository');
+        const blMetrics = await BacklinkRepository.getSummaryMetrics(
+          tenant.id,
+          brand.id,
+          context.webSurfaceId || ''
+        );
+        totalBacklinks = blMetrics.totalBacklinks;
+        referringDomains = blMetrics.referringDomains;
+        newLinksLast30Days = blMetrics.newLinksLast30Days;
+        lostLinksLast30Days = blMetrics.lostLinksLast30Days;
+      } catch {
+        // Safe fallback if not initialized
+      }
+
       return {
         state: 'DATA',
         metrics: {
@@ -67,6 +88,10 @@ export class ListingsReportingAdapter {
           healthyCount: ComparisonEngine.calculate(healthyCount, null, { baselineLabel: baseline }),
           needsReviewCount: ComparisonEngine.calculate(needsReviewCount, null, { baselineLabel: baseline, higherIsBetter: false }),
           duplicatesCount: ComparisonEngine.calculate(duplicatesCount, null, { baselineLabel: baseline, higherIsBetter: false }),
+          totalBacklinks,
+          referringDomains,
+          newLinksLast30Days,
+          lostLinksLast30Days,
         },
         providerSummary,
       };

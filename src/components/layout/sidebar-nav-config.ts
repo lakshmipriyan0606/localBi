@@ -160,10 +160,17 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     ],
   },
   {
-    heading: 'Local Listings & Citations',
-    sourceBadge: 'NAP',
+    heading: 'SEO Authority & Citations',
+    sourceBadge: 'AUTH',
     badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
     items: [
+      {
+        label: 'SEO Authority Intelligence',
+        href: `/client/${slug}/authority`,
+        icon: Link2,
+        pillBadge: 'Authority',
+        badgeVariant: 'indigo',
+      },
       {
         label: 'Directory Presence & NAP',
         href: `/client/${slug}/listings`,
