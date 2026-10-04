@@ -83,7 +83,7 @@ export default function SiteStudioLayout({
     { label: 'Products', href: `/client/${tenantSlug}/website/products`, icon: Package },
     { label: 'SEO Settings', href: `/client/${tenantSlug}/website/seo`, icon: Search },
     { label: 'Domains', href: `/client/${tenantSlug}/website/domains`, icon: Server },
-    { label: 'Analytics', href: `/client/${tenantSlug}/reports`, icon: BarChart3 },
+    { label: 'Analytics', href: `/client/${tenantSlug}/website/analytics`, icon: BarChart3 },
   ];
 
   return (

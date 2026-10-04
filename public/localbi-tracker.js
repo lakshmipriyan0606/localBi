@@ -1,19 +1,20 @@
 /**
- * LocalBi Intelligent Visitor Pixel (Refactored: Privacy-Preserving First-Party Architecture)
- * Replaces invasive canvas fingerprinting with opaque first-party lb_vid cookie.
- * Provides true Active Engagement tracking and backward-compatible legacy API.
+ * LocalBi First-Party Web Analytics Tracker
+ * Privacy-preserving, non-invasive visitor intelligence.
+ * No canvas/audio/font fingerprinting.
+ * Accurate Active Engagement timing (visibility + idle detection + sendBeacon flush).
  */
 (function (window, document) {
   'use strict';
 
-  if (window.__localbi_pixel_loaded) return;
-  window.__localbi_pixel_loaded = true;
+  if (window.__localbi_tracker_loaded) return;
+  window.__localbi_tracker_loaded = true;
 
   // 1. Script & Context Detection
   var currentScript = document.currentScript || (function () {
     var scripts = document.getElementsByTagName('script');
     for (var i = scripts.length - 1; i >= 0; i--) {
-      if (scripts[i].src && (scripts[i].src.indexOf('localbi-pixel.js') !== -1 || scripts[i].src.indexOf('localbi-tracker.js') !== -1)) {
+      if (scripts[i].src && (scripts[i].src.indexOf('localbi-tracker.js') !== -1 || scripts[i].src.indexOf('localbi-pixel.js') !== -1)) {
         return scripts[i];
       }
     }
@@ -33,7 +34,7 @@
 
   var endpoint = '/api/v1/pixel/track';
 
-  // 2. First-Party Anonymous Identity (No canvas/hardware entropy)
+  // 2. Cookie & Identity Management
   function getCookie(name) {
     try {
       var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
@@ -71,6 +72,7 @@
     return prefix + '_' + rand;
   }
 
+  // First-party Visitor ID (lb_vid)
   function getOrCreateVisitorId() {
     var vid = getCookie('lb_vid');
     if (!vid) {
@@ -88,6 +90,7 @@
     return vid;
   }
 
+  // First-party Session ID (lb_sid)
   function getOrCreateSessionId() {
     var sid = getCookie('lb_sid');
     if (!sid) {
@@ -98,7 +101,7 @@
     if (!sid || sid.length < 8) {
       sid = generateOpaqueId('sid');
     }
-    setCookie('lb_sid', sid, 1);
+    setCookie('lb_sid', sid, 1); // 1-day max session cookie
     try {
       sessionStorage.setItem('lb_sid', sid);
     } catch (e) {}
@@ -109,7 +112,7 @@
   var sessionId = getOrCreateSessionId();
   var currentPageViewId = generateOpaqueId('pv');
 
-  // 3. Read Page Context from DOM if available
+  // 3. Read Workstream B data-localbi-context from DOM
   function getPageContext() {
     try {
       var el = document.querySelector('[data-localbi-context]');
@@ -121,6 +124,7 @@
     return {};
   }
 
+  // 4. Coarse Device Information
   function getCoarseDeviceInfo() {
     var ua = navigator.userAgent || '';
     var platform = 'DESKTOP';
@@ -143,14 +147,12 @@
 
   var deviceInfo = getCoarseDeviceInfo();
 
-  // 4. Transmission
+  // 5. Transmission Helper
   function sendBeacon(payload) {
     payload.tenantSlug = tenantSlug;
     payload.visitorId = visitorId;
     payload.sessionId = sessionId;
     payload.pageViewId = currentPageViewId;
-    // Map visitorId to deviceFingerprint for backward compatibility with legacy tests
-    payload.deviceFingerprint = visitorId;
     payload.url = window.location.pathname;
     payload.title = document.title || 'Page';
     payload.referrer = document.referrer || '';
@@ -160,6 +162,7 @@
     payload.timezone = deviceInfo.timezone;
     payload.clientOccurredAt = new Date().toISOString();
 
+    // Attach Workstream B Page Context
     var ctx = getPageContext();
     if (ctx.webSurfaceId) payload.webSurfaceId = ctx.webSurfaceId;
     if (ctx.brandId) payload.brandId = ctx.brandId;
@@ -181,23 +184,26 @@
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.send(data);
       }
-    } catch (err) {}
+    } catch (err) {
+      // Fire-and-forget
+    }
   }
 
-  // 5. Active Engagement Tracking Engine
+  // 6. Accurate Active Engagement Engine
   var isVisible = document.visibilityState === 'visible';
   var isIdle = false;
-  var lastTick = Date.now();
+  var lastTickTime = Date.now();
   var pendingActiveMs = 0;
   var idleTimer = null;
-  var IDLE_TIMEOUT_MS = 60000;
-  var HEARTBEAT_INTERVAL_MS = 20000;
+  var IDLE_TIMEOUT_MS = 60000; // 60 seconds
+  var HEARTBEAT_INTERVAL_MS = 20000; // 20 seconds
 
   function tickActiveTime() {
     var now = Date.now();
-    var delta = now - lastTick;
-    lastTick = now;
+    var delta = now - lastTickTime;
+    lastTickTime = now;
 
+    // Accumulate ONLY if tab is currently visible and user is not idle
     if (isVisible && !isIdle && delta > 0 && delta < 5000) {
       pendingActiveMs += delta;
     }
@@ -205,22 +211,22 @@
 
   function flushHeartbeat() {
     tickActiveTime();
-    if (pendingActiveMs < 500) return;
+    if (pendingActiveMs < 500) return; // Ignore trivial flickers
 
-    var delta = Math.round(pendingActiveMs);
+    var deltaToSend = Math.round(pendingActiveMs);
     pendingActiveMs = 0;
 
     sendBeacon({
       eventType: 'heartbeat',
       isHeartbeat: true,
-      activeDeltaMs: delta,
+      activeDeltaMs: deltaToSend,
     });
   }
 
   function resetIdle() {
     if (isIdle) {
       isIdle = false;
-      lastTick = Date.now();
+      lastTickTime = Date.now();
     }
     clearTimeout(idleTimer);
     idleTimer = setTimeout(function () {
@@ -229,12 +235,14 @@
     }, IDLE_TIMEOUT_MS);
   }
 
+  // Interaction listeners for idle detection (lightweight)
   var interactionEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
   for (var i = 0; i < interactionEvents.length; i++) {
     window.addEventListener(interactionEvents[i], resetIdle, { passive: true });
   }
   resetIdle();
 
+  // Visibility and Focus changes
   document.addEventListener('visibilitychange', function () {
     tickActiveTime();
     if (document.visibilityState === 'hidden') {
@@ -242,7 +250,7 @@
       flushHeartbeat();
     } else {
       isVisible = true;
-      lastTick = Date.now();
+      lastTickTime = Date.now();
       resetIdle();
     }
   });
@@ -250,32 +258,35 @@
   window.addEventListener('focus', function () {
     tickActiveTime();
     isVisible = true;
-    lastTick = Date.now();
+    lastTickTime = Date.now();
     resetIdle();
   });
 
   window.addEventListener('blur', function () {
     tickActiveTime();
+    // Do not mark hidden on window blur, but flush active progress
     flushHeartbeat();
   });
 
+  // Regular bounded heartbeat (every 20s)
   setInterval(function () {
     if (isVisible && !isIdle) {
       flushHeartbeat();
     }
   }, HEARTBEAT_INTERVAL_MS);
 
+  // Exit flush on pagehide
   window.addEventListener('pagehide', function () {
     tickActiveTime();
     flushHeartbeat();
   });
 
-  // 6. Initial Page View
+  // 7. Track Initial Logical Page View
   sendBeacon({
     eventType: 'page_view',
   });
 
-  // 7. Click Delegation for Conversions
+  // 8. Intent & Conversion Click Delegation (WhatsApp, Call, Directions, Form)
   document.addEventListener('click', function (e) {
     var target = e.target;
     while (target && target !== document) {
@@ -287,10 +298,13 @@
           sendBeacon({ eventType: 'whatsapp_click' });
           return;
         } else if (href.indexOf('tel:') !== -1 || dataAction === 'call') {
-          sendBeacon({ eventType: 'phone_call' });
+          sendBeacon({ eventType: 'call_click' });
           return;
         } else if (href.indexOf('maps.google.com') !== -1 || href.indexOf('google.com/maps') !== -1 || dataAction === 'directions') {
           sendBeacon({ eventType: 'directions_click' });
+          return;
+        } else if (dataAction === 'cta') {
+          sendBeacon({ eventType: 'cta_click' });
           return;
         }
       }
@@ -298,43 +312,34 @@
     }
   }, true);
 
-  // Form submission
+  // Form Submission tracking
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (form && form.tagName === 'FORM') {
       sendBeacon({
         eventType: 'form_submit',
         metadata: {
-          formId: form.id || 'contact_form',
+          formId: form.id || form.getAttribute('name') || 'contact_form',
         },
       });
     }
   }, true);
 
-  // 8. Legacy API Compatibility
+  // 9. Public API on window.LocalBi
   window.LocalBi = {
-    getFingerprint: function () {
-      return visitorId;
-    },
     getVisitorId: function () {
       return visitorId;
     },
     getSessionId: function () {
       return sessionId;
     },
-    getDeviceInfo: function () {
-      return deviceInfo;
+    getPageViewId: function () {
+      return currentPageViewId;
     },
     track: function (eventType, metadata) {
       sendBeacon({
         eventType: eventType,
         metadata: metadata,
-      });
-    },
-    identify: function (user) {
-      sendBeacon({
-        eventType: 'identify',
-        identifiedUser: user,
       });
     },
     flush: function () {

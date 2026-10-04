@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { VisitorService } from '@/modules/visitors/visitor-service';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { AttributionService } from '@/modules/attribution/attribution-service';
+import { SessionizationService } from '@/modules/analytics/sessionization-service';
 import { prisma } from '@/shared/database/client';
 import type { AttributionEventType } from '@prisma/client';
 
@@ -12,6 +13,10 @@ const TrackPayloadSchema = z.object({
   deviceFingerprint: z.string().max(128).optional(),
   visitorId: z.string().max(128).optional(),
   sessionId: z.string().max(128).optional(),
+  pageViewId: z.string().max(128).optional(),
+  activeDeltaMs: z.number().int().min(0).max(300000).optional(),
+  isHeartbeat: z.boolean().optional(),
+  clientOccurredAt: z.string().max(100).optional(),
   brandId: z.string().max(100).optional(),
   webSurfaceId: z.string().max(100).optional(),
   pageId: z.string().max(100).optional(),
@@ -104,8 +109,11 @@ export async function POST(req: NextRequest) {
       subdomain,
       tenantSlug,
       deviceFingerprint,
-      visitorId,
-      sessionId,
+      visitorId: rawVisitorId,
+      sessionId: rawSessionId,
+      pageViewId,
+      activeDeltaMs,
+      isHeartbeat,
       url,
       landingPath,
       title,
@@ -129,6 +137,11 @@ export async function POST(req: NextRequest) {
       metadata,
     } = data;
 
+    const effectiveVisitorId = rawVisitorId || deviceFingerprint || SessionizationService.generateVisitorId();
+    const effectiveSessionId = rawSessionId || SessionizationService.generateSessionId();
+    const userAgent = req.headers.get('user-agent') || '';
+    const isBot = SessionizationService.classifyBot(userAgent);
+
     // 3. Trusted Server-Side Resolution of Tenant, Brand, and WebSurface
     // Never trust client-supplied tenantId directly
     let resolvedTenantId: string | null = null;
@@ -137,7 +150,7 @@ export async function POST(req: NextRequest) {
     let resolvedTenantSlug: string | null = null;
     let micrositeId: string | null = null;
 
-    // If webSurfaceId and brandId provided, verify against DB
+    // A. Resolve via webSurfaceId and brandId if provided
     if (data.webSurfaceId && data.brandId) {
       const surface = await prisma.webSurface.findFirst({
         where: { id: data.webSurfaceId, brandId: data.brandId },
@@ -151,7 +164,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallback: Resolve via subdomain or tenantSlug
+    // B. Resolve via subdomain or tenantSlug
     if (!resolvedTenantId) {
       const siteKey = subdomain || tenantSlug || '';
       if (!siteKey) {
@@ -167,7 +180,6 @@ export async function POST(req: NextRequest) {
         resolvedTenantSlug = publishedSite.tenantSlug;
         micrositeId = publishedSite.id;
 
-        // Find primary brand and web surface for this tenant
         const defaultSurface = await prisma.webSurface.findFirst({
           where: { tenantId: resolvedTenantId, type: 'LOCALBI' },
           select: { id: true, brandId: true },
@@ -200,11 +212,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Legacy Identity Stitching Event
-    if (rawEventType === 'identify' && identifiedUser?.phone && deviceFingerprint) {
+    // 4. Sessionization Processing
+    const isConversion = ['form_submit', 'lead_form_submit', 'booking_complete'].includes(rawEventType.toLowerCase());
+    const sessionRecord = await SessionizationService.processSessionActivity({
+      tenantId: resolvedTenantId,
+      visitorId: effectiveVisitorId,
+      sessionId: effectiveSessionId,
+      brandId: resolvedBrandId,
+      webSurfaceId: resolvedWebSurfaceId,
+      path: url,
+      landingPath,
+      trafficInput: {
+        referrer,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmContent,
+        utmTerm,
+        gclid,
+      },
+      userAgent,
+      activeDeltaMs,
+      isHeartbeat: isHeartbeat || rawEventType === 'heartbeat',
+      isConversion,
+    });
+
+    // 5. If this is a heartbeat event, we acknowledge without creating duplicate attribution event
+    if (isHeartbeat || rawEventType === 'heartbeat') {
+      return NextResponse.json({
+        success: true,
+        heartbeat: true,
+        activeDeltaMs: activeDeltaMs || 0,
+        sessionId: sessionRecord.sessionId,
+      });
+    }
+
+    // 6. Legacy Identity Stitching Event
+    if (rawEventType === 'identify' && identifiedUser?.phone && (deviceFingerprint || effectiveVisitorId)) {
       const legacySession = await VisitorService.identifyVisitor({
         tenantId: resolvedTenantId,
-        deviceFingerprint,
+        deviceFingerprint: deviceFingerprint || effectiveVisitorId,
         phone: identifiedUser.phone,
         name: identifiedUser.name,
         email: identifiedUser.email,
@@ -212,11 +259,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, identified: true, session: legacySession });
     }
 
-    // 5. Canonical Phase 5 Attribution Event Ingestion
+    // 7. Canonical Attribution Event Ingestion
     const canonicalEventType = normalizeEventType(rawEventType);
     let attrEvent = null;
 
     if (resolvedBrandId && resolvedWebSurfaceId) {
+      const sanitizedMeta = {
+        ...(metadata || {}),
+        isLikelyBot: isBot,
+        pageViewId: pageViewId || undefined,
+        activeDeltaMs: activeDeltaMs || undefined,
+        screenResolution: screenResolution || undefined,
+        timezone: timezone || undefined,
+      };
+
       attrEvent = await AttributionService.recordEvent({
         tenantId: resolvedTenantId,
         brandId: resolvedBrandId,
@@ -226,8 +282,8 @@ export async function POST(req: NextRequest) {
         storeId: storeId || null,
         productId: productId || null,
         categoryId: categoryId || null,
-        visitorId: visitorId || deviceFingerprint || null,
-        sessionId: sessionId || null,
+        visitorId: effectiveVisitorId,
+        sessionId: sessionRecord.sessionId,
         eventType: canonicalEventType,
         currentPath: url,
         landingPath: landingPath || url,
@@ -238,28 +294,28 @@ export async function POST(req: NextRequest) {
         utmContent,
         utmTerm,
         gclid,
-        devicePlatform: platform || null,
-        browser: browser || (req.headers.get('user-agent') || '').substring(0, 40),
-        metadata: metadata || null,
+        devicePlatform: platform || sessionRecord.devicePlatform || null,
+        browser: browser || sessionRecord.browser || userAgent.substring(0, 40),
+        metadata: sanitizedMeta,
       });
     }
 
-    // 6. Legacy Telemetry Event (Backward compatibility for existing test suite)
+    // 8. Legacy Telemetry Event (Backward compatibility for existing test suite)
     let legacySession = null;
-    if (deviceFingerprint) {
+    if (deviceFingerprint || effectiveVisitorId) {
       legacySession = await VisitorService.recordEvent({
         tenantId: resolvedTenantId,
         tenantSlug: resolvedTenantSlug || 'tenant',
         micrositeId: micrositeId || null,
-        deviceFingerprint,
+        deviceFingerprint: deviceFingerprint || effectiveVisitorId,
         url,
         title: title || 'Page',
-        platform,
-        browser: browser || (req.headers.get('user-agent') || '').substring(0, 40),
+        platform: platform || sessionRecord.devicePlatform || 'DESKTOP',
+        browser: browser || sessionRecord.browser || userAgent.substring(0, 40),
         screenResolution,
         timezone,
         referrer,
-        dwellTimeSeconds,
+        dwellTimeSeconds: dwellTimeSeconds || (activeDeltaMs ? Math.round(activeDeltaMs / 1000) : undefined),
         eventType: (['page_view', 'whatsapp_click', 'phone_call', 'menu_view'].includes(rawEventType)
           ? rawEventType
           : 'page_view') as 'page_view' | 'whatsapp_click' | 'phone_call' | 'menu_view',
@@ -270,6 +326,8 @@ export async function POST(req: NextRequest) {
       success: true,
       event: attrEvent ? { id: attrEvent.id, eventType: attrEvent.eventType } : null,
       session: legacySession,
+      visitorId: effectiveVisitorId,
+      sessionId: sessionRecord.sessionId,
     });
   } catch (error) {
     console.error('Error logging visitor pixel beacon:', error);
