@@ -277,3 +277,36 @@ export function NearbyStores({
     </div>
   );
 }
+
+export interface OpeningHoursProps {
+  id?: string;
+  headline?: string;
+  showTodayHighlight?: boolean;
+}
+
+export function OpeningHours({
+  headline = 'Operating Hours',
+  showTodayHighlight = true,
+}: OpeningHoursProps) {
+  const { store } = usePageContext();
+  const currentDay = new Date().getDay(); // 0 is Sunday
+
+  return (
+    <div className="p-6 rounded-2xl bg-white border border-slate-200 space-y-3 shadow-2xs">
+      <div className="flex items-center gap-2 text-amber-600 font-semibold text-sm">
+        <Clock className="w-4 h-4" />
+        <span>{headline}</span>
+      </div>
+      <div className="text-sm text-slate-700 space-y-1">
+        <div className={`flex justify-between py-1 border-b border-slate-100 text-xs ${showTodayHighlight && currentDay !== 0 ? 'font-bold text-amber-700' : ''}`}>
+          <span>Monday – Saturday</span>
+          <span>10:00 AM – 9:30 PM</span>
+        </div>
+        <div className={`flex justify-between py-1 text-xs ${showTodayHighlight && currentDay === 0 ? 'font-bold text-amber-700' : ''}`}>
+          <span>Sunday</span>
+          <span>11:00 AM – 8:00 PM</span>
+        </div>
+      </div>
+    </div>
+  );
+}

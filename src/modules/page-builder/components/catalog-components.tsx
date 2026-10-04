@@ -214,3 +214,62 @@ export function ProductDetails({ showSku = true }: ProductDetailsProps) {
     </div>
   );
 }
+
+export interface CategoryGridProps {
+  id?: string;
+  headline?: string;
+  limit?: number;
+}
+
+export function CategoryGrid({
+  headline = 'Browse by Category',
+  limit = 6,
+}: CategoryGridProps) {
+  const { products, path } = usePageContext();
+
+  // Extract unique categories from products
+  const categoryMap = new Map<string, { id: string; name: string; slug: string; count: number }>();
+  for (const p of products) {
+    if (p.category?.name) {
+      const existing = categoryMap.get(p.category.name);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        categoryMap.set(p.category.name, {
+          id: p.category.id || p.category.name,
+          name: p.category.name,
+          slug: p.category.slug || p.category.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          count: 1,
+        });
+      }
+    }
+  }
+
+  const categories = Array.from(categoryMap.values()).slice(0, limit);
+
+  if (categories.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-xl font-bold tracking-tight text-slate-900">{headline}</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {categories.map((cat) => (
+          <div
+            key={cat.id}
+            className="p-4 rounded-xl border border-slate-200 bg-white hover:border-indigo-400 hover:shadow-xs transition-all cursor-pointer group"
+          >
+            <div className="font-semibold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+              {cat.name}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {cat.count} {cat.count === 1 ? 'item' : 'items'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

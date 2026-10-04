@@ -81,7 +81,8 @@ export default function SiteStudioLayout({
     { label: 'Navigation', href: `/client/${tenantSlug}/website/navigation`, icon: Compass },
     { label: 'Stores', href: `/client/${tenantSlug}/website/stores`, icon: Store },
     { label: 'Products', href: `/client/${tenantSlug}/website/products`, icon: Package },
-    { label: 'SEO Settings', href: `/client/${tenantSlug}/website/seo`, icon: Search },
+    { label: 'SEO Settings', href: `/client/${tenantSlug}/website/seo`, icon: Search, exact: true },
+    { label: 'SEO Intelligence', href: `/client/${tenantSlug}/website/seo/intelligence`, icon: Sparkles },
     { label: 'Domains', href: `/client/${tenantSlug}/website/domains`, icon: Server },
     { label: 'Analytics', href: `/client/${tenantSlug}/website/analytics`, icon: BarChart3 },
   ];

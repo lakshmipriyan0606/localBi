@@ -196,3 +196,7 @@ export function FAQSection({
     </div>
   );
 }
+
+export const ReviewCarousel = ReviewList;
+export const TrustSignals = FAQSection;
+

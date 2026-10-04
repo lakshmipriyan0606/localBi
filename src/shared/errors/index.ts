@@ -215,6 +215,15 @@ export function createResourceNotFoundError(resourceType: string, resourceId: st
   });
 }
 
+export function createNotFoundError(message = 'Resource not found.', requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.RESOURCE_NOT_FOUND,
+    message,
+    statusCode: 404,
+    requestId,
+  });
+}
+
 export function createPolicyGateLockedError(message: string, requestId?: string): AppError {
   return new AppError({
     code: ErrorCode.POLICY_GATE_LOCKED,
