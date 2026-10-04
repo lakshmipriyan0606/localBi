@@ -70,6 +70,23 @@ export const tenantQueryKeys = {
     storeProducts: (tenantSlug: string, storeId: string, filters?: Record<string, unknown>) =>
       ['tenant', tenantSlug, 'catalog', 'stores', storeId, 'products', filters || {}] as const,
   },
+
+  // Agency & White-Label scope
+  agency: {
+    all: (tenantSlug: string) => ['tenant', tenantSlug, 'agency'] as const,
+    clients: (tenantSlug: string, filters?: Record<string, unknown>) =>
+      ['tenant', tenantSlug, 'agency', 'clients', filters || {}] as const,
+    clientDetail: (tenantSlug: string, clientSlug: string) =>
+      ['tenant', tenantSlug, 'agency', 'clients', 'detail', clientSlug] as const,
+    grants: (tenantSlug: string, clientSlug: string) =>
+      ['tenant', tenantSlug, 'agency', 'clients', clientSlug, 'grants'] as const,
+    whitelabel: (tenantSlug: string) =>
+      ['tenant', tenantSlug, 'agency', 'whitelabel'] as const,
+    portalDomains: (tenantSlug: string) =>
+      ['tenant', tenantSlug, 'agency', 'portal-domains'] as const,
+    entitlements: (tenantSlug: string, clientAccountId?: string) =>
+      ['tenant', tenantSlug, 'agency', 'entitlements', clientAccountId || 'tenant'] as const,
+  },
 };
 
 

@@ -30,6 +30,9 @@ import {
   PhoneCall,
   Lightbulb,
   BookOpen,
+  Briefcase,
+  ShieldCheck,
+  Palette,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -345,6 +348,34 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'General Settings',
         href: `/client/${slug}/settings`,
         icon: Settings,
+      },
+    ],
+  },
+  {
+    heading: 'Agency & White-Label',
+    sourceBadge: 'AGENCY',
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+    items: [
+      {
+        label: 'Agency Portfolio',
+        href: `/client/${slug}/agency`,
+        icon: Briefcase,
+        exact: true,
+      },
+      {
+        label: 'Client Accounts',
+        href: `/client/${slug}/agency/clients`,
+        icon: Users,
+      },
+      {
+        label: 'White-Label & Domains',
+        href: `/client/${slug}/agency/branding`,
+        icon: Palette,
+      },
+      {
+        label: 'Feature Entitlements',
+        href: `/client/${slug}/agency/entitlements`,
+        icon: ShieldCheck,
       },
     ],
   },

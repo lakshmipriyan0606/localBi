@@ -18,6 +18,7 @@ model Tenant {
   slug                 String              @unique
   timezone             String              @default("UTC")
   plan                 String              @default("STANDARD")
+  tenantType           String              @default("DIRECT_CLIENT") @map("tenant_type") // DIRECT_CLIENT, AGENCY
   status               String              @default("ACTIVE") // ACTIVE, SUSPENDED, PENDING_DELETION
   deletionScheduledAt  DateTime?           @map("deletion_scheduled_at")
   contactEmail         String?             @map("contact_email")
@@ -29,6 +30,12 @@ model Tenant {
 
   memberships          TenantMembership[]
   invitations          Invitation[]
+  clientAccounts       ClientAccount[]
+  accessGrants         AccessGrant[]
+  whiteLabelConfig     WhiteLabelConfig?
+  portalDomains        PortalDomain[]
+  tenantEntitlements   TenantEntitlement[]
+  clientEntitlements   ClientFeatureEntitlement[]
   brands               Brand[]
   locations            Location[]
   products             Product[]
@@ -121,6 +128,7 @@ model User {
   sessions         UserSession[]
   tokens           AuthToken[]
   memberships      TenantMembership[]
+  accessGrants     AccessGrant[]
   staffAccess      PlatformStaffAccess[]
 
   @@map("users")
@@ -195,6 +203,7 @@ model Invitation {
   scopeMode           String    @default("ALL") @map("scope_mode") // ALL, RESTRICTED
   invitedBrandIds     String[]  @default([]) @map("invited_brand_ids")
   invitedLocationIds  String[]  @default([]) @map("invited_location_ids")
+  clientAccountId     String?   @map("client_account_id")
   tokenHash           String    @unique @map("token_hash")
   invitedBy           String    @map("invited_by")
   expiresAt           DateTime  @map("expires_at")
@@ -202,9 +211,11 @@ model Invitation {
   revokedAt           DateTime? @map("revoked_at")
   createdAt           DateTime  @default(now()) @map("created_at")
 
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientAccount       ClientAccount? @relation(fields: [tenantId, clientAccountId], references: [tenantId, id], onDelete: SetNull)
 
   @@index([tenantId, email], name: "idx_invitations_tenant_email")
+  @@index([tenantId, clientAccountId], name: "idx_invitations_tenant_client")
   @@index([expiresAt], name: "idx_invitations_expires_at")
   @@map("invitations")
 }
@@ -255,22 +266,25 @@ model TenantMembership {
 
 model Brand {
   id          String    @id @default(cuid())
-  tenantId    String    @map("tenant_id")
-  name        String
-  slug        String
-  version     Int       @default(1)
-  isArchived  Boolean   @default(false) @map("is_archived")
-  archivedAt  DateTime? @map("archived_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  tenantId        String    @map("tenant_id")
+  clientAccountId String?   @map("client_account_id")
+  name            String
+  slug            String
+  version         Int       @default(1)
+  isArchived      Boolean   @default(false) @map("is_archived")
+  archivedAt      DateTime? @map("archived_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientAccount   ClientAccount? @relation(fields: [tenantId, clientAccountId], references: [tenantId, id], onDelete: SetNull)
 
   locations     Location[]
   products      Product[]
   categories    Category[]
   storeProducts StoreProduct[]
   scopes        BrandAccessScope[]
+  accessGrants  AccessGrant[]
   webSurfaces   WebSurface[]
   domains       Domain[]
   theme         BrandTheme?
@@ -303,6 +317,7 @@ model Brand {
 
   @@unique([tenantId, slug], name: "uq_brand_tenant_slug")
   @@unique([tenantId, id], name: "uq_brand_tenant_id")
+  @@index([tenantId, clientAccountId], name: "idx_brands_client_account")
   @@index([tenantId, isArchived, name], name: "idx_brands_tenant_archived_name")
   @@map("brands")
 }
@@ -354,6 +369,7 @@ model Location {
   brand        Brand     @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
 
   scopes           LocationAccessScope[]
+  accessGrants     AccessGrant[]
   storeProducts    StoreProduct[]
   productLocations ProductLocation[] // Deprecated: legacy composite mapping
   gbpMetrics       GbpDailyMetric[]
@@ -2456,5 +2472,146 @@ model ReportPreset {
   @@unique([tenantId, id], name: "uq_report_preset_tenant_id")
   @@index([tenantId, brandId, isDefault], name: "idx_report_preset_brand_default")
   @@map("report_presets")
+}
+
+// -----------------------------------------------------------------------------
+// PHASE 14: WHITE-LABEL / AGENCY / MULTI-CLIENT PORTAL
+// -----------------------------------------------------------------------------
+
+model ClientAccount {
+  id             String    @id @default(cuid())
+  tenantId       String    @map("tenant_id")
+  name           String
+  slug           String
+  status         String    @default("ACTIVE") // ACTIVE, SUSPENDED, ARCHIVED
+  primaryContact String?   @map("primary_contact")
+  contactEmail   String?   @map("contact_email")
+  contactPhone   String?   @map("contact_phone")
+  timezone       String    @default("UTC")
+  locale         String    @default("en-US")
+  suspendedAt    DateTime? @map("suspended_at")
+  archivedAt     DateTime? @map("archived_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  brands         Brand[]
+  accessGrants   AccessGrant[]
+  invitations    Invitation[]
+  entitlements   ClientFeatureEntitlement[]
+
+  @@unique([tenantId, slug], name: "uq_client_account_tenant_slug")
+  @@unique([tenantId, id], name: "uq_client_account_tenant_id")
+  @@index([tenantId, status], name: "idx_client_accounts_tenant_status")
+  @@map("client_accounts")
+}
+
+model AccessGrant {
+  id              String         @id @default(cuid())
+  tenantId        String         @map("tenant_id")
+  userId          String         @map("user_id")
+  scopeType       String         @default("CLIENT") @map("scope_type") // TENANT, CLIENT, BRAND, LOCATION
+  clientAccountId String?        @map("client_account_id")
+  brandId         String?        @map("brand_id")
+  locationId      String?        @map("location_id")
+  role            String         // AGENCY_OWNER, AGENCY_ADMIN, AGENCY_MEMBER, CLIENT_ADMIN, CLIENT_EDITOR, CLIENT_VIEWER
+  status          String         @default("ACTIVE") // ACTIVE, SUSPENDED, REVOKED
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientAccount   ClientAccount? @relation(fields: [tenantId, clientAccountId], references: [tenantId, id], onDelete: Cascade)
+  brand           Brand?         @relation(fields: [tenantId, brandId], references: [tenantId, id], onDelete: Cascade)
+  location        Location?      @relation(fields: [tenantId, locationId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id], name: "uq_access_grant_tenant_id")
+  @@index([tenantId, userId], name: "idx_access_grants_tenant_user")
+  @@index([tenantId, clientAccountId, userId], name: "idx_access_grants_tenant_client_user")
+  @@map("access_grants")
+}
+
+model WhiteLabelConfig {
+  id                  String        @id @default(cuid())
+  tenantId            String        @unique @map("tenant_id")
+  enabled             Boolean       @default(true)
+  portalName          String        @default("LocalBi") @map("portal_name")
+  companyLegalName    String?       @map("company_legal_name")
+  logoUrl             String?       @map("logo_url")
+  faviconUrl          String?       @map("favicon_url")
+  primaryColor        String        @default("#4F46E5") @map("primary_color")
+  secondaryColor      String        @default("#0F172A") @map("secondary_color")
+  accentColor         String        @default("#F59E0B") @map("accent_color")
+  supportEmail        String?       @map("support_email")
+  supportUrl          String?       @map("support_url")
+  hideLocalBiBranding Boolean       @default(false) @map("hide_localbi_branding")
+  customCss           String?       @map("custom_css") @db.Text
+  portalDomainId      String?       @map("portal_domain_id")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  tenant              Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  portalDomain        PortalDomain? @relation(fields: [tenantId, portalDomainId], references: [tenantId, id], onDelete: SetNull)
+
+  @@unique([tenantId, id], name: "uq_white_label_config_tenant_id")
+  @@map("white_label_configs")
+}
+
+model PortalDomain {
+  id                String             @id @default(cuid())
+  tenantId          String             @map("tenant_id")
+  hostname          String             @unique
+  status            String             @default("PENDING") // PENDING, VERIFYING, ACTIVE, FAILED
+  verificationToken String             @map("verification_token")
+  sslStatus         String             @default("PENDING") @map("ssl_status") // PENDING, ACTIVE, FAILED
+  verifiedAt        DateTime?          @map("verified_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  whiteLabelConfigs WhiteLabelConfig[]
+
+  @@unique([tenantId, id], name: "uq_portal_domain_tenant_id")
+  @@index([tenantId, status], name: "idx_portal_domains_tenant_status")
+  @@map("portal_domains")
+}
+
+model TenantEntitlement {
+  id            String    @id @default(cuid())
+  tenantId      String    @map("tenant_id")
+  featureKey    String    @map("feature_key")
+  enabled       Boolean   @default(true)
+  limits        Json      @default("{}")
+  source        String    @default("PLAN_DEFAULT") // PLAN_DEFAULT, MANUAL_OVERRIDE
+  effectiveFrom DateTime? @map("effective_from")
+  expiresAt     DateTime? @map("expires_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, featureKey], name: "uq_tenant_entitlement_key")
+  @@unique([tenantId, id], name: "uq_tenant_entitlement_id")
+  @@index([tenantId, enabled], name: "idx_tenant_entitlements_enabled")
+  @@map("tenant_entitlements")
+}
+
+model ClientFeatureEntitlement {
+  id              String        @id @default(cuid())
+  tenantId        String        @map("tenant_id")
+  clientAccountId String        @map("client_account_id")
+  featureKey      String        @map("feature_key")
+  enabled         Boolean       @default(true)
+  limits          Json          @default("{}")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientAccount   ClientAccount @relation(fields: [tenantId, clientAccountId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, clientAccountId, featureKey], name: "uq_client_feature_entitlement")
+  @@unique([tenantId, id], name: "uq_client_entitlement_id")
+  @@index([tenantId, clientAccountId], name: "idx_client_feature_entitlements")
+  @@map("client_feature_entitlements")
 }
 

@@ -5,6 +5,7 @@ import { ContextResolver } from '@/modules/auth/context-resolver';
 import { Action, AuthorizationService, Role } from '@/shared/authorization/policy';
 import { ExecutiveReportingService } from '@/modules/reporting/executive-reporting-service';
 import { ReportExportService } from '@/modules/reporting/report-export-service';
+import { WhiteLabelService } from '@/modules/agency/whitelabel-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function POST(
@@ -49,7 +50,8 @@ export async function POST(
     }
 
     if (format === 'pdf') {
-      const html = ReportExportService.generatePrintableHtml(reportDto);
+      const whiteLabel = await WhiteLabelService.getWhiteLabelConfig(tenant.id);
+      const html = ReportExportService.generatePrintableHtml(reportDto, whiteLabel);
       return new NextResponse(html, {
         status: 200,
         headers: {

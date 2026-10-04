@@ -64,6 +64,9 @@ export const ErrorCode = {
   CHANGE_SET_STALE: 'CHANGE_SET_STALE',
   DUPLICATE_CANDIDATE_NOT_FOUND: 'DUPLICATE_CANDIDATE_NOT_FOUND',
   PROVIDER_CAPABILITY_NOT_SUPPORTED: 'PROVIDER_CAPABILITY_NOT_SUPPORTED',
+  CLIENT_ACCESS_DENIED: 'CLIENT_ACCESS_DENIED',
+  FEATURE_NOT_ENTITLED: 'FEATURE_NOT_ENTITLED',
+  ENTITLEMENT_LIMIT_EXCEEDED: 'ENTITLEMENT_LIMIT_EXCEEDED',
 } as const;
 
 export type ErrorCodeType = typeof ErrorCode[keyof typeof ErrorCode];
@@ -159,6 +162,36 @@ export function createLocationAccessDeniedError(locationId: string, requestId?: 
     statusCode: 403,
     requestId,
     details: { locationId },
+  });
+}
+
+export function createClientAccessDeniedError(clientAccountId: string, requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.CLIENT_ACCESS_DENIED,
+    message: 'Access to the specified client account is denied.',
+    statusCode: 403,
+    requestId,
+    details: { clientAccountId },
+  });
+}
+
+export function createFeatureNotEntitledError(featureKey: string, clientAccountId?: string, requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.FEATURE_NOT_ENTITLED,
+    message: `Feature '${featureKey}' is not enabled for this workspace or client account.`,
+    statusCode: 403,
+    requestId,
+    details: { featureKey, clientAccountId },
+  });
+}
+
+export function createEntitlementLimitExceededError(featureKey: string, metric: string, limit: number, current: number, requestId?: string): AppError {
+  return new AppError({
+    code: ErrorCode.ENTITLEMENT_LIMIT_EXCEEDED,
+    message: `Quota limit exceeded for feature '${featureKey}' on metric '${metric}' (Limit: ${limit}, Current: ${current}).`,
+    statusCode: 403,
+    requestId,
+    details: { featureKey, metric, limit, current },
   });
 }
 

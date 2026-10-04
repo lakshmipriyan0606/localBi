@@ -28,6 +28,7 @@ export interface CreateInvitationInput {
   email: string;
   role: RoleType;
   scopeMode?: ScopeModeType;
+  clientAccountId?: string;
   brandIds?: string[];
   locationIds?: string[];
 }
@@ -37,6 +38,7 @@ export interface InvitationListItemDto {
   email: string;
   role: string;
   scopeMode: string;
+  clientAccountId?: string | null;
   invitedBy: string;
   expiresAt: Date;
   createdAt: Date;
@@ -48,6 +50,8 @@ export interface PublicInvitationDetails {
   id: string;
   tenantId: string;
   tenantName: string;
+  clientAccountId?: string | null;
+  clientAccountName?: string | null;
   email: string;
   role: string;
   expiresAt: Date;
@@ -79,6 +83,10 @@ export class InvitationService {
     const scopeMode = input.scopeMode || ScopeMode.ALL;
     const brandIds = input.brandIds || [];
     const locationIds = input.locationIds || [];
+
+    if (input.clientAccountId) {
+      AuthorizationService.assertClientAccess(context, input.clientAccountId);
+    }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // 1. Check if user already exists and is a member of this tenant
@@ -125,6 +133,7 @@ export class InvitationService {
           email: normalized,
           role: input.role,
           scopeMode,
+          clientAccountId: input.clientAccountId || null,
           invitedBrandIds: brandIds,
           invitedLocationIds: locationIds,
           tokenHash,
@@ -142,7 +151,7 @@ export class InvitationService {
           action: Action.USER_INVITE,
           resourceType: 'Invitation',
           resourceId: invitation.id,
-          newValues: { email: normalized, role: input.role, scopeMode },
+          newValues: { email: normalized, role: input.role, scopeMode, clientAccountId: input.clientAccountId },
           ipAddress: 'INTERNAL',
           userAgent: 'INTERNAL',
         },
@@ -157,6 +166,7 @@ export class InvitationService {
           email: invitation.email,
           role: invitation.role,
           scopeMode: invitation.scopeMode,
+          clientAccountId: invitation.clientAccountId,
           invitedBy: invitation.invitedBy,
           expiresAt: invitation.expiresAt,
           createdAt: invitation.createdAt,
@@ -197,6 +207,7 @@ export class InvitationService {
         email: inv.email,
         role: inv.role,
         scopeMode: inv.scopeMode,
+        clientAccountId: inv.clientAccountId,
         invitedBy: inv.invitedBy,
         expiresAt: inv.expiresAt,
         createdAt: inv.createdAt,
@@ -268,6 +279,9 @@ export class InvitationService {
         tenant: {
           select: { id: true, name: true },
         },
+        clientAccount: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -284,6 +298,8 @@ export class InvitationService {
       id: invitation.id,
       tenantId: invitation.tenant.id,
       tenantName: invitation.tenant.name,
+      clientAccountId: invitation.clientAccount?.id || null,
+      clientAccountName: invitation.clientAccount?.name || null,
       email: invitation.email,
       role: invitation.role,
       expiresAt: invitation.expiresAt,
@@ -415,6 +431,35 @@ export class InvitationService {
               locationId,
             })),
             skipDuplicates: true,
+          });
+        }
+      }
+
+      // 4.5. Assign Client Account Access Grant if invited to a specific client account
+      if (invitation.clientAccountId) {
+        const existingGrant = await tx.accessGrant.findFirst({
+          where: {
+            tenantId: invitation.tenantId,
+            userId,
+            clientAccountId: invitation.clientAccountId,
+          },
+        });
+
+        if (existingGrant) {
+          await tx.accessGrant.update({
+            where: { uq_access_grant_tenant_id: { tenantId: invitation.tenantId, id: existingGrant.id } },
+            data: { role: invitation.role, status: 'ACTIVE' },
+          });
+        } else {
+          await tx.accessGrant.create({
+            data: {
+              tenantId: invitation.tenantId,
+              userId,
+              role: invitation.role,
+              scopeType: 'CLIENT',
+              clientAccountId: invitation.clientAccountId,
+              status: 'ACTIVE',
+            },
           });
         }
       }

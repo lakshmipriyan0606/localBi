@@ -87,6 +87,7 @@ export class ClientReportContextService {
         tenantId: t.id,
         role: Role.CLIENT_OWNER,
         scopeMode: ScopeMode.ALL,
+        grantedClientAccountIds: new Set<string>(),
         grantedLocationIds: new Set<string>(),
         grantedBrandIds: new Set<string>(),
       };

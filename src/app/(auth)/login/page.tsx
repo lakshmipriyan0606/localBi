@@ -23,15 +23,26 @@ export default function LoginPage() {
       <LoginForm />
 
       {/* Supporting links */}
-      <p className="text-center text-[13px] text-slate-400">
-        Need access?{' '}
-        <Link
-          href="/forgot-password"
-          className="font-semibold text-indigo-600 hover:text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded"
-        >
-          Reset your password
-        </Link>
-      </p>
+      <div className="space-y-2 text-center text-[13px] text-slate-400">
+        <p>
+          Don&apos;t have an account?{' '}
+          <Link
+            href="/register"
+            className="font-semibold text-indigo-600 hover:text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded"
+          >
+            Create a workspace
+          </Link>
+        </p>
+        <p>
+          Need access?{' '}
+          <Link
+            href="/forgot-password"
+            className="font-semibold text-indigo-600 hover:text-indigo-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 rounded"
+          >
+            Reset your password
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

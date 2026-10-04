@@ -39,22 +39,49 @@ export class MembershipService {
       return;
     }
 
-    if (actorRole === Role.CLIENT_OWNER) {
-      // Owners can assign any tenant-level role, but cannot grant platform-level roles
+    if (actorRole === Role.AGENCY_OWNER) {
+      // Agency owners can assign any agency-level or client-level role, but cannot grant platform-level roles
       if (targetRole === Role.PLATFORM_SUPER_ADMIN || targetRole === Role.PLATFORM_SUPPORT_ADMIN) {
         throw createPolicyGateLockedError('Cannot grant platform administration privileges');
       }
       return;
     }
 
-    if (actorRole === Role.CLIENT_ADMIN) {
-      // Admins cannot grant Owner or Platform roles
+    if (actorRole === Role.AGENCY_ADMIN) {
+      // Agency Admins cannot grant Agency Owner or Platform roles
       if (
-        targetRole === Role.CLIENT_OWNER ||
+        targetRole === Role.AGENCY_OWNER ||
         targetRole === Role.PLATFORM_SUPER_ADMIN ||
         targetRole === Role.PLATFORM_SUPPORT_ADMIN
       ) {
-        throw createPolicyGateLockedError('Tenant Admins cannot grant Owner privileges');
+        throw createPolicyGateLockedError('Agency Admins cannot grant Agency Owner or Platform privileges');
+      }
+      return;
+    }
+
+    if (actorRole === Role.CLIENT_OWNER) {
+      // Owners can assign any client-level role, but cannot grant platform or agency owner/admin roles
+      if (
+        targetRole === Role.AGENCY_OWNER ||
+        targetRole === Role.AGENCY_ADMIN ||
+        targetRole === Role.PLATFORM_SUPER_ADMIN ||
+        targetRole === Role.PLATFORM_SUPPORT_ADMIN
+      ) {
+        throw createPolicyGateLockedError('Cannot grant elevated agency or platform privileges');
+      }
+      return;
+    }
+
+    if (actorRole === Role.CLIENT_ADMIN) {
+      // Client Admins cannot grant Owner, Agency, or Platform roles
+      if (
+        targetRole === Role.CLIENT_OWNER ||
+        targetRole === Role.AGENCY_OWNER ||
+        targetRole === Role.AGENCY_ADMIN ||
+        targetRole === Role.PLATFORM_SUPER_ADMIN ||
+        targetRole === Role.PLATFORM_SUPPORT_ADMIN
+      ) {
+        throw createPolicyGateLockedError('Client Admins cannot grant Owner or Agency privileges');
       }
       return;
     }
@@ -83,18 +110,18 @@ export class MembershipService {
       throw createResourceNotFoundError('TenantMembership', targetMembershipId);
     }
 
-    if (target.role === Role.CLIENT_OWNER) {
+    if (target.role === Role.CLIENT_OWNER || target.role === Role.AGENCY_OWNER) {
       const activeOwnerCount = await tx.tenantMembership.count({
         where: {
           tenantId,
-          role: Role.CLIENT_OWNER,
+          role: target.role,
           status: 'ACTIVE',
         },
       });
 
       if (activeOwnerCount <= 1) {
         throw createLastOwnerProtectionError(
-          'Security Invariant: The last active Client Owner of an organization cannot be demoted, suspended, or removed.'
+          `Security Invariant: The last active ${target.role === Role.AGENCY_OWNER ? 'Agency Owner' : 'Client Owner'} of an organization cannot be demoted, suspended, or removed.`
         );
       }
     }

@@ -2,7 +2,9 @@ import { prisma } from '../../shared/database/client';
 import { TenantContextService } from '../../shared/database/tenant-context';
 import { SessionService, AuthenticatedUser, ActiveSession } from './session-service';
 import {
+  AuthorizationService,
   AuthorizedContext,
+  Role,
   RoleType,
   ScopeModeType,
 } from '../../shared/authorization/policy';
@@ -21,8 +23,15 @@ export interface ResolvedRequestContext {
     name: string;
     slug: string;
     plan: string;
+    tenantType?: string;
     timezone: string;
     version: number;
+  };
+  clientAccount?: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
   };
   authorizedContext?: AuthorizedContext;
 }
@@ -59,11 +68,12 @@ export class ContextResolver {
    * 2. Active user account
    * 3. Tenant existence and active status
    * 4. Active tenant membership
-   * 5. Granular brand and location access scopes
+   * 5. Granular brand, location, and client access scopes
    */
   public static async resolveTenantContext(
     rawToken: string | null | undefined,
-    tenantSlug: string
+    tenantSlug: string,
+    options?: { clientSlug?: string; clientAccountId?: string }
   ): Promise<ResolvedRequestContext> {
     const { user, session } = await this.requireAuthenticatedUser(rawToken);
 
@@ -77,6 +87,7 @@ export class ContextResolver {
         name: true,
         slug: true,
         plan: true,
+        tenantType: true,
         timezone: true,
         status: true,
         version: true,
@@ -87,12 +98,12 @@ export class ContextResolver {
       throw createResourceNotFoundError('Tenant', cleanSlug);
     }
 
-    // Query membership and scopes inside tenant context
-    const membership = await TenantContextService.withTenantContext(
+    // Query membership, scopes, and access grants inside tenant context
+    const { membership, accessGrants } = await TenantContextService.withTenantContext(
       prisma,
       tenant.id,
       async (tx) => {
-        return tx.tenantMembership.findUnique({
+        const mem = await tx.tenantMembership.findUnique({
           where: {
             uq_membership_tenant_user: {
               tenantId: tenant.id,
@@ -104,6 +115,16 @@ export class ContextResolver {
             locationScopes: { select: { locationId: true } },
           },
         });
+
+        const grants = await tx.accessGrant.findMany({
+          where: {
+            tenantId: tenant.id,
+            userId: user.id,
+            status: 'ACTIVE',
+          },
+        });
+
+        return { membership: mem, accessGrants: grants };
       }
     );
 
@@ -117,15 +138,84 @@ export class ContextResolver {
 
     const grantedBrandIds = new Set(membership.brandScopes.map((b) => b.brandId));
     const grantedLocationIds = new Set(membership.locationScopes.map((l) => l.locationId));
+    const grantedClientAccountIds = new Set<string>();
+
+    for (const grant of accessGrants) {
+      if (grant.clientAccountId) {
+        grantedClientAccountIds.add(grant.clientAccountId);
+      }
+      if (grant.brandId) {
+        grantedBrandIds.add(grant.brandId);
+      }
+      if (grant.locationId) {
+        grantedLocationIds.add(grant.locationId);
+      }
+    }
+
+    let resolvedClientAccount:
+      | { id: string; name: string; slug: string; status: string }
+      | undefined;
+
+    if (options?.clientSlug || options?.clientAccountId) {
+      const client = await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
+        if (options.clientAccountId) {
+          return tx.clientAccount.findUnique({
+            where: {
+              uq_client_account_tenant_id: {
+                tenantId: tenant.id,
+                id: options.clientAccountId,
+              },
+            },
+          });
+        }
+        if (options.clientSlug) {
+          return tx.clientAccount.findUnique({
+            where: {
+              uq_client_account_tenant_slug: {
+                tenantId: tenant.id,
+                slug: options.clientSlug.trim().toLowerCase(),
+              },
+            },
+          });
+        }
+        return null;
+      });
+
+      if (!client || client.status === 'ARCHIVED') {
+        throw createResourceNotFoundError('ClientAccount', options.clientSlug || options.clientAccountId || '');
+      }
+
+      const isAgencyAdminOrOwner =
+        membership.role === Role.AGENCY_OWNER ||
+        membership.role === Role.AGENCY_ADMIN ||
+        membership.role === Role.PLATFORM_SUPER_ADMIN;
+
+      if (client.status === 'SUSPENDED' && !isAgencyAdminOrOwner) {
+        throw createAccountSuspendedError('This client account has been suspended');
+      }
+
+      resolvedClientAccount = {
+        id: client.id,
+        name: client.name,
+        slug: client.slug,
+        status: client.status,
+      };
+    }
 
     const authorizedContext: AuthorizedContext = {
       userId: user.id,
       tenantId: tenant.id,
       role: membership.role as RoleType,
       scopeMode: membership.scopeMode as ScopeModeType,
+      clientAccountId: resolvedClientAccount?.id,
+      grantedClientAccountIds,
       grantedBrandIds,
       grantedLocationIds,
     };
+
+    if (resolvedClientAccount) {
+      AuthorizationService.assertClientAccess(authorizedContext, resolvedClientAccount.id);
+    }
 
     return {
       user,
@@ -135,9 +225,11 @@ export class ContextResolver {
         name: tenant.name,
         slug: tenant.slug,
         plan: tenant.plan,
+        tenantType: tenant.tenantType,
         timezone: tenant.timezone,
         version: tenant.version,
       },
+      clientAccount: resolvedClientAccount,
       authorizedContext,
     };
   }

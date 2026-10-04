@@ -2,6 +2,7 @@ import {
   createBrandAccessDeniedError,
   createLocationAccessDeniedError,
   createTenantAccessDeniedError,
+  createClientAccessDeniedError,
 } from '../errors';
 
 export * from './roles';
@@ -11,12 +12,14 @@ export interface AuthorizedContext {
   tenantId: string;
   role: RoleType;
   scopeMode: ScopeModeType;
+  clientAccountId?: string | undefined;
+  grantedClientAccountIds?: ReadonlySet<string> | undefined;
   grantedBrandIds: ReadonlySet<string>;
   grantedLocationIds: ReadonlySet<string>;
   isPlatformStaff?: boolean;
 }
 
-import { RoleType, ScopeModeType, ActionType, ROLE_CAPABILITIES, ScopeMode } from './roles';
+import { Role, RoleType, ScopeModeType, ActionType, ROLE_CAPABILITIES, ScopeMode } from './roles';
 
 export class AuthorizationService {
   /**
@@ -37,10 +40,44 @@ export class AuthorizationService {
   }
 
   /**
+   * Verifies whether context can access a specific client account under its scope mode.
+   */
+  public static canAccessClient(context: AuthorizedContext, clientAccountId: string): boolean {
+    if (
+      context.role === Role.PLATFORM_SUPER_ADMIN ||
+      context.role === Role.PLATFORM_SUPPORT_ADMIN ||
+      context.role === Role.AGENCY_OWNER ||
+      context.role === Role.AGENCY_ADMIN ||
+      context.role === Role.AGENCY_MEMBER
+    ) {
+      return true;
+    }
+
+    if (context.scopeMode === ScopeMode.ALL) {
+      return true;
+    }
+
+    if (context.clientAccountId && context.clientAccountId === clientAccountId) {
+      return true;
+    }
+
+    return context.grantedClientAccountIds?.has(clientAccountId) ?? false;
+  }
+
+  /**
+   * Asserts that context has access to the client account; throws CLIENT_ACCESS_DENIED if not.
+   */
+  public static assertClientAccess(context: AuthorizedContext, clientAccountId: string, requestId?: string): void {
+    if (!this.canAccessClient(context, clientAccountId)) {
+      throw createClientAccessDeniedError(clientAccountId, requestId);
+    }
+  }
+
+  /**
    * Verifies whether context can access a specific brand under its scope mode.
    */
   public static canAccessBrand(context: AuthorizedContext, brandId: string): boolean {
-    // Client Owner, Client Admin, and Super Admin have tenant-wide scope unless explicitly restricted
+    // Agency Owner, Agency Admin, Client Owner, Client Admin have tenant-wide scope unless explicitly restricted
     if (context.scopeMode === ScopeMode.ALL) {
       return true;
     }
