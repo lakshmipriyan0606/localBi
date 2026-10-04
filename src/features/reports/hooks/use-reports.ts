@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { browserClient } from '@/lib/http/browser-client';
+import { analyticsQueryKeys } from '@/lib/query/query-keys';
 import type {
   PerformanceSummaryDto,
   TimeseriesPoint,
@@ -16,21 +17,20 @@ export interface UseReportsFilter {
   mode?: 'LOCALBI' | 'ORIGINAL' | 'COMPARE' | undefined;
   startDate: string;
   endDate: string;
+  comparison?: string | undefined;
 }
 
 export function usePerformanceSummary(filters: UseReportsFilter) {
   return useQuery({
-    queryKey: [
-      'reports',
-      'summary',
-      filters.tenantSlug,
-      filters.brandId,
-      filters.locationId || 'all',
-      filters.webSurfaceId || 'default',
-      filters.mode || 'LOCALBI',
-      filters.startDate,
-      filters.endDate,
-    ],
+    queryKey: analyticsQueryKeys.overview({
+      tenantSlug: filters.tenantSlug,
+      brandId: filters.brandId,
+      locationId: filters.locationId,
+      webSurfaceId: filters.webSurfaceId,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      comparison: filters.comparison || 'NONE',
+    }),
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams({
         brandId: filters.brandId,
@@ -48,23 +48,23 @@ export function usePerformanceSummary(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 0,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
   });
 }
 
+
 export function usePerformanceTimeseries(filters: UseReportsFilter) {
   return useQuery({
-    queryKey: [
-      'reports',
-      'timeseries',
-      filters.tenantSlug,
-      filters.brandId,
-      filters.locationId || 'all',
-      filters.webSurfaceId || 'default',
-      filters.mode || 'LOCALBI',
-      filters.startDate,
-      filters.endDate,
-    ],
+    queryKey: analyticsQueryKeys.timeseries({
+      tenantSlug: filters.tenantSlug,
+      brandId: filters.brandId,
+      locationId: filters.locationId,
+      webSurfaceId: filters.webSurfaceId,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+      comparison: filters.comparison || 'NONE',
+    }),
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams({
         brandId: filters.brandId,
@@ -82,23 +82,21 @@ export function usePerformanceTimeseries(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 0,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
   });
 }
 
 export function usePerformanceDimensions(filters: UseReportsFilter) {
   return useQuery({
-    queryKey: [
-      'reports',
-      'dimensions',
-      filters.tenantSlug,
-      filters.brandId,
-      filters.locationId || 'all',
-      filters.webSurfaceId || 'default',
-      filters.mode || 'LOCALBI',
-      filters.startDate,
-      filters.endDate,
-    ],
+    queryKey: analyticsQueryKeys.dimensions({
+      tenantSlug: filters.tenantSlug,
+      brandId: filters.brandId,
+      locationId: filters.locationId,
+      webSurfaceId: filters.webSurfaceId,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    }),
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams({
         brandId: filters.brandId,
@@ -120,9 +118,11 @@ export function usePerformanceDimensions(filters: UseReportsFilter) {
       return res.data.data;
     },
     enabled: Boolean(filters.tenantSlug && filters.brandId),
-    staleTime: 0,
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
   });
 }
+
 
 export interface UseDrilldownFilter extends UseReportsFilter {
   dimension: 'query' | 'page' | 'country' | 'device' | 'date' | 'location' | 'search-keywords';

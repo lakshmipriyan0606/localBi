@@ -87,10 +87,100 @@ export const tenantQueryKeys = {
     entitlements: (tenantSlug: string, clientAccountId?: string) =>
       ['tenant', tenantSlug, 'agency', 'entitlements', clientAccountId || 'tenant'] as const,
   },
+
+  // Analytics scope (isolated by tenant, brand, webSurface, store, date-range, and comparison)
+  analytics: {
+    all: (tenantSlug: string) => ['tenant', tenantSlug, 'analytics'] as const,
+    brand: (tenantSlug: string, brandId: string) =>
+      ['tenant', tenantSlug, 'analytics', 'brand', brandId] as const,
+    overview: (filters: AnalyticsQueryFilters) =>
+      [
+        'tenant',
+        filters.tenantSlug,
+        'analytics',
+        'overview',
+        {
+          brandId: filters.brandId,
+          webSurfaceId: filters.webSurfaceId || null,
+          storeIds: filters.storeIds ? [...filters.storeIds].sort() : null,
+          locationId: filters.locationId || null,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          comparison: filters.comparison || 'NONE',
+          comparisonStartDate: filters.comparisonStartDate || null,
+          comparisonEndDate: filters.comparisonEndDate || null,
+          source: filters.source || 'ALL',
+        },
+      ] as const,
+    timeseries: (filters: AnalyticsQueryFilters) =>
+      [
+        'tenant',
+        filters.tenantSlug,
+        'analytics',
+        'timeseries',
+        {
+          brandId: filters.brandId,
+          webSurfaceId: filters.webSurfaceId || null,
+          storeIds: filters.storeIds ? [...filters.storeIds].sort() : null,
+          locationId: filters.locationId || null,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          comparison: filters.comparison || 'NONE',
+          source: filters.source || 'ALL',
+        },
+      ] as const,
+    dimensions: (filters: AnalyticsQueryFilters) =>
+      [
+        'tenant',
+        filters.tenantSlug,
+        'analytics',
+        'dimensions',
+        {
+          brandId: filters.brandId,
+          webSurfaceId: filters.webSurfaceId || null,
+          locationId: filters.locationId || null,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          source: filters.source || 'ALL',
+        },
+      ] as const,
+    drilldown: (filters: AnalyticsQueryFilters & { dimension: string }) =>
+      [
+        'tenant',
+        filters.tenantSlug,
+        'analytics',
+        'drilldown',
+        filters.dimension,
+        {
+          brandId: filters.brandId,
+          webSurfaceId: filters.webSurfaceId || null,
+          locationId: filters.locationId || null,
+          startDate: filters.startDate,
+          endDate: filters.endDate,
+          source: filters.source || 'ALL',
+        },
+      ] as const,
+  },
 };
 
+export interface AnalyticsQueryFilters {
+  tenantSlug: string;
+  brandId: string;
+  webSurfaceId?: string | undefined;
+  storeIds?: string[] | undefined;
+  locationId?: string | undefined;
+  startDate: string;
+  endDate: string;
+  comparison?: string | undefined;
+  comparisonStartDate?: string | undefined;
+  comparisonEndDate?: string | undefined;
+  source?: string | undefined;
+}
+
+export const analyticsQueryKeys = tenantQueryKeys.analytics;
 
 export const authQueryKeys = {
   sessions: () => ['auth', 'sessions'] as const,
   userTenants: () => ['auth', 'user-tenants'] as const,
 };
+

@@ -1,11 +1,17 @@
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
-import { MapPin, ArrowRight, Sparkles } from 'lucide-react';
-import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
+import { MapPin, Phone, Navigation, Globe, Eye, ArrowRight } from 'lucide-react';
+import { MetricCard } from '@/components/analytics/metric-card';
+import { MetricCardSkeleton } from '@/components/analytics/analytics-skeletons';
+import { AnalyticsComparisonEngine } from '@/shared/analytics/comparison';
+import { AnalyticsFormatters } from '@/shared/analytics/formatters';
+import type { PerformanceSummaryDto } from '@/modules/reports/reporting-service';
 
 export interface ReportsGbpSectionProps {
-  summary: any;
+  summary?: PerformanceSummaryDto | undefined | null;
+
   isLoading: boolean;
   tenantSlug: string;
   selectedBrandId: string;
@@ -20,9 +26,7 @@ export function ReportsGbpSection({
   dateRangeDays,
 }: ReportsGbpSectionProps) {
   const gbp = summary?.gbp;
-  const hasGbpData = Boolean(
-    gbp && (gbp.totalViews > 0 || gbp.callClicks > 0 || gbp.websiteClicks > 0 || gbp.directionRequests > 0)
-  );
+  const prev = summary?.previousPeriod;
 
   const views = gbp?.totalViews ?? 0;
   const calls = gbp?.callClicks ?? 0;
@@ -33,101 +37,126 @@ export function ReportsGbpSection({
   const mappedCount = gbp?.mappedLocationsCount ?? 0;
   const totalCount = gbp?.totalLocationsCount ?? 0;
 
+  // Comparison deltas calculated with safe zero-division guard
+  const viewsComp = AnalyticsComparisonEngine.calculateComparison({
+    current: views,
+    previous: prev?.views,
+    comparisonType: 'PREVIOUS_PERIOD',
+    higherIsBetter: true,
+  });
+
+  const callsComp = AnalyticsComparisonEngine.calculateComparison({
+    current: calls,
+    previous: prev?.calls,
+    comparisonType: 'PREVIOUS_PERIOD',
+    higherIsBetter: true,
+  });
+
+  const directionsComp = AnalyticsComparisonEngine.calculateComparison({
+    current: directions,
+    previous: prev?.directions,
+    comparisonType: 'PREVIOUS_PERIOD',
+    higherIsBetter: true,
+  });
+
+  const websiteClicksComp = AnalyticsComparisonEngine.calculateComparison({
+    current: websiteClicks,
+    previous: prev?.websiteClicks,
+    comparisonType: 'PREVIOUS_PERIOD',
+    higherIsBetter: true,
+  });
+
   return (
-    <section className="rounded-2xl border border-[#C5E8D8] bg-[#EBF7F2] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
+    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600 shadow-xs">
-            <MapPin className="w-4 h-4 fill-emerald-600 text-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-[17px] font-bold tracking-tight text-slate-900 leading-none">
-                Google Business Profile
-              </h2>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100/70 text-emerald-800">
-                ✓ Local Presence & Customer Reach
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-base font-bold tracking-tight text-slate-900 leading-none">
+              Google Business Profile
+            </h2>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Local Presence & Reach
+            </span>
+            {gbpStatus === 'partial' && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                {mappedCount} of {totalCount} Locations Mapped
               </span>
-              {gbpStatus === 'partial' && (
-                <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                  {mappedCount} of {totalCount} Locations Mapped
-                </span>
-              )}
-            </div>
-            <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
-              Customer calls, driving directions, and local interactions across all locations
-            </p>
+            )}
           </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Customer phone calls, driving directions, local profile impressions, and website link clicks.
+          </p>
         </div>
 
-        <Link
-          href={`/client/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}`}
-          className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap self-end sm:self-auto"
-        >
-          <span>View All Locations</span>
-          <ArrowRight className="w-3 h-3" />
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+          <Link
+            href={`/client/${tenantSlug}/reports/gbp/reviews?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+          >
+            <span>Customer Reviews</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-        <DashboardMetricCard
-          label="Profile Views"
-          value={views}
-          delta={hasGbpData ? summary?.previousPeriod?.viewsGrowthPercent : undefined}
-          icon="eye"
-          color="purple"
-          sparkColor="#10B981"
-          seed={1}
-        />
-        <DashboardMetricCard
-          label="Phone Calls"
-          value={calls}
-          delta={hasGbpData ? summary?.previousPeriod?.callsGrowthPercent : undefined}
-          icon="phone"
-          color="blue"
-          sparkColor="#3B82F6"
-          seed={2}
-        />
-        <DashboardMetricCard
-          label="Direction Requests"
-          value={directions}
-          delta={hasGbpData ? summary?.previousPeriod?.directionsGrowthPercent : undefined}
-          icon="navigation"
-          color="teal"
-          sparkColor="#14B8A6"
-          seed={3}
-        />
-        <DashboardMetricCard
-          label="Website & Photo Views"
-          value={websiteClicks}
-          delta={hasGbpData ? summary?.previousPeriod?.websiteClicksGrowthPercent : undefined}
-          icon="image"
-          color="blue"
-          sparkColor="#10B981"
-          seed={4}
-        />
-      </div>
-
-      {gbpStatus === 'not_configured' && !isLoading && (
-        <div className="p-3 bg-white/80 border border-emerald-200/70 rounded-xl flex items-center justify-between gap-3 text-xs text-emerald-900">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-            <span>No store locations mapped to Google Business Profile for this brand. Link locations in Connections.</span>
-          </div>
-          <Link href={`/client/${tenantSlug}/integrations`} className="font-semibold underline hover:text-emerald-950 flex-shrink-0">
-            Manage Connections
-          </Link>
+      {isLoading && !summary ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
+          <MetricCardSkeleton />
         </div>
-      )}
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            label="Profile Views"
+            value={AnalyticsFormatters.compact(views)}
+            deltaPercent={viewsComp.deltaPercent}
+            deltaText={viewsComp.deltaFormatted}
+            comparisonLabel="vs prior period"
+            higherIsBetter={true}
+            source="GBP"
+            tooltip="Number of times your business profiles were viewed on Google Maps and Google Search."
+            icon={Eye}
+          />
 
-      {gbpStatus === 'empty' && !isLoading && (
-        <div className="p-3 bg-white/80 border border-slate-200 rounded-xl flex items-center justify-between gap-3 text-xs text-slate-600">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-slate-500 flex-shrink-0" />
-            <span>No customer calls, directions, or profile views recorded by Google for this date range.</span>
-          </div>
+          <MetricCard
+            label="Call Actions"
+            value={AnalyticsFormatters.number(calls)}
+            deltaPercent={callsComp.deltaPercent}
+            deltaText={callsComp.deltaFormatted}
+            comparisonLabel="vs prior period"
+            higherIsBetter={true}
+            source="GBP"
+            tooltip="Number of times customers tapped the 'Call' action on your Google Business Profile."
+            icon={Phone}
+          />
+
+          <MetricCard
+            label="Directions Requested"
+            value={AnalyticsFormatters.number(directions)}
+            deltaPercent={directionsComp.deltaPercent}
+            deltaText={directionsComp.deltaFormatted}
+            comparisonLabel="vs prior period"
+            higherIsBetter={true}
+            source="GBP"
+            tooltip="Number of customers requesting driving directions to your storefront location."
+            icon={Navigation}
+          />
+
+          <MetricCard
+            label="Website Link Clicks"
+            value={AnalyticsFormatters.number(websiteClicks)}
+            deltaPercent={websiteClicksComp.deltaPercent}
+            deltaText={websiteClicksComp.deltaFormatted}
+            comparisonLabel="vs prior period"
+            higherIsBetter={true}
+            source="GBP"
+            tooltip="Number of clicks on your business profile's website URL on Google Search and Maps."
+            icon={Globe}
+          />
         </div>
       )}
     </section>

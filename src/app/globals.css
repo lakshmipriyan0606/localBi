@@ -19,6 +19,7 @@
   --color-card-foreground: var(--text-primary);
   --color-popover: var(--surface);
   --color-popover-foreground: var(--text-primary);
+  --color-surface-raised: var(--surface-raised);
 
   /* ── Action colors ── */
   --color-primary: var(--action-primary);
@@ -34,8 +35,19 @@
   --color-accent: #EEF2FF;
   --color-accent-foreground: #3730A3;
 
+  /* ── Analytics & Charts ── */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-positive-trend: var(--positive-trend);
+  --color-negative-trend: var(--negative-trend);
+  --color-neutral-trend: var(--neutral-trend);
+
   /* ── Interactive ── */
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--border);
   --color-ring: var(--action-primary);
 
@@ -55,6 +67,7 @@
   --surface:       #FFFFFF;
   --surface-muted: #F1F5F9;
   --surface-hover: #F8FAFC;
+  --surface-raised:#FFFFFF;
 
   /* ─────────────────────────────────────────────
      Typography
@@ -78,7 +91,7 @@
   --action-primary-ring:  rgba(67, 56, 202, 0.25);
 
   /* ─────────────────────────────────────────────
-     Semantic Feedback
+     Semantic Feedback & Trends
   ───────────────────────────────────────────── */
   --positive:       #047857;
   --positive-bg:    #ECFDF5;
@@ -93,14 +106,23 @@
   --info-bg:        #EFF6FF;
   --info-border:    #BFDBFE;
 
+  --positive-trend: #047857;
+  --negative-trend: #B91C1C;
+  --neutral-trend:  #64748B;
+
   /* ─────────────────────────────────────────────
-     Chart Series
+     Chart Series (Controlled, high-contrast, accessible)
   ───────────────────────────────────────────── */
+  --chart-1:        #4338CA;   /* indigo */
+  --chart-2:        #0D9488;   /* teal */
+  --chart-3:        #7C3AED;   /* purple */
+  --chart-4:        #0284C7;   /* sky */
+  --chart-5:        #D97706;   /* amber */
   --chart-gsc:      #4338CA;   /* indigo — GSC */
-  --chart-gbp:      #0F766E;   /* teal   — GBP */
+  --chart-gbp:      #0D9488;   /* teal   — GBP */
   --chart-series-3: #7C3AED;   /* violet */
-  --chart-series-4: #0369A1;   /* sky */
-  --chart-series-5: #B45309;   /* amber */
+  --chart-series-4: #0284C7;   /* sky */
+  --chart-series-5: #D97706;   /* amber */
   --chart-grid:     #E2E8F0;
   --chart-axis:     #94A3B8;
 

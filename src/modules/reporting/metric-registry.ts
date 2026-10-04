@@ -12,7 +12,8 @@ export type MetricSource =
   | 'TELEPHONY'
   | 'MERCHANT'
   | 'LOCAL_RANK_PROVIDER'
-  | 'DIRECTORY_PROVIDER';
+  | 'DIRECTORY_PROVIDER'
+  | 'BACKLINK_PROVIDER';
 
 export type MetricFormat =
   | 'number'
@@ -32,6 +33,56 @@ export interface MetricDefinition {
 }
 
 export const METRIC_DEFINITIONS: Record<string, MetricDefinition> = {
+  // ── First-Party LocalBi Analytics ──
+  'localbi.visitors': {
+    key: 'localbi.visitors',
+    displayName: 'Unique Visitors',
+    description: 'Distinct anonymous visitors identified by first-party cookie on LocalBi web surfaces.',
+    source: 'LOCALBI',
+    format: 'number',
+    calculationDescription: 'COUNT(DISTINCT visitor_id) recorded by first-party LocalBi tracker.',
+  },
+  'localbi.sessions': {
+    key: 'localbi.sessions',
+    displayName: 'Visits / Sessions',
+    description: 'Distinct browsing sessions on LocalBi surfaces with 30-minute inactivity threshold.',
+    source: 'LOCALBI',
+    format: 'number',
+    calculationDescription: 'COUNT(DISTINCT session_id) sessionized by LocalBi SessionizationService.',
+  },
+  'localbi.pageviews': {
+    key: 'localbi.pageviews',
+    displayName: 'Page Views',
+    description: 'Total number of store, product, and city pages viewed on LocalBi surfaces.',
+    source: 'LOCALBI',
+    format: 'number',
+    calculationDescription: 'Total count of PAGE_VIEW events recorded on LocalBi surfaces.',
+  },
+  'localbi.activeEngagement': {
+    key: 'localbi.activeEngagement',
+    displayName: 'Avg. Active Engagement',
+    description: 'Actual time spent actively viewing and interacting with the page (excluding background tabs).',
+    source: 'LOCALBI',
+    format: 'duration',
+    calculationDescription: 'SUM(active_engagement_ms) / sessions count, accumulated via visibility API.',
+  },
+  'localbi.conversions': {
+    key: 'localbi.conversions',
+    displayName: 'Total Conversions',
+    description: 'High-intent visitor actions (Calls, WhatsApp clicks, Direction requests, Form submissions).',
+    source: 'LOCALBI',
+    format: 'number',
+    calculationDescription: 'SUM of CALL_CLICK, WHATSAPP_CLICK, DIRECTIONS_CLICK, and FORM_SUBMIT events.',
+  },
+  'localbi.conversionRate': {
+    key: 'localbi.conversionRate',
+    displayName: 'Conversion Rate',
+    description: 'Percentage of visitor sessions resulting in at least one conversion event.',
+    source: 'LOCALBI',
+    format: 'percent',
+    calculationDescription: '(Converted Sessions / Total Sessions) * 100.',
+  },
+
   // ── Website Performance (GA4 & GSC) ──
   'website.users': {
     key: 'website.users',
