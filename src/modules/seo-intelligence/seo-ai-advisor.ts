@@ -112,7 +112,7 @@ export class SeoAiAdvisor {
    * Produces exactly max 3 title and description options adhering to all SEO guidelines.
    */
   private static buildGroundedRecommendationModel(
-    evidence: any,
+    _evidence: any,
     input: SeoAiAdvisorInput
   ): SeoAiAnalysisResponse {
     const { brandName, keyword, location, clientSignals, gscEvidence, competitors, deterministicGaps } = input;

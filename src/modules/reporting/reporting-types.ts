@@ -194,6 +194,222 @@ export interface StorePerformanceRow {
   listingIssues: number;
 }
 
+// -----------------------------------------------------------------------------
+// WORKSTREAM F: UNIFIED REPORTING & EXECUTIVE INTELLIGENCE DTOs
+// -----------------------------------------------------------------------------
+
+export interface SearchReportDto {
+  state: ModuleReportState;
+  source: 'GSC';
+  metrics: {
+    clicks: MetricComparisonResult;
+    impressions: MetricComparisonResult;
+    ctr: MetricComparisonResult;
+    averagePosition: MetricComparisonResult;
+    trackedKeywordsCount: number;
+    top3Coverage: MetricComparisonResult;
+    averageRank: MetricComparisonResult;
+  };
+  timeseries: Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
+  topQueries: Array<{
+    query: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
+  topPages: Array<{
+    path: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
+}
+
+export interface FirstPartyWebAnalyticsReportDto {
+  state: ModuleReportState;
+  source: 'LOCALBI';
+  metrics: {
+    visitors: MetricComparisonResult;
+    sessions: MetricComparisonResult;
+    pageViews: MetricComparisonResult;
+    avgActiveEngagementSeconds: MetricComparisonResult;
+    bounceRate: MetricComparisonResult;
+  };
+  timeseries: Array<{
+    date: string;
+    visitors: number;
+    sessions: number;
+    pageViews: number;
+    avgActiveEngagementSeconds: number;
+  }>;
+  topLandingPages: Array<{
+    path: string;
+    pageViews: number;
+    visitors: number;
+    avgDurationSeconds: number;
+  }>;
+  topStores: Array<{
+    storeId: string;
+    name: string;
+    pageViews: number;
+    visitors: number;
+    ctaClicks: number;
+  }>;
+  topProducts: Array<{
+    productId: string;
+    name: string;
+    pageViews: number;
+    visitors: number;
+    conversions: number;
+  }>;
+  ga4Comparison?: {
+    users: number;
+    sessions: number;
+    note: string;
+  };
+}
+
+export interface UnifiedConversionsReportDto {
+  state: ModuleReportState;
+  websiteActions: {
+    callClicks: MetricComparisonResult;
+    whatsappClicks: MetricComparisonResult;
+    directionsClicks: MetricComparisonResult;
+    formStarts: MetricComparisonResult;
+    totalActions: MetricComparisonResult;
+  };
+  confirmedConversions: {
+    formLeads: MetricComparisonResult;
+    trackedCalls: MetricComparisonResult;
+    bookings: MetricComparisonResult;
+    totalConfirmed: MetricComparisonResult;
+  };
+  byChannel: Array<{
+    channel: string;
+    actions: number;
+    confirmed: number;
+  }>;
+}
+
+export interface SeoAuthorityReportDto {
+  state: ModuleReportState;
+  providerState: 'CONFIGURED' | 'NOT_CONFIGURED' | 'ERROR';
+  providerName: string;
+  metrics: {
+    referringDomains: MetricComparisonResult;
+    backlinks: MetricComparisonResult;
+    newLinks: MetricComparisonResult;
+    lostLinks: MetricComparisonResult;
+    healthyListings: MetricComparisonResult;
+    listingIssues: MetricComparisonResult;
+    duplicateListings: MetricComparisonResult;
+    missingCitations: MetricComparisonResult;
+  };
+  topReferringDomains: Array<{
+    domain: string;
+    activeBacklinks: number;
+    linkedPages: number;
+    providerMetric: number | null;
+    competitorOverlap: number;
+  }>;
+  directorySummary: Array<{
+    directory: string;
+    status: string;
+    isHealthy: boolean;
+  }>;
+}
+
+export interface DataHealthItem {
+  source: 'GSC' | 'GA4' | 'GBP' | 'LOCALBI_TRACKING' | 'DATAFORSEO' | 'LISTINGS';
+  label: string;
+  status: 'CONNECTED' | 'HEALTHY' | 'STALE' | 'PARTIAL' | 'NOT_CONFIGURED' | 'ERROR';
+  lastSyncAt: string | null;
+  message: string;
+}
+
+export interface WhatChangedInsight {
+  id: string;
+  dimension: 'SEARCH' | 'WEBSITE' | 'CONVERSIONS' | 'LOCAL' | 'AUTHORITY';
+  changeType: 'POSITIVE' | 'ATTENTION' | 'NEUTRAL';
+  headline: string;
+  details: string;
+  metric: string;
+  source: string;
+  deltaPercentage: number | null;
+}
+
+export interface UnifiedOpportunityItem {
+  id: string;
+  what: string;
+  why: string;
+  evidence: {
+    source: string;
+    metric: string;
+    value: string | number;
+    comparisonValue?: string | number | null;
+    formattedValue?: string | null;
+    details?: any;
+  };
+  action: string;
+  actionUrl?: string;
+  impactArea:
+    | 'SEARCH_VISIBILITY'
+    | 'LOCAL_PRESENCE'
+    | 'WEBSITE_CONVERSION'
+    | 'CONTENT'
+    | 'SEO_AUTHORITY'
+    | 'CUSTOMER_TRUST';
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  status:
+    | 'OPEN'
+    | 'IN_REVIEW'
+    | 'APPROVED'
+    | 'IN_PROGRESS'
+    | 'COMPLETED'
+    | 'VERIFIED'
+    | 'DISMISSED';
+  provenance: 'RULE_BASED' | 'AI_ASSISTED' | 'PROVIDER_DETECTED' | 'USER_CREATED';
+  storeId?: string | null;
+  storeName?: string | null;
+  brandId: string;
+  createdAt: string;
+  verifiedAt?: string | null;
+}
+
+export interface ExecutiveOverviewDto {
+  tenantId: string;
+  tenantSlug: string;
+  brandId: string;
+  brandName: string;
+  dateRange: ResolvedDateRange;
+  comparisonRange: ResolvedComparisonRange | null;
+  generatedAt: string;
+  businessMetrics: {
+    searchClicks: { value: number; delta: number | null; source: 'GSC'; freshness: string | null };
+    websiteVisitors: { value: number; delta: number | null; source: 'LOCALBI'; freshness: string | null };
+    confirmedConversions: { value: number; delta: number | null; source: 'LOCALBI'; freshness: string | null };
+    profileActions: { value: number; delta: number | null; source: 'GBP'; freshness: string | null };
+    trackedStores: { value: number; source: 'LOCALBI'; freshness: string | null };
+    openHighPriorityOpportunities: { value: number; source: 'LOCALBI'; freshness: string | null };
+  };
+  dataHealth: DataHealthItem[];
+  whatChanged: WhatChangedInsight[];
+  search: SearchReportDto;
+  website: FirstPartyWebAnalyticsReportDto;
+  localPresence: GbpReportDto & { listings: ListingsReportDto };
+  conversions: UnifiedConversionsReportDto;
+  seoAuthority: SeoAuthorityReportDto;
+  topOpportunities: UnifiedOpportunityItem[];
+}
+
 export interface ExecutiveReportDto {
   tenantId: string;
   tenantName: string;
@@ -215,4 +431,9 @@ export interface ExecutiveReportDto {
   listings: ListingsReportDto;
   opportunities: OpportunitiesSummaryDto;
   stores: StorePerformanceRow[];
+  search?: SearchReportDto;
+  firstPartyWeb?: FirstPartyWebAnalyticsReportDto;
+  conversionsUnified?: UnifiedConversionsReportDto;
+  seoAuthority?: SeoAuthorityReportDto;
 }
+

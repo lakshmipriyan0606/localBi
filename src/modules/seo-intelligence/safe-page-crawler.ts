@@ -2,7 +2,6 @@ import dns from 'node:dns/promises';
 import net from 'node:net';
 import http from 'node:http';
 import https from 'node:https';
-import { logger } from '@/shared/observability/logger';
 import { SeoPageSignals } from './seo-types';
 
 export interface CrawlerFetchOptions {
@@ -20,7 +19,7 @@ export interface CrawlResult {
   finalUrl: string;
   httpStatus: number;
   signals: SeoPageSignals | null;
-  error?: string;
+  error?: string | undefined;
   errorCode?:
     | 'INVALID_PROTOCOL'
     | 'PRIVATE_IP_BLOCKED'
@@ -30,7 +29,9 @@ export interface CrawlResult {
     | 'UNSUPPORTED_MIME_TYPE'
     | 'TIMEOUT'
     | 'HTTP_ERROR'
-    | 'FETCH_FAILED';
+    | 'FETCH_FAILED'
+    | undefined;
+  resolvedIp?: string | undefined;
 }
 
 const DEFAULT_TIMEOUT_MS = 10000;
@@ -174,7 +175,8 @@ export class SafePageCrawler {
         }
       }
 
-      return { valid: true, resolvedIp: addresses[0]?.address, urlObj };
+      const primaryIp = addresses[0]?.address;
+      return { valid: true, ...(primaryIp ? { resolvedIp: primaryIp } : {}), urlObj };
     } catch (err: any) {
       return {
         valid: false,
@@ -663,7 +665,7 @@ export class SafePageCrawler {
     }
   }
 
-  private static extractTopicSignals(text: string, h1: string[], h2: string[]): string[] {
+  private static extractTopicSignals(_text: string, h1: string[], h2: string[]): string[] {
     const topics: string[] = [];
     const candidates = [...h1, ...h2];
     for (const c of candidates) {

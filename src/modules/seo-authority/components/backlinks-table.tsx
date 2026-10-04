@@ -6,10 +6,8 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  Clock,
   ShieldCheck,
   RefreshCw,
-  Filter,
 } from 'lucide-react';
 import { BacklinkRecord, FollowState, BacklinkStatus } from '../authority-types';
 

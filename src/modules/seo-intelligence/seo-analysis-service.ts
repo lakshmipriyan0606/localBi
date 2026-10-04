@@ -58,7 +58,7 @@ export class SeoAnalysisService {
         brandId: params.brandId,
       },
       include: {
-        domainRel: true,
+        domains: true,
       },
     });
 
@@ -90,7 +90,8 @@ export class SeoAnalysisService {
       // ORIGINAL surface: Validate target URL hostname against registered domain
       try {
         const targetHost = new URL(params.targetUrl).hostname.replace(/^www\./, '').toLowerCase();
-        const configuredHost = (surface.domainRel?.domain || surface.customDomain || '')
+        const primaryDomain = surface.domains.find(d => d.isPrimary)?.hostname || surface.domains[0]?.hostname || '';
+        const configuredHost = primaryDomain
           .replace(/^www\./, '')
           .toLowerCase();
 
@@ -155,10 +156,11 @@ export class SeoAnalysisService {
         const createdKw = await prisma.keyword.create({
           data: {
             tenantId: params.tenantId,
+            brandId: params.brandId,
             term: normalizedText,
             normalizedTerm: normalizedText,
-            intent: 'COMMERCIAL',
-            difficulty: 50,
+            source: 'MANUAL',
+            status: 'ACTIVE',
           },
         });
         keywordId = createdKw.id;
@@ -396,9 +398,10 @@ export class SeoAnalysisService {
 
     const localPages = await prisma.page.findMany({
       where: { tenantId: record.tenantId, brandId: record.brandId },
-      select: { title: true, slug: true },
+      select: { slug: true, pageType: true },
       take: 5,
     });
+    const mappedPages = localPages.map((p) => ({ title: p.slug, slug: p.slug }));
 
     const aiAnalysis = await SeoAiAdvisor.generateRecommendations({
       brandName,
@@ -409,7 +412,7 @@ export class SeoAnalysisService {
       clientSignals,
       competitors: competitorInputsForAi,
       deterministicGaps: gaps,
-      availableLocalBiPages: localPages,
+      availableLocalBiPages: mappedPages,
     });
     executionTimesMs['aiMs'] = Date.now() - aiStart;
 

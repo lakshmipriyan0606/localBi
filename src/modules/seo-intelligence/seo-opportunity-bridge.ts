@@ -55,7 +55,7 @@ export class SeoOpportunityBridge {
       gscEvidence,
       clientSignals,
       competitors,
-      deterministicGaps,
+      deterministicGaps: _deterministicGaps,
       aiAnalysis,
     } = input;
 
@@ -316,7 +316,7 @@ export class SeoOpportunityBridge {
     tenantId: string,
     opportunityId: string,
     data: {
-      gscEvidence?: GscPageKeywordEvidence | null;
+      gscEvidence?: GscPageKeywordEvidence | null | undefined;
       clientSignals: SeoPageSignals;
       competitors: Array<{ candidate: CompetitorCandidate; signals: SeoPageSignals }>;
       primaryMetric: string;

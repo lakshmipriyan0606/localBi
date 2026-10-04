@@ -2,7 +2,6 @@ import { prisma } from '@/shared/database/client';
 import { logger } from '@/shared/observability/logger';
 import {
   SeoAnalysisRunRecord,
-  SeoAnalysisStage,
   SeoAnalysisStageValue,
   SeoAnalysisState,
   SeoAnalysisStateValue,

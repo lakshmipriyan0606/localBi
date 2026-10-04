@@ -29,6 +29,16 @@ const configSchema = z.object({
   ENABLE_GBP_SYNC: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(true),
   ENABLE_REGISTRATION: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(true),
 
+  // Email Delivery
+  EMAIL_PROVIDER: z.enum(['resend', 'smtp', 'console', 'mock']).default('console'),
+  EMAIL_FROM: z.string().default('localBi <notifications@localbi.app>'),
+  RESEND_API_KEY: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
+
   // Observability
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 });

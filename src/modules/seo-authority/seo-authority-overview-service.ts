@@ -100,10 +100,9 @@ export class SeoAuthorityOverviewService {
 
     return {
       providerState,
-      providerMessage:
-        providerState === 'NOT_CONFIGURED'
-          ? 'Backlink data provider is not configured. External links will not be synchronized.'
-          : undefined,
+      ...(providerState === 'NOT_CONFIGURED'
+        ? { providerMessage: 'Backlink data provider is not configured. External links will not be synchronized.' }
+        : {}),
       freshness: {
         lastSyncedAt: new Date().toISOString(),
         lastAuditedAt: new Date().toISOString(),

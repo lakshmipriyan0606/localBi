@@ -9,9 +9,6 @@ import {
   Sparkles,
   ArrowUpRight,
   TrendingDown,
-  Building2,
-  Layers,
-  ShieldCheck,
   RefreshCw,
 } from 'lucide-react';
 import { SeoAuthorityOverviewDto } from '../authority-types';
@@ -41,6 +38,22 @@ export function AuthorityOverviewTab({
 
   return (
     <div className="space-y-6">
+      {/* ── Freshness & Sync Bar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-slate-400" />
+          <span>Last audited: {new Date(freshness.lastAuditedAt).toLocaleString()}</span>
+        </div>
+        <button
+          onClick={onSync}
+          disabled={isSyncing}
+          className="inline-flex items-center gap-1.5 font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Syncing...' : 'Sync Authority'}
+        </button>
+      </div>
+
       {/* ── Status Banner for Provider Configuration ── */}
       {providerState === 'NOT_CONFIGURED' && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-amber-900">

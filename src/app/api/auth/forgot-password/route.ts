@@ -16,6 +16,21 @@ export async function POST(request: NextRequest) {
 
     const result = await PasswordResetService.requestPasswordReset(email);
 
+    if (result.rawToken) {
+      const { getConfig } = await import('../../../../shared/config');
+      const { EmailService } = await import('../../../../modules/email/email-service');
+      const config = getConfig();
+      const resetUrl = `${config.APP_URL}/auth/reset-password?token=${result.rawToken}`;
+
+      EmailService.sendPasswordReset({
+        recipientEmail: email,
+        resetUrl,
+        expiresInMinutes: 15,
+      }).catch(() => {
+        // Preserves non-enumeration security property
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: result.genericMessage,

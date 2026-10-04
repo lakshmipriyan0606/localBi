@@ -1,7 +1,6 @@
 import {
   BacklinkProviderState,
   BacklinkRecord,
-  ReferringDomainRecord,
   FollowState,
 } from '../authority-types';
 
@@ -24,9 +23,9 @@ export interface ListBacklinksInput {
 
 export interface ListBacklinksOutput {
   items: Omit<BacklinkRecord, 'id' | 'tenantId' | 'brandId' | 'webSurfaceId'>[];
-  nextCursor?: string;
+  nextCursor?: string | undefined;
   hasMore: boolean;
-  totalCount?: number;
+  totalCount?: number | undefined;
 }
 
 export interface ListReferringDomainsInput {
@@ -45,7 +44,7 @@ export interface ListReferringDomainsOutput {
     firstSeenAt?: Date;
     lastSeenAt?: Date;
   }[];
-  nextCursor?: string;
+  nextCursor?: string | undefined;
   hasMore: boolean;
 }
 

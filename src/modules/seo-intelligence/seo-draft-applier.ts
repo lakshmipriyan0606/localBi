@@ -92,7 +92,7 @@ export class SeoDraftApplier {
           mode: 'PAGE_SEO_DRAFT',
           status: 'APPLIED_TO_DRAFT',
           appliedField: targetField,
-          appliedValue,
+          appliedValue: approvedValue,
           appliedAt: new Date().toISOString(),
           appliedBy: context.userId,
           notice: 'Applied to draft in Site Studio. Must be explicitly published to take effect live.',
@@ -117,7 +117,7 @@ export class SeoDraftApplier {
         appliedMode: 'LOCALBI_DRAFT',
         targetUrl: opp.page?.slug || payload['targetUrl'],
         targetField,
-        appliedValue,
+        appliedValue: approvedValue,
         message: `Applied to draft in Site Studio. The change is saved and ready for Preview & Publish.`,
       };
     }
@@ -161,7 +161,7 @@ export class SeoDraftApplier {
       appliedMode: 'EXTERNAL_TASK',
       targetUrl: payload['targetUrl'],
       targetField: recommendationType === 'SEO_META_TITLE' ? 'title' : 'meta_description',
-      appliedValue,
+      appliedValue: approvedValue,
       message: `Implementation task created for external website (${payload['targetUrl']}). Apply on your CMS, then click Re-crawl to verify.`,
     };
   }

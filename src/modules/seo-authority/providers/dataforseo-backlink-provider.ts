@@ -18,8 +18,8 @@ export class DataForSeoBacklinkProvider implements BacklinkProvider {
   private baseUrl = 'https://api.dataforseo.com/v3';
 
   constructor(login?: string, password?: string) {
-    this.apiLogin = login || process.env.DATAFORSEO_API_LOGIN || '';
-    this.apiPassword = password || process.env.DATAFORSEO_API_PASSWORD || '';
+    this.apiLogin = login || process.env['DATAFORSEO_API_LOGIN'] || '';
+    this.apiPassword = password || process.env['DATAFORSEO_API_PASSWORD'] || '';
   }
 
   public isConfigured(): boolean {
@@ -154,7 +154,7 @@ export class DataForSeoBacklinkProvider implements BacklinkProvider {
 
       return {
         items: normalized,
-        nextCursor: hasMore ? String(nextOffset) : undefined,
+        ...(hasMore ? { nextCursor: String(nextOffset) } : {}),
         hasMore,
         totalCount,
       };
@@ -215,7 +215,7 @@ export class DataForSeoBacklinkProvider implements BacklinkProvider {
 
       return {
         items: normalized,
-        nextCursor: hasMore ? String(nextOffset) : undefined,
+        ...(hasMore ? { nextCursor: String(nextOffset) } : {}),
         hasMore,
       };
     } catch (err: any) {

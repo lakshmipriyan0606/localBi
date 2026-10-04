@@ -69,8 +69,9 @@ describe('Analytics Foundations — Workstream A', () => {
       expect(comp).not.toBeNull();
       if (comp) {
         expect(comp.endDate).toBe('2026-05-31');
-        const compDays = DateRangeService.calculateDaysBetween(comp.startDate, comp.endDate);
+        const compDays = DateRangeService.calculateDaysBetween(comp.startDate!, comp.endDate!);
         expect(compDays).toBe(30);
+
       }
     });
 
@@ -218,8 +219,9 @@ describe('Analytics Foundations — Workstream A', () => {
       // Keys must differ so Aalim cached data never leaks to Lakshmi
       expect(JSON.stringify(keyBrand1)).not.toBe(JSON.stringify(keyBrand2));
       expect(keyBrand1[1]).toBe('tenant-acme');
-      expect((keyBrand1[4] as Record<string, unknown>).brandId).toBe('brand-aalim');
-      expect((keyBrand2[4] as Record<string, unknown>).brandId).toBe('brand-lakshmi');
+      expect((keyBrand1[4] as Record<string, unknown>)['brandId']).toBe('brand-aalim');
+      expect((keyBrand2[4] as Record<string, unknown>)['brandId']).toBe('brand-lakshmi');
+
     });
 
     it('deterministically sorts storeIds to avoid cache thrashing', () => {

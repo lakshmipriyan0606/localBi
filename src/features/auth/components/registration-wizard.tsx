@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, ArrowLeft, CheckCircle2, Loader2, Globe } from 'lucide-react';
 import { PasswordStrengthMeter } from './password-strength-meter';
 import { SlugAvailabilityInput } from './slug-availability-input';
-import { PlanSelectionCard } from './plan-selection-card';
 
-type Plan = 'DIRECT_CLIENT' | 'AGENCY';
+
 
 const TIMEZONES = [
   { value: 'Asia/Kolkata',       label: 'India — IST (UTC+5:30)' },
@@ -51,16 +50,14 @@ interface FormState {
   workspaceSlug: string;
   timezone: string;
   industry: string;
-  plan: Plan;
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3;
 
 const STEP_TITLES: Record<Step, string> = {
   1: 'Create your account',
   2: 'Set up your workspace',
-  3: 'Choose your plan',
-  4: 'Review & launch',
+  3: 'Review & launch',
 };
 
 function slugify(v: string) {
@@ -95,7 +92,6 @@ export function RegistrationWizard() {
     workspaceSlug: '',
     timezone: getBrowserTimezone(),
     industry: '',
-    plan: 'DIRECT_CLIENT',
   });
 
   const update = useCallback((field: keyof FormState, value: string) => {
@@ -148,7 +144,7 @@ export function RegistrationWizard() {
   const handleNext = () => {
     if (step === 1 && !validateStep1()) return;
     if (step === 2 && !validateStep2()) return;
-    setStep((s) => Math.min(s + 1, 4) as Step);
+    setStep((s) => Math.min(s + 1, 3) as Step);
   };
 
   const handleBack = () => setStep((s) => Math.max(s - 1, 1) as Step);
@@ -171,7 +167,7 @@ export function RegistrationWizard() {
           workspaceSlug: form.workspaceSlug,
           timezone: form.timezone,
           industry: form.industry || undefined,
-          plan: form.plan,
+          plan: 'DIRECT_CLIENT',
         }),
       });
 
@@ -192,7 +188,7 @@ export function RegistrationWizard() {
   };
 
   // ── Progress bar ───────────────────────────────────────────────────────────
-  const progress = ((step - 1) / 3) * 100;
+  const progress = ((step - 1) / 2) * 100;
 
   // ── Render step content ────────────────────────────────────────────────────
   const renderStep = () => {
@@ -380,17 +376,9 @@ export function RegistrationWizard() {
           </div>
         );
 
-      case 3:
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-500">
-              Choose the plan that best fits your needs. You can change this later.
-            </p>
-            <PlanSelectionCard value={form.plan} onChange={(p) => update('plan', p)} />
-          </div>
-        );
 
-      case 4:
+
+      case 3:
         return (
           <div className="space-y-4">
             <p className="text-sm text-slate-500 mb-4">
@@ -406,7 +394,6 @@ export function RegistrationWizard() {
                 { label: 'URL',       value: `localbi.app/client/${form.workspaceSlug}` },
                 { label: 'Timezone',  value: TIMEZONES.find((t) => t.value === form.timezone)?.label || form.timezone },
                 { label: 'Industry',  value: INDUSTRIES.find((i) => i.value === form.industry)?.label || '—' },
-                { label: 'Plan',      value: form.plan === 'AGENCY' ? 'Agency' : 'Direct Business' },
               ].map(({ label, value }) => (
                 <div key={label} className="flex items-center justify-between px-4 py-2.5">
                   <span className="text-xs font-medium text-slate-500 w-24 flex-shrink-0">{label}</span>
@@ -438,7 +425,7 @@ export function RegistrationWizard() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-500">
-            Step {step} of 4
+            Step {step} of 3
           </p>
           <p className="text-[11px] text-slate-400">{STEP_TITLES[step]}</p>
         </div>
@@ -473,7 +460,7 @@ export function RegistrationWizard() {
           </button>
         )}
 
-        {step < 4 ? (
+        {step < 3 ? (
           <button
             type="button"
             onClick={handleNext}

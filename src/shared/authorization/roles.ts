@@ -87,6 +87,8 @@ export const Action = {
   REPORT_VIEW: 'report:view',
   REPORT_EXPORT: 'report:export',
   REPORT_SCHEDULE: 'report:schedule',
+  SEO_ANALYZE: 'seo:analyze',
+  PAGE_UPDATE: 'page:update',
 } as const;
 
 export type ActionType = typeof Action[keyof typeof Action];

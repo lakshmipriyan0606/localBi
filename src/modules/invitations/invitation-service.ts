@@ -20,6 +20,8 @@ import {
   ScopeModeType,
 } from '../../shared/authorization/policy';
 import { MembershipService } from '../memberships/membership-service';
+import { EmailService } from '../email/email-service';
+import { getConfig } from '../../shared/config';
 import { logger } from '../../shared/observability/logger';
 
 export const INVITATION_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -497,7 +499,28 @@ export class InvitationService {
         user,
         session,
         rawToken: sessionRawToken,
+        tenantName: invitation.tenant.name,
+        tenantSlug: invitation.tenant.slug,
       };
     });
+
+    // Send welcome onboarding email asynchronously after successful commit
+    try {
+      const config = getConfig();
+      EmailService.sendWelcome({
+        recipientEmail: result.user.email,
+        userName: result.user.fullName || result.user.email.split('@')[0],
+        tenantName: result.tenantName,
+        dashboardUrl: `${config.APP_URL}/t/${result.tenantSlug}/dashboard`,
+      }).catch((err) => logger.warn({ err }, 'Failed to dispatch welcome email after invite acceptance'));
+    } catch (err) {
+      logger.warn({ err }, 'Error preparing welcome email dispatch');
+    }
+
+    return {
+      user: result.user,
+      session: result.session,
+      rawToken: result.rawToken,
+    };
   }
 }

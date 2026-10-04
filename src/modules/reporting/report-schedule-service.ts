@@ -3,6 +3,8 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { ExecutiveReportingService } from './executive-reporting-service';
 import { ClientReportContextService } from './client-report-context-service';
 import { createResourceNotFoundError } from '@/shared/errors';
+import { EmailService } from '@/modules/email/email-service';
+import { getConfig } from '@/shared/config';
 
 export interface CreateReportScheduleInput {
   tenantId: string;
@@ -138,7 +140,31 @@ export class ReportScheduleService {
           continue;
         }
 
-        // Simulate / perform delivery
+        // Perform real email delivery with EmailService
+        const config = getConfig();
+        const reportUrl = `${config.APP_URL}/t/${schedule.tenant.slug}/reports/executive?snapshotId=${snapshotId}`;
+
+        let sendError: string | null = null;
+        try {
+          const emailResult = await EmailService.sendReport({
+            recipientEmail: recipient,
+            tenantName: schedule.tenant.name,
+            brandName: schedule.brand.name,
+            reportName: schedule.name,
+            periodKey,
+            format: schedule.format as any,
+            reportUrl,
+          });
+
+          if (!emailResult.success) {
+            sendError = emailResult.error || 'Failed to dispatch email';
+          }
+        } catch (err: any) {
+          sendError = err?.message || 'Email delivery exception';
+        }
+
+        const deliveryStatus = sendError ? 'FAILED' : 'SENT';
+
         const delivery = await tx.reportDelivery.upsert({
           where: {
             uq_report_delivery_idempotency: {
@@ -155,22 +181,25 @@ export class ReportScheduleService {
             periodKey,
             recipient,
             format: schedule.format,
-            status: 'SENT',
+            status: deliveryStatus,
             attempts: 1,
-            sentAt: new Date(),
+            sentAt: deliveryStatus === 'SENT' ? new Date() : null,
+            errorMessage: sendError,
           },
           update: {
             snapshotId,
-            status: 'SENT',
+            status: deliveryStatus,
             attempts: { increment: 1 },
-            sentAt: new Date(),
+            sentAt: deliveryStatus === 'SENT' ? new Date() : null,
+            errorMessage: sendError,
           },
         });
 
         deliveryResults.push({
           recipient,
-          status: 'SENT',
+          status: deliveryStatus,
           deliveryId: delivery.id,
+          error: sendError || undefined,
         });
       }
 

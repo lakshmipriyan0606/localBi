@@ -205,7 +205,7 @@ export interface MissingDirectoryDetail {
 
 export interface SeoAuthorityOverviewDto {
   providerState: BacklinkProviderState;
-  providerMessage?: string;
+  providerMessage?: string | undefined;
   freshness: {
     lastSyncedAt?: string | null;
     lastAuditedAt?: string | null;

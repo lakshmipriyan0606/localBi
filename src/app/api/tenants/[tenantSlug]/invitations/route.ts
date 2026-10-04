@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '../../../../../modules/auth/cookies';
 import { ContextResolver } from '../../../../../modules/auth/context-resolver';
 import { InvitationService } from '../../../../../modules/invitations/invitation-service';
+import { EmailService } from '../../../../../modules/email/email-service';
+import { getConfig } from '../../../../../shared/config';
+import { prisma } from '../../../../../shared/database/client';
 import { handleRouteError } from '../../../../../shared/errors';
 
 export async function GET(
@@ -49,10 +52,37 @@ export async function POST(
       authorizedContext
     );
 
+    // Dispatch invitation email via EmailService
+    const config = getConfig();
+    const inviteUrl = `${config.APP_URL}/auth/accept-invite?token=${result.rawToken}`;
+
+    const [tenant, inviter] = await Promise.all([
+      prisma.tenant.findUnique({
+        where: { id: authorizedContext.tenantId },
+        select: { name: true },
+      }),
+      prisma.user.findUnique({
+        where: { id: authorizedContext.userId },
+        select: { fullName: true, email: true },
+      }),
+    ]);
+
+    const emailResult = await EmailService.sendInvitation({
+      recipientEmail: email,
+      inviterName: inviter?.fullName || inviter?.email || 'A team member',
+      tenantName: tenant?.name || tenantSlug,
+      role: result.invitation.role,
+      inviteUrl,
+      expiresAt: result.invitation.expiresAt,
+    }).catch((err) => {
+      return { success: false, error: err?.message || 'Email delivery failed' };
+    });
+
     return NextResponse.json({
       success: true,
       invitation: result.invitation,
       rawToken: result.rawToken, // Sent back for testing / development UI invite link generation
+      emailSent: emailResult.success,
     }, { status: 201 });
   } catch (error) {
     return handleRouteError(error, 'Failed to create invitation.');

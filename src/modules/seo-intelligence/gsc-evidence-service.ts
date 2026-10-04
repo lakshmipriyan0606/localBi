@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { prisma } from '@/shared/database/client';
 import { logger } from '@/shared/observability/logger';
-import { GscPageKeywordEvidence, SeoKeywordStatus } from './seo-types';
+import { GscPageKeywordEvidence, SeoKeywordStatus, SeoKeywordStatusValue } from './seo-types';
 
 export class GscEvidenceService {
   /**
@@ -19,19 +19,18 @@ export class GscEvidenceService {
     const { tenantId, brandId, webSurfaceId, targetUrl, keyword } = params;
 
     try {
-      // 1. Locate GSC property mapping via ResourceMapping
-      const mapping = await prisma.resourceMapping.findFirst({
+      // 1. Locate GSC property mapping via InternalResourceMapping
+      const mapping = await prisma.internalResourceMapping.findFirst({
         where: {
           tenantId,
-          resourceType: 'GSC_PROPERTY',
           OR: [
-            { localType: 'WEB_SURFACE', localId: webSurfaceId },
-            { localType: 'BRAND', localId: brandId },
+            { webSurfaceId },
+            { brandId },
           ],
         },
       });
 
-      if (!mapping || !mapping.externalId) {
+      if (!mapping) {
         return {
           available: false,
           status: 'UNLINKED',
@@ -44,7 +43,27 @@ export class GscEvidenceService {
         };
       }
 
-      const propertyId = mapping.externalId;
+      const gscProperty = await prisma.gscProperty.findFirst({
+        where: {
+          tenantId,
+          resourceId: mapping.resourceId,
+        },
+      });
+
+      if (!gscProperty) {
+        return {
+          available: false,
+          status: 'UNLINKED',
+          clicks: 0,
+          impressions: 0,
+          ctr: 0,
+          averagePosition: 0,
+          landingPage: targetUrl,
+          keywordStatus: SeoKeywordStatus.NOT_PRESENT_IN_AVAILABLE_GSC_DATA,
+        };
+      }
+
+      const propertyId = gscProperty.id;
       const queryHash = crypto.createHash('sha256').update(keyword.trim().toLowerCase()).digest('hex');
 
       // 2. Query aggregate metrics for keyword query over the last 30 days
