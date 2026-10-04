@@ -148,6 +148,17 @@ export class ThemeService {
     brandId: string,
     input: UpsertThemeInput
   ): Promise<BrandThemeDto> {
+    const primaryColor = sanitizeColor(input.primaryColor, DEFAULT_THEME_VALUES.primaryColor);
+    const secondaryColor = sanitizeColor(input.secondaryColor, DEFAULT_THEME_VALUES.secondaryColor);
+    const accentColor = sanitizeColor(input.accentColor, DEFAULT_THEME_VALUES.accentColor);
+    const backgroundColor = sanitizeColor(input.backgroundColor, DEFAULT_THEME_VALUES.backgroundColor);
+    const textColor = sanitizeColor(input.textColor, DEFAULT_THEME_VALUES.textColor);
+    const fontHeading = sanitizeFont(input.fontHeading, DEFAULT_THEME_VALUES.fontHeading);
+    const fontBody = sanitizeFont(input.fontBody, DEFAULT_THEME_VALUES.fontBody);
+    const buttonRadius = sanitizeDimension(input.buttonRadius, DEFAULT_THEME_VALUES.buttonRadius);
+    const cardRadius = sanitizeDimension(input.cardRadius, DEFAULT_THEME_VALUES.cardRadius);
+    const customCss = sanitizeCustomCss(input.customCss);
+
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // Verify brand belongs to tenant
       const brand = await tx.brand.findFirst({
@@ -156,17 +167,6 @@ export class ThemeService {
       if (!brand) {
         throw createValidationError(`Brand ${brandId} not found under tenant.`);
       }
-
-      const primaryColor = sanitizeColor(input.primaryColor, DEFAULT_THEME_VALUES.primaryColor);
-      const secondaryColor = sanitizeColor(input.secondaryColor, DEFAULT_THEME_VALUES.secondaryColor);
-      const accentColor = sanitizeColor(input.accentColor, DEFAULT_THEME_VALUES.accentColor);
-      const backgroundColor = sanitizeColor(input.backgroundColor, DEFAULT_THEME_VALUES.backgroundColor);
-      const textColor = sanitizeColor(input.textColor, DEFAULT_THEME_VALUES.textColor);
-      const fontHeading = sanitizeFont(input.fontHeading, DEFAULT_THEME_VALUES.fontHeading);
-      const fontBody = sanitizeFont(input.fontBody, DEFAULT_THEME_VALUES.fontBody);
-      const buttonRadius = sanitizeDimension(input.buttonRadius, DEFAULT_THEME_VALUES.buttonRadius);
-      const cardRadius = sanitizeDimension(input.cardRadius, DEFAULT_THEME_VALUES.cardRadius);
-      const customCss = sanitizeCustomCss(input.customCss);
 
       const theme = await tx.brandTheme.upsert({
         where: { brandId },

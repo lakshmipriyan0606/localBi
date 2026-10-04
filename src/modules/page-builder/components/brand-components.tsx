@@ -22,7 +22,13 @@ export function BrandHeader({
   link2Label = 'Products',
   link2Url = '/products',
 }: BrandHeaderProps) {
-  const { brand, store } = usePageContext();
+  const { brand, store, navigation } = usePageContext();
+  const headerLinks = navigation?.headerItems?.length
+    ? navigation.headerItems
+    : [
+        { id: '1', label: link1Label, target: link1Url, openInNewTab: false },
+        { id: '2', label: link2Label, target: link2Url, openInNewTab: false },
+      ];
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
@@ -47,12 +53,17 @@ export function BrandHeader({
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
-          <Link href={link1Url} className="hover:text-slate-900 transition-colors">
-            {link1Label}
-          </Link>
-          <Link href={link2Url} className="hover:text-slate-900 transition-colors">
-            {link2Label}
-          </Link>
+          {headerLinks.map((item) => (
+            <Link
+              key={item.id}
+              href={item.target}
+              target={item.openInNewTab ? '_blank' : undefined}
+              rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+              className="hover:text-slate-900 transition-colors"
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
         {showCta && store?.phone && (
@@ -146,7 +157,7 @@ export function BrandFooter({
   copyrightText,
   showSocialLinks = true,
 }: BrandFooterProps) {
-  const { brand, store } = usePageContext();
+  const { brand, store, navigation } = usePageContext();
   const currentYear = new Date().getFullYear();
   const copy = copyrightText || `© ${currentYear} ${brand.name}. All rights reserved.`;
 
@@ -164,6 +175,21 @@ export function BrandFooter({
               </p>
             )}
           </div>
+          {navigation?.footerItems && navigation.footerItems.length > 0 && (
+            <div className="flex flex-wrap items-center gap-5 text-xs">
+              {navigation.footerItems.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.target}
+                  target={item.openInNewTab ? '_blank' : undefined}
+                  rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                  className="hover:text-white transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
           {showSocialLinks && store?.phone && (
             <div className="flex items-center gap-3">
               <a

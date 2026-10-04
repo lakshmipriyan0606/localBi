@@ -12,6 +12,7 @@ import {
 import { PriceResolver } from '../catalog/price-resolver';
 import { AvailabilityResolver } from '../catalog/availability-resolver';
 import { PageTemplateType } from './page-template-service';
+import { NavigationService, SiteNavigationDto, DEFAULT_SITE_NAVIGATION } from './navigation-service';
 
 export interface StoreDto {
   id: string;
@@ -91,6 +92,7 @@ export interface PageContext {
   domain: DomainDto | null;
   theme: BrandThemeDto;
   cssBlock: string;
+  navigation: SiteNavigationDto;
 
   pageType: PageTemplateType;
   path: string;
@@ -722,6 +724,7 @@ export class PageContextService {
         domain,
         theme,
         cssBlock,
+        navigation: await NavigationService.getNavigation(tenant.id, webSurface.id),
         pageType,
         path: rawPath,
         city,
