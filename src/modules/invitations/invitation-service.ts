@@ -327,7 +327,7 @@ export class InvitationService {
     const tokenHash = hashToken(rawToken);
     const now = new Date();
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // 1. Atomic lock: update accepted_at ONLY if currently unaccepted, unrevoked, and unexpired
       const lockResult = await tx.invitation.updateMany({
         where: {
