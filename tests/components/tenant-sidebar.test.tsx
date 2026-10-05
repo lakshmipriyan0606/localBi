@@ -8,7 +8,7 @@ import { browserClient } from '@/lib/http/browser-client';
 
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/t/acme-corp/brands',
+  usePathname: () => '/client/acme-corp/brands',
   useRouter: () => ({
     push: mockPush,
   }),
@@ -28,7 +28,8 @@ describe('TenantSidebar Component', () => {
     id: 't-123',
     name: 'Acme Coffee Co',
     slug: 'acme-corp',
-    plan: 'ENTERPRISE',
+    plan: 'STANDARD',
+    tenantType: 'DIRECT_CLIENT',
     timezone: 'America/New_York',
   };
 
@@ -36,56 +37,71 @@ describe('TenantSidebar Component', () => {
     id: 'u-123',
     email: 'admin@acme.com',
     fullName: 'Jane Doe',
-    role: 'OWNER',
+    role: 'CLIENT_OWNER',
   };
 
-  it('renders tenant name, user profile, and navigation links', () => {
+  it('renders tenant branding, user profile, and core direct client navigation links', () => {
     render(<TenantSidebar tenant={mockTenant} user={mockUser} />);
 
-    expect(screen.getByText('Acme Coffee Co')).toBeInTheDocument();
-    expect(screen.getAllByText('owner').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('local')).toBeInTheDocument();
+    expect(screen.getByText('Bi')).toBeInTheDocument();
+    expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+    expect(screen.getByText(/client owner/i)).toBeInTheDocument();
 
-    expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^overview$/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp'
+      '/client/acme-corp'
     );
-    expect(screen.getByRole('link', { name: /client brands/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /brand management/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp/brands'
+      '/client/acme-corp/brands'
     );
-    expect(screen.getByRole('link', { name: /storefront directory/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^team members$/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp/locations'
+      '/client/acme-corp/team'
     );
-    expect(screen.getByRole('link', { name: /team members/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /general settings/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp/team'
+      '/client/acme-corp/settings'
     );
-    expect(screen.getByRole('link', { name: /invitations/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /connect google accounts/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp/invitations'
+      '/client/acme-corp/integrations'
     );
-    expect(screen.getByRole('link', { name: /workspace settings/i })).toHaveAttribute(
+  });
+
+  it('omits Agency & White-Label for direct clients', () => {
+    render(<TenantSidebar tenant={mockTenant} user={mockUser} />);
+
+    expect(screen.queryByText('Agency & White-Label')).not.toBeInTheDocument();
+    expect(screen.queryByText('Agency Portfolio')).not.toBeInTheDocument();
+    expect(screen.queryByText('Client Accounts')).not.toBeInTheDocument();
+  });
+
+  it('includes Agency & White-Label for agency accounts', async () => {
+    const user = userEvent.setup();
+    const agencyTenant = { ...mockTenant, tenantType: 'AGENCY', plan: 'AGENCY' };
+    const agencyUser = { ...mockUser, role: 'AGENCY_OWNER' };
+
+    render(<TenantSidebar tenant={agencyTenant} user={agencyUser} />);
+
+    const agencyGroupBtn = screen.getByRole('button', { name: /agency & white-label/i });
+    expect(agencyGroupBtn).toBeInTheDocument();
+    await user.click(agencyGroupBtn);
+
+    expect(screen.getByRole('link', { name: /agency portfolio/i })).toHaveAttribute(
       'href',
-      '/t/acme-corp/settings'
-    );
-    expect(screen.getByRole('link', { name: /google accounts/i })).toHaveAttribute(
-      'href',
-      '/t/acme-corp/integrations'
-    );
-    expect(screen.getByRole('link', { name: /traffic & web sessions/i })).toHaveAttribute(
-      'href',
-      '/t/acme-corp/reports/ga4'
+      '/client/acme-corp/agency'
     );
   });
 
   it('highlights the active navigation link according to current pathname', () => {
     render(<TenantSidebar tenant={mockTenant} user={mockUser} />);
 
-    const brandsLink = screen.getByRole('link', { name: /brands/i });
+    const brandsLink = screen.getByRole('link', { name: /brand management/i });
     expect(brandsLink).toHaveAttribute('aria-current', 'page');
 
-    const overviewLink = screen.getByRole('link', { name: /overview/i });
+    const overviewLink = screen.getByRole('link', { name: /^overview$/i });
     expect(overviewLink).not.toHaveAttribute('aria-current');
   });
 

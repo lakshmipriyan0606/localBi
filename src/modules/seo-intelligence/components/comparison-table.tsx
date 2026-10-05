@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Globe } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { SeoPageSignals, CompetitorCandidate } from '../seo-types';
 
 interface ComparisonTableProps {

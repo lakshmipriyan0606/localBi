@@ -1,7 +1,6 @@
 'use client';
 
-import React from 'react';
-import { Calendar, Search, MapPin, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import { MapPin, ArrowRight } from 'lucide-react';
 
 interface HistoryTableProps {
   history: any[];

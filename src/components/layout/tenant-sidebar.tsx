@@ -18,7 +18,15 @@ export interface TenantSidebarProps {
 }
 
 function SidebarContent({ tenant, user, onNavigate }: TenantSidebarProps & { onNavigate?: () => void }) {
-  const groups = useMemo(() => getNavGroups(tenant.slug), [tenant.slug]);
+  const groups = useMemo(
+    () =>
+      getNavGroups(tenant.slug, {
+        role: user.role,
+        tenantType: tenant.tenantType,
+        plan: tenant.plan,
+      }),
+    [tenant.slug, user.role, tenant.tenantType, tenant.plan]
+  );
 
   return (
     <div className="flex h-full flex-col">

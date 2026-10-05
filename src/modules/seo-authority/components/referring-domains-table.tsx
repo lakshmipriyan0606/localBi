@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Globe2, Search, ExternalLink, RefreshCw } from 'lucide-react';
+import { Globe2, Search, RefreshCw } from 'lucide-react';
 import { ReferringDomainRecord } from '../authority-types';
 
 interface ReferringDomainsTableProps {

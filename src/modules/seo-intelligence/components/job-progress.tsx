@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 interface JobProgressProps {

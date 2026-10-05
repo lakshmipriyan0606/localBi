@@ -2,24 +2,45 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, MousePointerClick, BarChart2, Percent, Target } from 'lucide-react';
-import { MetricCard } from '@/components/analytics/metric-card';
+import { ArrowRight, Clock, Sparkles } from 'lucide-react';
+import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
 import { MetricCardSkeleton } from '@/components/analytics/analytics-skeletons';
 import { AnalyticsComparisonEngine } from '@/shared/analytics/comparison';
-import { AnalyticsFormatters } from '@/shared/analytics/formatters';
 import type { PerformanceSummaryDto } from '@/modules/reports/reporting-service';
 
 export interface ReportsGscSectionProps {
   summary?: PerformanceSummaryDto | undefined | null;
-
   isLoading: boolean;
   tenantSlug: string;
   selectedBrandId: string;
   dateRangeDays: number;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   activeMetrics?: string[];
   onToggleMetric?: (metric: string) => void;
+}
+
+function GoogleGIcon() {
+  return (
+    <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.14-1.57.38-2.27V6.58H1.25A11.95 11.95 0 0 0 0 12c0 1.92.46 3.74 1.25 5.42l4.03-3.15Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+      />
+    </svg>
+  );
 }
 
 export function ReportsGscSection({
@@ -76,27 +97,32 @@ export function ReportsGscSection({
   })();
 
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs transition-all space-y-4">
+    <section className="rounded-2xl border border-[#DCE2F6] bg-[#F1F3FB] p-4 sm:p-4.5 transition-all duration-150 space-y-3.5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-base font-bold tracking-tight text-slate-900 leading-none">
-              Google Search Console
-            </h2>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Organic Search Intelligence
-            </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-xs border border-slate-100">
+            <GoogleGIcon />
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Organic keyword impressions, search clicks, click-through rate, and average rank on Google.
-          </p>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h2 className="text-[17px] font-bold tracking-tight text-slate-900 leading-none">
+                Search Console
+              </h2>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100/70 text-indigo-800">
+                ✓ More Clicks. Higher Rankings.
+              </span>
+            </div>
+            <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
+              Track your website&apos;s organic search performance on Google
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
           <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800"
-            title={`Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is through ${lagDate}.`}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/90 border border-amber-200/80 text-[11px] font-medium text-amber-800"
+            title={`Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is up to ${lagDate}.`}
           >
             <Clock className="w-3 h-3 text-amber-600 shrink-0" />
             <span>Google Data: Through {lagDate} (48h processing lag)</span>
@@ -104,7 +130,7 @@ export function ReportsGscSection({
 
           <Link
             href={`/client/${tenantSlug}/reports/gsc/queries?days=${dateRangeDays}&brandId=${selectedBrandId}`}
-            className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs"
+            className="bg-white/90 backdrop-blur-xs border border-slate-200/90 hover:bg-slate-50 text-indigo-600 hover:text-indigo-700 rounded-lg px-3 py-1 text-[11.5px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] flex items-center gap-1 transition-colors whitespace-nowrap self-end sm:self-auto"
           >
             <span>View All Queries</span>
             <ArrowRight className="w-3 h-3" />
@@ -114,85 +140,76 @@ export function ReportsGscSection({
 
       {/* KPI Cards Grid */}
       {isLoading && !summary ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
           <MetricCardSkeleton />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <DashboardMetricCard
+            label="Clicks"
+            value={clicks}
+            delta={hasGscData ? (clicksComp.deltaPercent ?? undefined) : undefined}
+            vsLabel={`vs previous ${dateRangeDays} days`}
+            icon="mouse-pointer-click"
+            color="purple"
+            sparkColor="#8B5CF6"
+            seed={1}
+            isActive={activeMetrics.includes('clicks')}
             onClick={onToggleMetric ? () => onToggleMetric('clicks') : undefined}
-            className={onToggleMetric ? 'cursor-pointer' : undefined}
-          >
-            <MetricCard
-              label="Organic Clicks"
-              value={AnalyticsFormatters.number(clicks)}
-              deltaPercent={clicksComp.deltaPercent}
-              deltaText={clicksComp.deltaFormatted}
-              comparisonLabel="vs prior period"
-              higherIsBetter={true}
-              source="GSC"
-              tooltip="Total clicks on website links appearing in Google Search results."
-              icon={MousePointerClick}
-              className={activeMetrics.includes('clicks') ? 'ring-2 ring-indigo-500 shadow-sm' : ''}
-            />
-          </div>
-
-          <div
+          />
+          <DashboardMetricCard
+            label="Impressions"
+            value={impressions}
+            delta={hasGscData ? (impressionsComp.deltaPercent ?? undefined) : undefined}
+            vsLabel={`vs previous ${dateRangeDays} days`}
+            icon="bar-chart"
+            color="blue"
+            sparkColor="#3B82F6"
+            seed={2}
+            isActive={activeMetrics.includes('impressions')}
             onClick={onToggleMetric ? () => onToggleMetric('impressions') : undefined}
-            className={onToggleMetric ? 'cursor-pointer' : undefined}
-          >
-            <MetricCard
-              label="Search Impressions"
-              value={AnalyticsFormatters.compact(impressions)}
-              deltaPercent={impressionsComp.deltaPercent}
-              deltaText={impressionsComp.deltaFormatted}
-              comparisonLabel="vs prior period"
-              higherIsBetter={true}
-              source="GSC"
-              tooltip="Number of times any URL from your website appeared in Google Search results."
-              icon={BarChart2}
-              className={activeMetrics.includes('impressions') ? 'ring-2 ring-indigo-500 shadow-sm' : ''}
-            />
-          </div>
-
-          <div
+          />
+          <DashboardMetricCard
+            label="CTR"
+            value={ctr}
+            delta={hasGscData ? (ctrComp.deltaPercent ?? undefined) : undefined}
+            vsLabel={`vs previous ${dateRangeDays} days`}
+            suffix="%"
+            icon="percent"
+            color="teal"
+            sparkColor="#14B8A6"
+            seed={3}
+            isActive={activeMetrics.includes('ctr')}
             onClick={onToggleMetric ? () => onToggleMetric('ctr') : undefined}
-            className={onToggleMetric ? 'cursor-pointer' : undefined}
-          >
-            <MetricCard
-              label="Click-Through Rate"
-              value={`${ctr}%`}
-              deltaPercent={ctrComp.deltaPercent}
-              deltaText={ctrComp.deltaFormatted}
-              comparisonLabel="vs prior period"
-              higherIsBetter={true}
-              source="GSC"
-              tooltip="Percentage of organic impressions that resulted in a click (Clicks / Impressions)."
-              icon={Percent}
-              className={activeMetrics.includes('ctr') ? 'ring-2 ring-indigo-500 shadow-sm' : ''}
-            />
-          </div>
-
-          <div
+          />
+          <DashboardMetricCard
+            label="Average Position"
+            value={position > 0 ? position.toFixed(1) : (position === 0 ? '0.0' : '—')}
+            delta={hasGscData ? (positionComp.deltaPercent ?? undefined) : undefined}
+            vsLabel={`vs previous ${dateRangeDays} days`}
+            icon="crown"
+            color="amber"
+            sparkColor="#F59E0B"
+            invertDelta={true}
+            seed={4}
+            isActive={activeMetrics.includes('position')}
             onClick={onToggleMetric ? () => onToggleMetric('position') : undefined}
-            className={onToggleMetric ? 'cursor-pointer' : undefined}
-          >
-            <MetricCard
-              label="Average Position"
-              value={position > 0 ? position.toFixed(1) : '—'}
-              deltaPercent={positionComp.deltaPercent}
-              deltaText={positionComp.deltaFormatted}
-              comparisonLabel="vs prior period"
-              higherIsBetter={false}
-              source="GSC"
-              tooltip="Average Google Search ranking position for queries where your site appeared (lower number indicates higher rank)."
-              icon={Target}
-              className={activeMetrics.includes('position') ? 'ring-2 ring-indigo-500 shadow-sm' : ''}
-            />
+          />
+        </div>
+      )}
+
+      {!hasGscData && !isLoading && (
+        <div className="p-3 bg-white/80 border border-indigo-200/70 rounded-xl flex items-center justify-between gap-3 text-xs text-indigo-900">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+            <span>Search Console telemetry stream active. Map additional properties in Integrations.</span>
           </div>
+          <Link href={`/client/${tenantSlug}/integrations`} className="font-semibold underline hover:text-indigo-950 flex-shrink-0">
+            Configure GSC
+          </Link>
         </div>
       )}
     </section>

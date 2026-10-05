@@ -249,17 +249,6 @@ export const SeoAiAnalysisResponseSchema = z.object({
 
 export type SeoAiAnalysisResponse = z.infer<typeof SeoAiAnalysisResponseSchema>;
 
-export const SeoKeywordStatus = {
-  STABLE: 'STABLE',
-  HIGH_IMPRESSIONS_LOW_CTR: 'HIGH_IMPRESSIONS_LOW_CTR',
-  IMPROVING: 'IMPROVING',
-  DECLINING: 'DECLINING',
-  RANKING: 'RANKING',
-  NOT_PRESENT_IN_AVAILABLE_GSC_DATA: 'NOT_PRESENT_IN_AVAILABLE_GSC_DATA',
-} as const;
-
-export type SeoKeywordStatusValue = typeof SeoKeywordStatus[keyof typeof SeoKeywordStatus];
-
 export interface GscPageKeywordEvidence {
   available: boolean;
   status: 'AVAILABLE' | 'NO_DATA' | 'UNLINKED' | 'ERROR';

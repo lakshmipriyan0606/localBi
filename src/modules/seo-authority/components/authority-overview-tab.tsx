@@ -8,7 +8,6 @@ import {
   Clock,
   Sparkles,
   ArrowUpRight,
-  TrendingDown,
   RefreshCw,
 } from 'lucide-react';
 import { SeoAuthorityOverviewDto } from '../authority-types';
@@ -42,7 +41,7 @@ export function AuthorityOverviewTab({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-600">
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-slate-400" />
-          <span>Last audited: {new Date(freshness.lastAuditedAt).toLocaleString()}</span>
+          <span>Last audited: {freshness?.lastAuditedAt ? new Date(freshness.lastAuditedAt).toLocaleString() : 'Recent'}</span>
         </div>
         <button
           onClick={onSync}
@@ -171,7 +170,7 @@ export function AuthorityOverviewTab({
               <p className="text-xs text-slate-500">Highest authority external domains linking to your site</p>
             </div>
             <button
-              onClick={() => onTabChange('domains')}
+            )}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
             >
               View all

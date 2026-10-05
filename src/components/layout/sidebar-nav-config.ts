@@ -30,6 +30,9 @@ import {
   PhoneCall,
   Lightbulb,
   BookOpen,
+  Briefcase,
+  ShieldCheck,
+  Palette,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -37,6 +40,7 @@ export interface SafeTenantNavDto {
   name: string;
   slug: string;
   plan: string;
+  tenantType?: string | undefined;
   timezone: string;
 }
 
@@ -72,7 +76,34 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const getNavGroups = (slug: string): NavGroup[] => [
+export interface GetNavGroupsOptions {
+  role?: string | undefined;
+  tenantType?: string | undefined;
+  plan?: string | undefined;
+}
+
+export function isAgencyContext(options?: GetNavGroupsOptions): boolean {
+  if (!options) return false;
+  const role = (options.role || '').toUpperCase();
+  const tenantType = (options.tenantType || '').toUpperCase();
+  const plan = (options.plan || '').toUpperCase();
+
+  // Direct clients should never see agency navigation
+  if (tenantType === 'DIRECT_CLIENT' && !role.startsWith('AGENCY')) {
+    return false;
+  }
+
+  // Only show for agency roles or explicit agency plans/tenant types
+  return (
+    role.startsWith('AGENCY') ||
+    tenantType === 'AGENCY' ||
+    plan === 'AGENCY' ||
+    plan.includes('AGENCY')
+  );
+}
+
+export const getNavGroups = (slug: string, options?: GetNavGroupsOptions): NavGroup[] => {
+  const groups: NavGroup[] = [
   {
     heading: 'Dashboard',
     items: [
@@ -87,27 +118,6 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         href: `/client/${slug}/reports/executive`,
         icon: BarChart2,
         pillBadge: 'Cross-Module',
-        badgeVariant: 'indigo',
-      },
-    ],
-  },
-  {
-    heading: 'SEO & Growth Engine',
-    sourceBadge: 'OPP',
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-    items: [
-      {
-        label: 'SEO Opportunities',
-        href: `/client/${slug}/opportunities`,
-        icon: Lightbulb,
-        pillBadge: 'Explainable',
-        badgeVariant: 'amber',
-      },
-      {
-        label: 'Content & Blog CMS',
-        href: `/client/${slug}/content`,
-        icon: BookOpen,
-        pillBadge: 'CMS',
         badgeVariant: 'indigo',
       },
     ],
@@ -160,30 +170,9 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     ],
   },
   {
-    heading: 'SEO Authority & Citations',
-    sourceBadge: 'AUTH',
-    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-    items: [
-      {
-        label: 'SEO Authority Intelligence',
-        href: `/client/${slug}/authority`,
-        icon: Link2,
-        pillBadge: 'Authority',
-        badgeVariant: 'indigo',
-      },
-      {
-        label: 'Directory Presence & NAP',
-        href: `/client/${slug}/listings`,
-        icon: Network,
-        pillBadge: 'Sync',
-        badgeVariant: 'indigo',
-      },
-    ],
-  },
-  {
-    heading: 'Hyper Rank Intelligence',
-    sourceBadge: 'RANK',
-    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    heading: 'SEO & Search Rankings',
+    sourceBadge: 'SEO',
+    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     items: [
       {
         label: 'Geo-Grid Rank Heatmap',
@@ -192,19 +181,33 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         pillBadge: 'Live',
         badgeVariant: 'emerald',
       },
-    ],
-  },
-  {
-    heading: 'Google Merchant Center',
-    sourceBadge: 'GMC',
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-    items: [
       {
-        label: 'Local Products & Inventory',
-        href: `/client/${slug}/merchant`,
-        icon: ShoppingBag,
-        pillBadge: 'Local Feed',
+        label: 'SEO Opportunities',
+        href: `/client/${slug}/opportunities`,
+        icon: Lightbulb,
+        pillBadge: 'Explainable',
         badgeVariant: 'amber',
+      },
+      {
+        label: 'SEO Authority & Backlinks',
+        href: `/client/${slug}/authority`,
+        icon: Link2,
+        pillBadge: 'Authority',
+        badgeVariant: 'indigo',
+      },
+      {
+        label: 'Directory Listings & Citations',
+        href: `/client/${slug}/listings`,
+        icon: Network,
+        pillBadge: 'Sync',
+        badgeVariant: 'indigo',
+      },
+      {
+        label: 'Content & Blog CMS',
+        href: `/client/${slug}/content`,
+        icon: BookOpen,
+        pillBadge: 'CMS',
+        badgeVariant: 'indigo',
       },
     ],
   },
@@ -274,21 +277,32 @@ export const getNavGroups = (slug: string): NavGroup[] => [
     ],
   },
   {
-    heading: 'Connections',
+    heading: 'Google Merchant Center',
+    sourceBadge: 'GMC',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
     items: [
       {
-        label: 'Connect Google Accounts',
-        href: `/client/${slug}/integrations`,
-        icon: Link2,
+        label: 'Local Products & Inventory',
+        href: `/client/${slug}/merchant`,
+        icon: ShoppingBag,
+        pillBadge: 'Local Feed',
+        badgeVariant: 'amber',
       },
     ],
   },
   {
-    heading: 'CMS',
+    heading: 'Website & Conversions',
+    sourceBadge: 'SITE',
+    badgeColor: 'bg-violet-50 text-violet-700 border-violet-200',
     icon: Folder,
-    sourceBadge: 'CMS',
-    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     items: [
+      {
+        label: 'LocalBi Site Studio',
+        href: `/client/${slug}/website`,
+        icon: Globe,
+        pillBadge: 'Studio',
+        badgeVariant: 'indigo',
+      },
       {
         label: 'Brand Management',
         href: `/client/${slug}/brands`,
@@ -303,13 +317,6 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         label: 'Catalog & Products',
         href: `/client/${slug}/catalog`,
         icon: Package,
-      },
-      {
-        label: 'LocalBi Site Studio',
-        href: `/client/${slug}/website`,
-        icon: Globe,
-        pillBadge: 'Studio',
-        badgeVariant: 'indigo',
       },
       {
         label: 'Leads & Conversions',
@@ -330,14 +337,52 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         href: `/client/${slug}/visitors`,
         icon: Fingerprint,
       },
-      {
-        label: 'Social Updates & Posts',
-        href: `/client/${slug}/reports/gbp/posts`,
-        icon: MessageSquare,
-      },
     ],
   },
   {
+    heading: 'Connections',
+    items: [
+      {
+        label: 'Connect Google Accounts',
+        href: `/client/${slug}/integrations`,
+        icon: Link2,
+      },
+    ],
+  },
+];
+
+  if (isAgencyContext(options)) {
+    groups.push({
+      heading: 'Agency & White-Label',
+      sourceBadge: 'AGENCY',
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+      items: [
+        {
+          label: 'Agency Portfolio',
+          href: `/client/${slug}/agency`,
+          icon: Briefcase,
+          exact: true,
+        },
+        {
+          label: 'Client Accounts',
+          href: `/client/${slug}/agency/clients`,
+          icon: Users,
+        },
+        {
+          label: 'White-Label & Domains',
+          href: `/client/${slug}/agency/branding`,
+          icon: Palette,
+        },
+        {
+          label: 'Feature Entitlements',
+          href: `/client/${slug}/agency/entitlements`,
+          icon: ShieldCheck,
+        },
+      ],
+    });
+  }
+
+  groups.push({
     heading: 'Administration',
     items: [
       {
@@ -356,5 +401,7 @@ export const getNavGroups = (slug: string): NavGroup[] => [
         icon: Settings,
       },
     ],
-  },
-];
+  });
+
+  return groups;
+};

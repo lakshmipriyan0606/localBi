@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   CheckCircle2,
   XCircle,
   Edit3,
   Sparkles,
   ArrowRight,
-  ShieldCheck,
   Send,
   RefreshCw,
   AlertCircle,
-  FileCheck,
   Check,
 } from 'lucide-react';
 
@@ -111,7 +109,6 @@ export function RecommendationCard({ tenantSlug, opportunity, onRefresh }: Recom
   const isApproved = opportunity.status === 'ACCEPTED' || Boolean(approvedValue);
   const isApplied = implDetails.status === 'APPLIED_TO_DRAFT' || implDetails.status === 'TASK_CREATED';
   const isVerified = verificationState.status === 'VERIFIED';
-  const isVerificationFailed = verificationState.status === 'VERIFICATION_FAILED';
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-5 transition-all">

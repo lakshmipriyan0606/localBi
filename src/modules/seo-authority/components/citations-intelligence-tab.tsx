@@ -4,19 +4,14 @@ import { useState } from 'react';
 import {
   Building2,
   CheckCircle2,
-  AlertTriangle,
-  Clock,
   ExternalLink,
-  ShieldCheck,
   RefreshCw,
-  Plus,
-  HelpCircle,
   XCircle,
 } from 'lucide-react';
-import { StoreCitationOverview, StoreListingDetail, MissingDirectoryDetail } from '../authority-types';
+import { StoreCitationOverview, StoreListingDetail } from '../authority-types';
 
 interface CitationsIntelligenceTabProps {
-  tenantSlug: string;
+  tenantSlug?: string;
   stores: { id: string; name: string; city: string }[];
   selectedStoreId: string;
   onStoreChange: (storeId: string) => void;
@@ -25,7 +20,7 @@ interface CitationsIntelligenceTabProps {
 }
 
 export function CitationsIntelligenceTab({
-  tenantSlug,
+  tenantSlug: _tenantSlug,
   stores,
   selectedStoreId,
   onStoreChange,

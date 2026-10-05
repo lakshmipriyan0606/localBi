@@ -114,6 +114,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LISTING_VIEW,
     Action.WHITELABEL_VIEW,
     Action.ENTITLEMENT_VIEW,
+    Action.SEO_ANALYZE,
   ]),
   AGENCY_OWNER: new Set(Object.values(Action)),
   AGENCY_ADMIN: new Set([
@@ -179,6 +180,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LISTING_MANAGE,
     Action.LISTING_UPDATE,
     Action.LISTING_DUPLICATE_MANAGE,
+    Action.SEO_ANALYZE,
+    Action.PAGE_UPDATE,
   ]),
   AGENCY_MEMBER: new Set([
     Action.TENANT_VIEW,
@@ -200,6 +203,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LISTING_VIEW,
     Action.WHITELABEL_VIEW,
     Action.ENTITLEMENT_VIEW,
+    Action.SEO_ANALYZE,
+    Action.PAGE_UPDATE,
   ]),
   CLIENT_OWNER: new Set(Object.values(Action)),
   CLIENT_ADMIN: new Set([
@@ -259,6 +264,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LISTING_MANAGE,
     Action.LISTING_UPDATE,
     Action.LISTING_DUPLICATE_MANAGE,
+    Action.SEO_ANALYZE,
+    Action.PAGE_UPDATE,
   ]),
   CLIENT_EDITOR: new Set([
     Action.TENANT_VIEW,
@@ -286,6 +293,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.AI_CONTENT_GENERATE,
     Action.LISTING_VIEW,
     Action.LISTING_UPDATE,
+    Action.SEO_ANALYZE,
+    Action.PAGE_UPDATE,
   ]),
   CLIENT_VIEWER: new Set([
     Action.TENANT_VIEW,
@@ -301,6 +310,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.OPPORTUNITY_VIEW,
     Action.CONTENT_VIEW,
     Action.LISTING_VIEW,
+    Action.SEO_ANALYZE,
   ]),
   BRAND_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -345,6 +355,8 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.LISTING_MANAGE,
     Action.LISTING_UPDATE,
     Action.LISTING_DUPLICATE_MANAGE,
+    Action.SEO_ANALYZE,
+    Action.PAGE_UPDATE,
   ]),
   LOCATION_MANAGER: new Set([
     Action.TENANT_VIEW,
@@ -366,6 +378,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.CONTENT_VIEW,
     Action.LISTING_VIEW,
     Action.LISTING_UPDATE,
+    Action.SEO_ANALYZE,
   ]),
   ANALYST: new Set([
     Action.TENANT_VIEW,
@@ -385,6 +398,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.OPPORTUNITY_MANAGE,
     Action.CONTENT_VIEW,
     Action.LISTING_VIEW,
+    Action.SEO_ANALYZE,
   ]),
   VIEWER: new Set([
     Action.TENANT_VIEW,
@@ -400,6 +414,7 @@ export const ROLE_CAPABILITIES: Record<RoleType, ReadonlySet<ActionType>> = {
     Action.OPPORTUNITY_VIEW,
     Action.CONTENT_VIEW,
     Action.LISTING_VIEW,
+    Action.SEO_ANALYZE,
   ]),
 };
 

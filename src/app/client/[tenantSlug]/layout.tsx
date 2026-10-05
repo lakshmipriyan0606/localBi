@@ -43,6 +43,7 @@ export default async function TenantWorkspaceLayout({
     name: resolved.tenant.name,
     slug: resolved.tenant.slug,
     plan: resolved.tenant.plan,
+    tenantType: resolved.tenant.tenantType,
     timezone: resolved.tenant.timezone,
   };
 

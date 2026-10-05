@@ -2,11 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { AlertCircle, RefreshCw, Tag, MapPin } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { NiceSelect } from '@/components/ui/nice-select';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
-import { AnalyticsPageShell } from '@/components/analytics/analytics-page-shell';
+import { Breadcrumbs } from '@/components/layout/breadcrumbs';
+import { PageHeader } from '@/components/layout/page-header';
+import { SourceStatusBadge } from './source-status-badge';
+import { ReportsHeaderControls } from './reports-header-controls';
 import { AnalyticsEmptyState } from '@/components/analytics/analytics-empty-state';
 import { DimensionBreakdown } from './dimension-breakdown';
 import { ReportsGbpSection } from './reports-gbp-section';
@@ -22,7 +24,6 @@ import { useReportsQueryState } from '../hooks/use-reports-query-state';
 import { notify } from '@/lib/notify';
 import { browserClient } from '@/lib/http/browser-client';
 import { DateRangeService } from '@/shared/analytics/date-range';
-import type { ActiveFilterChip } from '@/components/analytics/filter-bar';
 
 const TrendChartPanel = dynamic(
   () => import('./trend-chart-panel').then((m) => ({ default: m.TrendChartPanel })),
@@ -52,6 +53,7 @@ export function ReportsDashboard({
     state,
     setPreset,
     setCustomDates,
+    setDateRangeDays,
     setComparison,
     setBrandId,
     setLocationId,
@@ -148,162 +150,77 @@ export function ReportsDashboard({
   const selectedBrand = brands.find((b) => b.id === selectedBrandId);
   const selectedLocation = locations.find((l) => l.id === state.locationId);
 
-  // Active filter chips
-  const filterChips: ActiveFilterChip[] = useMemo(() => {
-    const chips: ActiveFilterChip[] = [];
-    if (selectedBrand) {
-      chips.push({
-        id: 'brand',
-        label: 'Brand',
-        value: selectedBrand.name,
-        onRemove: () => {}, // Brand is mandatory; no removal
-      });
-    }
-    if (selectedLocation) {
-      chips.push({
-        id: 'location',
-        label: 'Location',
-        value: selectedLocation.name,
-        onRemove: () => setLocationId(undefined),
-      });
-    }
-    if (state.comparison !== 'NONE') {
-      chips.push({
-        id: 'comparison',
-        label: 'Comparison',
-        value: state.comparison === 'PREVIOUS_PERIOD' ? 'Prior Period' : 'Prior Year',
-        onRemove: () => setComparison('NONE'),
-      });
-    }
-    return chips;
-  }, [selectedBrand, selectedLocation, state.comparison, setLocationId, setComparison]);
-
-  const handleClearAllChips = () => {
-    setLocationId(undefined);
-    setComparison('NONE');
-  };
-
   return (
-    <AnalyticsPageShell
-      title={activeSource === 'gbp' ? 'Local Performance Hub' : 'Search Performance Hub'}
-      description={
-        activeSource === 'gbp'
-          ? 'Google Business Profile reach, customer telephone actions, driving directions, and local interactions.'
-          : 'Google Search Console organic keywords, search clicks, impression reach, and rank distribution.'
-      }
-      breadcrumbs={[
-        { label: 'Analytics' },
-        {
-          label: activeSource === 'gbp' ? 'Google Business Profile' : 'Google Search Console',
-          current: true,
-        },
-      ]}
-      status={isConnected ? 'ACTIVE' : 'DISCONNECTED'}
-      statusLabel={isConnected ? 'Connected' : 'Not Connected'}
-      preset={state.preset}
-      startDate={startDate}
-      endDate={endDate}
-      onPresetChange={setPreset}
-      onCustomDateChange={setCustomDates}
-      comparison={state.comparison}
-      onComparisonChange={setComparison}
-      filterChips={filterChips}
-      onClearAllChips={filterChips.length > 1 ? handleClearAllChips : undefined}
-      isBusy={isDataBusy}
-      primaryAction={
-        <div className="flex items-center gap-2">
-          {/* Source Tabs */}
-          <div className="inline-flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setTab('overview')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-                activeSource === 'gbp'
-                  ? 'bg-white text-emerald-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Google Business Profile
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('gsc')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
-                activeSource === 'gsc'
-                  ? 'bg-white text-indigo-700 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Search Console
-            </button>
-          </div>
+    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
+      <Breadcrumbs
+        items={[
+          {
+            label: activeSource === 'gbp' ? 'Google Business Profile' : 'Google Search Console',
+            current: true,
+          },
+        ]}
+        tenantSlug={tenantSlug}
+      />
+      <PageHeader
+        title={activeSource === 'gbp' ? 'Performance Hub' : 'Search Performance'}
+        description={
+          activeSource === 'gbp'
+            ? 'Local search reach, customer actions, and storefront performance.'
+            : 'Organic search visibility, queries, and landing page reach.'
+        }
+        badge={
+          <SourceStatusBadge
+            connections={[
+              {
+                provider: activeSource === 'gbp' ? 'GBP' : 'GSC',
+                state: (activeSource === 'gbp' ? isGbpConnected : isGscConnected)
+                  ? 'connected'
+                  : 'disconnected',
+                lastSyncedAt: null,
+              },
+            ]}
+          />
+        }
+        actions={
+          <ReportsHeaderControls
+            brands={brands}
+            selectedBrandId={selectedBrandId}
+            onBrandChange={setBrandId}
+            brandLocations={brandLocations}
+            selectedLocationId={state.locationId || ''}
+            onLocationChange={setLocationId}
+            dateRangeDays={state.dateRangeDays}
+            onDateRangeChange={setDateRangeDays}
+            isFetching={isDataBusy}
+            onSync={handleSyncWithGoogle}
+            isSyncing={isSyncing}
+          />
+        }
+      />
 
-          {/* Sync Button */}
+      {isSummaryError && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-800 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-500" />
+            <div>
+              <p className="text-xs font-bold">Failed to stream performance metrics</p>
+              <p className="text-[11px] text-rose-600 mt-0.5">
+                {(summaryError as Error)?.message || 'An error occurred while streaming performance data.'}
+              </p>
+            </div>
+          </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleSyncWithGoogle}
-            disabled={isSyncing || isDataBusy}
-            className="text-xs h-8"
+            onClick={() => refetchSummary()}
+            className="border-rose-300 text-rose-800 hover:bg-rose-100 flex-shrink-0 text-xs"
           >
-            <RefreshCw className={`w-3.5 h-3.5 mr-1 text-indigo-600 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Syncing...' : isDataBusy ? 'Updating...' : 'Sync Google Data'}</span>
+            Retry
           </Button>
         </div>
-      }
-      filterControls={
-        <>
-          <NiceSelect
-            label="BRAND"
-            icon={<Tag className="w-3.5 h-3.5" />}
-            options={brands.map((b) => ({ id: b.id, name: b.name }))}
-            value={selectedBrandId}
-            onChange={setBrandId}
-            className="w-auto min-w-[140px]"
-          />
+      )}
 
-          <NiceSelect
-            label="LOCATION"
-            icon={<MapPin className="w-3.5 h-3.5" />}
-            options={[
-              { id: '', name: `All Locations (${brandLocations.length})` },
-              ...brandLocations.map((l) => ({
-                id: l.id,
-                name: `${l.name}${l.storeCode ? ` (${l.storeCode})` : ''}`,
-              })),
-            ]}
-            value={state.locationId || ''}
-            onChange={setLocationId}
-            className="w-auto min-w-[160px]"
-          />
-        </>
-      }
-      banner={
-        isSummaryError ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-800 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-rose-500" />
-              <div>
-                <p className="text-xs font-bold">Failed to stream performance metrics</p>
-                <p className="text-[11px] text-rose-600 mt-0.5">
-                  {(summaryError as Error)?.message || 'An error occurred while streaming performance data.'}
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => refetchSummary()}
-              className="border-rose-300 text-rose-800 hover:bg-rose-100 flex-shrink-0 text-xs"
-            >
-              Retry
-            </Button>
-          </div>
-        ) : undefined
-      }
-    >
       {brands.length === 0 ? (
         <AnalyticsEmptyState
           variant="NO_DATA"
@@ -312,7 +229,7 @@ export function ReportsDashboard({
           actionText="Create First Brand"
           actionHref={`/client/${tenantSlug}/brands`}
         />
-      ) : !isConnected ? (
+      ) : !(activeSource === 'gbp' ? isGbpConnected : isGscConnected) ? (
         <AnalyticsEmptyState
           variant="NOT_CONNECTED"
           title={
@@ -390,6 +307,6 @@ export function ReportsDashboard({
       )}
 
       <ReportsPolicyFooter activeSource={activeSource} />
-    </AnalyticsPageShell>
+    </div>
   );
 }

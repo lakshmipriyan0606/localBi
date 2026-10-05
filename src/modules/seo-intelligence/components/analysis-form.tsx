@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Search,
   Sparkles,
-  Globe,
   MapPin,
   Laptop,
   Smartphone,
@@ -28,7 +27,7 @@ export function AnalysisForm({ tenantSlug, brandId, onAnalysisStarted }: Analysi
   const [targetUrl, setTargetUrl] = useState('');
   const [keyword, setKeyword] = useState('');
   const [searchLocation, setSearchLocation] = useState('Chennai');
-  const [country, setCountry] = useState('IN');
+  const [country] = useState('IN');
   const [device, setDevice] = useState<'DESKTOP' | 'MOBILE'>('DESKTOP');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

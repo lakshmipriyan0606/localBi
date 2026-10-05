@@ -5,12 +5,10 @@ import {
   Globe2,
   Sparkles,
   ShieldCheck,
-  AlertTriangle,
   CheckCircle2,
   XCircle,
   Plus,
   RefreshCw,
-  ExternalLink,
 } from 'lucide-react';
 import { CompetitorBacklinkGapCandidate } from '../authority-types';
 
