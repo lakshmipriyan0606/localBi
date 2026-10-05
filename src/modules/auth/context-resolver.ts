@@ -98,12 +98,12 @@ export class ContextResolver {
       throw createResourceNotFoundError('Tenant', cleanSlug);
     }
 
-    // Query membership, scopes, and access grants inside tenant context
-    const { membership, accessGrants } = await TenantContextService.withTenantContext(
+    // 1. Query membership and scopes inside tenant context
+    const membership = await TenantContextService.withTenantContext(
       prisma,
       tenant.id,
       async (tx) => {
-        const mem = await tx.tenantMembership.findUnique({
+        return tx.tenantMembership.findUnique({
           where: {
             uq_membership_tenant_user: {
               tenantId: tenant.id,
@@ -115,16 +115,6 @@ export class ContextResolver {
             locationScopes: { select: { locationId: true } },
           },
         });
-
-        const grants = await tx.accessGrant.findMany({
-          where: {
-            tenantId: tenant.id,
-            userId: user.id,
-            status: 'ACTIVE',
-          },
-        });
-
-        return { membership: mem, accessGrants: grants };
       }
     );
 
@@ -134,6 +124,30 @@ export class ContextResolver {
 
     if (membership.status !== 'ACTIVE') {
       throw createAccountSuspendedError();
+    }
+
+    // 2. Query access grants defensively (optional client account grants)
+    let accessGrants: Array<{
+      clientAccountId: string | null;
+      brandId: string | null;
+      locationId: string | null;
+    }> = [];
+    try {
+      accessGrants = await TenantContextService.withTenantContext(
+        prisma,
+        tenant.id,
+        async (tx) => {
+          return tx.accessGrant.findMany({
+            where: {
+              tenantId: tenant.id,
+              userId: user.id,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      );
+    } catch {
+      accessGrants = [];
     }
 
     const grantedBrandIds = new Set(membership.brandScopes.map((b) => b.brandId));

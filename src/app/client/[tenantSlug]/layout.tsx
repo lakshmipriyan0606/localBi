@@ -31,7 +31,11 @@ export default async function TenantWorkspaceLayout({
     if (errorMsg.includes('RESOURCE_NOT_FOUND')) {
       notFound();
     }
-    redirect('/login');
+    if (errorMsg.includes('UNAUTHENTICATED') || errorMsg.includes('SESSION_EXPIRED')) {
+      redirect('/login');
+    }
+    // If access denied or other error, redirect to dashboard selection rather than kicking to login
+    redirect('/dashboard');
   }
 
   if (!resolved.tenant) {

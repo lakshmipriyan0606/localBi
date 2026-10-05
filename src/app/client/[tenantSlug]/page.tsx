@@ -27,8 +27,15 @@ export default async function WorkspaceOverviewPage({
   let resolved = null;
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
-  } catch {
-    redirect('/login');
+  } catch (err: unknown) {
+    const errorMsg = (err as Error).message || '';
+    if (errorMsg.includes('RESOURCE_NOT_FOUND')) {
+      notFound();
+    }
+    if (errorMsg.includes('UNAUTHENTICATED') || errorMsg.includes('SESSION_EXPIRED')) {
+      redirect('/login');
+    }
+    redirect('/dashboard');
   }
   if (!resolved.tenant || !resolved.authorizedContext) notFound();
 

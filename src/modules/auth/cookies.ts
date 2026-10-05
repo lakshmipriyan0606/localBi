@@ -32,6 +32,10 @@ export class SessionCookieManager {
    */
   public static setSessionCookie(cookieStore: CookieWriter, rawToken: string): void {
     cookieStore.set(SESSION_COOKIE_NAME, rawToken, SESSION_COOKIE_OPTIONS);
+    // Also set fallback non-prefixed cookie for proxies or browsers with strict host prefix policies
+    if (SESSION_COOKIE_NAME !== 'localbi_session') {
+      cookieStore.set('localbi_session', rawToken, SESSION_COOKIE_OPTIONS);
+    }
   }
 
   /**
@@ -42,6 +46,12 @@ export class SessionCookieManager {
       ...SESSION_COOKIE_OPTIONS,
       maxAge: 0,
     });
+    if (SESSION_COOKIE_NAME !== 'localbi_session') {
+      cookieStore.set('localbi_session', '', {
+        ...SESSION_COOKIE_OPTIONS,
+        maxAge: 0,
+      });
+    }
   }
 
   /**
@@ -56,12 +66,16 @@ export class SessionCookieManager {
       return primary.value;
     }
 
-    // In dev or transition environments, fallback to plain name if __Host- was checked
-    if (SESSION_COOKIE_NAME.startsWith('__Host-')) {
-      const fallback = cookieStore.get('localbi_session');
-      if (fallback?.value) {
-        return fallback.value;
-      }
+    // Check fallback standard name
+    const fallback = cookieStore.get('localbi_session');
+    if (fallback?.value) {
+      return fallback.value;
+    }
+
+    // Check host-prefixed fallback
+    const hostFallback = cookieStore.get('__Host-localbi_session');
+    if (hostFallback?.value) {
+      return hostFallback.value;
     }
 
     return null;
