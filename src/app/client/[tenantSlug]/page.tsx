@@ -49,6 +49,10 @@ export default async function WorkspaceOverviewPage({
   }
   if (!resolved?.tenant || !resolved?.authorizedContext) notFound();
 
+  if (resolved.tenant.slug !== tenantSlug) {
+    redirect(`/client/${resolved.tenant.slug}`);
+  }
+
   const { tenant, authorizedContext } = resolved;
 
   // Backend single source of truth for overview data (showcase dental for abc-dental, real database metrics for all other clients)

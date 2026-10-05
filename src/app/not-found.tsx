@@ -93,7 +93,7 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             id="not-found-go-home-btn"
-            href="/clients"
+            href="/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold rounded-xl shadow-sm shadow-indigo-200/60 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             <svg
@@ -122,7 +122,7 @@ export default function NotFound() {
           <p className="text-xs text-slate-400 font-sans">
             Need help?{' '}
             <Link
-              href="/clients"
+              href="/dashboard"
               className="text-indigo-500 hover:text-indigo-600 font-medium underline underline-offset-2 transition-colors"
             >
               View all your workspaces

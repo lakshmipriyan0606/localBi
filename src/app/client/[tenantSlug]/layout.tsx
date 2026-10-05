@@ -72,6 +72,11 @@ export default async function TenantWorkspaceLayout({
     notFound();
   }
 
+  // Canonical slug redirect (e.g. if accessed via /client/lakshmi-food-001 but resolved slug is lakshmi-food)
+  if (resolved.tenant.slug !== tenantSlug) {
+    redirect(`/client/${resolved.tenant.slug}`);
+  }
+
   const safeTenant = {
     id: resolved.tenant.id,
     name: resolved.tenant.name,

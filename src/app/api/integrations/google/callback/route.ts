@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   if (errorParam) {
     logger.warn({ errorParam }, 'Google OAuth callback returned error');
-    return NextResponse.redirect(new URL(`/clients?error=${encodeURIComponent(errorParam)}`, request.url));
+    return NextResponse.redirect(new URL(`/dashboard?error=${encodeURIComponent(errorParam)}`, request.url));
   }
 
   if (!code || !stateToken) {

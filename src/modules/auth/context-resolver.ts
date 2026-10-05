@@ -76,11 +76,10 @@ export class ContextResolver {
     options?: { clientSlug?: string; clientAccountId?: string }
   ): Promise<ResolvedRequestContext> {
     const { user, session } = await this.requireAuthenticatedUser(rawToken);
-
     const cleanSlug = tenantSlug.trim().toLowerCase();
 
-    // Query tenant
-    const tenant = await prisma.tenant.findUnique({
+    // Query tenant with exact match first
+    let tenant = await prisma.tenant.findUnique({
       where: { slug: cleanSlug },
       select: {
         id: true,
@@ -93,6 +92,31 @@ export class ContextResolver {
         version: true,
       },
     });
+
+    // Fallback: If not found by exact slug, check base slug (e.g. lakshmi-food-001 -> lakshmi-food)
+    // or prefixed variations so minor URL variations resolve seamlessly
+    if (!tenant) {
+      const baseSlug = cleanSlug.replace(/-\d+$/, '');
+      tenant = await prisma.tenant.findFirst({
+        where: {
+          OR: [
+            { slug: baseSlug },
+            { slug: { startsWith: `${baseSlug}-` } },
+          ],
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          plan: true,
+          tenantType: true,
+          timezone: true,
+          status: true,
+          version: true,
+        },
+      });
+    }
 
     if (!tenant || tenant.status !== 'ACTIVE') {
       throw createResourceNotFoundError('Tenant', cleanSlug);
