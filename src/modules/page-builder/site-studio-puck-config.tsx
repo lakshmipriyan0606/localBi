@@ -1,5 +1,5 @@
 import type { Config } from '@measured/puck';
-import { Section, Container, Spacer } from './components/layout-components';
+import { Columns, CardBox, Section, Container, Spacer } from './components/layout-components';
 import { BrandHeader, BrandHero, BrandFooter } from './components/brand-components';
 import {
   StoreHero,
@@ -15,13 +15,36 @@ import { CallCTA, WhatsAppCTA, DirectionsCTA, LeadForm } from './components/conv
 
 export type SiteStudioProps = {
   // ── LAYOUT ─────────────────────────────────────────────────────────────
+  Columns: {
+    layout: '2-equal' | '2-wide-left' | '2-wide-right' | '3-equal' | '4-equal';
+    gap: 'none' | 'small' | 'medium' | 'large' | 'xlarge';
+    align: 'top' | 'center' | 'bottom' | 'stretch';
+    stackOnMobile: boolean;
+    background: 'transparent' | 'white' | 'slate-50' | 'slate-900';
+    padding: 'none' | 'small' | 'medium' | 'large';
+    borderRadius: 'none' | 'small' | 'medium' | 'large';
+    column1?: any;
+    column2?: any;
+    column3?: any;
+    column4?: any;
+  };
+  CardBox: {
+    background: 'white' | 'slate-50' | 'slate-900' | 'transparent';
+    border: 'none' | 'subtle' | 'accent';
+    shadow: 'none' | 'small' | 'medium' | 'large';
+    padding: 'none' | 'small' | 'medium' | 'large';
+    radius: 'none' | 'small' | 'medium' | 'large';
+    content?: any;
+  };
   Section: {
     padding: 'none' | 'small' | 'medium' | 'large';
     background: 'transparent' | 'white' | 'slate-50' | 'slate-900';
     maxWidth: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+    content?: any;
   };
   Container: {
     maxWidth: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+    content?: any;
   };
   Spacer: {
     height: 'small' | 'medium' | 'large' | 'xlarge';
@@ -146,7 +169,7 @@ export const siteStudioPuckConfig: Config<SiteStudioProps> = {
   categories: {
     layout: {
       title: 'Layout & Structure',
-      components: ['Section', 'Container', 'Spacer'],
+      components: ['Columns', 'CardBox', 'Section', 'Container', 'Spacer'],
     },
     brand: {
       title: 'Brand & Navigation',
@@ -175,6 +198,160 @@ export const siteStudioPuckConfig: Config<SiteStudioProps> = {
   },
   components: {
     // ── LAYOUT ───────────────────────────────────────────────────────────
+    Columns: {
+      label: 'Row & Columns (Multi-Column)',
+      defaultProps: {
+        layout: '2-equal',
+        gap: 'medium',
+        align: 'top',
+        stackOnMobile: true,
+        background: 'transparent',
+        padding: 'none',
+        borderRadius: 'none',
+      },
+      fields: {
+        layout: {
+          type: 'select',
+          label: 'Column Layout & Distribution',
+          options: [
+            { label: '2 Columns (50% / 50%)', value: '2-equal' },
+            { label: '2 Columns (66% Left / 33% Right)', value: '2-wide-left' },
+            { label: '2 Columns (33% Left / 66% Right)', value: '2-wide-right' },
+            { label: '3 Columns (Equal 33% each)', value: '3-equal' },
+            { label: '4 Columns (Equal 25% each)', value: '4-equal' },
+          ],
+        },
+        gap: {
+          type: 'select',
+          label: 'Spacing Between Columns',
+          options: [
+            { label: 'None (0px)', value: 'none' },
+            { label: 'Small (16px)', value: 'small' },
+            { label: 'Medium (24px)', value: 'medium' },
+            { label: 'Large (36px)', value: 'large' },
+            { label: 'Extra Large (48px)', value: 'xlarge' },
+          ],
+        },
+        align: {
+          type: 'select',
+          label: 'Vertical Alignment',
+          options: [
+            { label: 'Top (Start)', value: 'top' },
+            { label: 'Center (Middle)', value: 'center' },
+            { label: 'Bottom (End)', value: 'bottom' },
+            { label: 'Stretch (Equal Height)', value: 'stretch' },
+          ],
+        },
+        stackOnMobile: {
+          type: 'radio',
+          label: 'Mobile Screen Behavior',
+          options: [
+            { label: 'Stack Vertically', value: true },
+            { label: 'Keep Columns', value: false },
+          ],
+        },
+        background: {
+          type: 'select',
+          label: 'Background Tone',
+          options: [
+            { label: 'Transparent', value: 'transparent' },
+            { label: 'Crisp White', value: 'white' },
+            { label: 'Soft Slate', value: 'slate-50' },
+            { label: 'Dark Slate', value: 'slate-900' },
+          ],
+        },
+        padding: {
+          type: 'select',
+          label: 'Row Padding',
+          options: [
+            { label: 'None', value: 'none' },
+            { label: 'Small', value: 'small' },
+            { label: 'Medium', value: 'medium' },
+            { label: 'Large', value: 'large' },
+          ],
+        },
+        borderRadius: {
+          type: 'select',
+          label: 'Corner Style',
+          options: [
+            { label: 'Square (None)', value: 'none' },
+            { label: 'Slightly Rounded', value: 'small' },
+            { label: 'Rounded Card', value: 'medium' },
+            { label: 'Large Rounded', value: 'large' },
+          ],
+        },
+        column1: { type: 'slot' },
+        column2: { type: 'slot' },
+        column3: { type: 'slot' },
+        column4: { type: 'slot' },
+      },
+      render: (props) => <Columns {...props} />,
+    },
+
+    CardBox: {
+      label: 'Content Card / Box',
+      defaultProps: {
+        background: 'white',
+        border: 'subtle',
+        shadow: 'small',
+        padding: 'medium',
+        radius: 'medium',
+      },
+      fields: {
+        background: {
+          type: 'select',
+          label: 'Background Tone',
+          options: [
+            { label: 'Crisp White', value: 'white' },
+            { label: 'Soft Slate', value: 'slate-50' },
+            { label: 'Dark Slate', value: 'slate-900' },
+            { label: 'Transparent', value: 'transparent' },
+          ],
+        },
+        border: {
+          type: 'select',
+          label: 'Border Style',
+          options: [
+            { label: 'None', value: 'none' },
+            { label: 'Subtle Border', value: 'subtle' },
+            { label: 'Accent Border', value: 'accent' },
+          ],
+        },
+        shadow: {
+          type: 'select',
+          label: 'Elevation / Shadow',
+          options: [
+            { label: 'None (Flat)', value: 'none' },
+            { label: 'Subtle Shadow', value: 'small' },
+            { label: 'Medium Elevated', value: 'medium' },
+            { label: 'Floating Card', value: 'large' },
+          ],
+        },
+        padding: {
+          type: 'select',
+          label: 'Inner Padding',
+          options: [
+            { label: 'None', value: 'none' },
+            { label: 'Compact (16px)', value: 'small' },
+            { label: 'Comfortable (24px)', value: 'medium' },
+            { label: 'Spacious (36px)', value: 'large' },
+          ],
+        },
+        radius: {
+          type: 'select',
+          label: 'Corner Radius',
+          options: [
+            { label: 'Square (0px)', value: 'none' },
+            { label: 'Small (8px)', value: 'small' },
+            { label: 'Medium (16px)', value: 'medium' },
+            { label: 'Large (24px)', value: 'large' },
+          ],
+        },
+        content: { type: 'slot' },
+      },
+      render: (props) => <CardBox {...props} />,
+    },
+
     Section: {
       label: 'Section Container',
       defaultProps: {
@@ -213,12 +390,13 @@ export const siteStudioPuckConfig: Config<SiteStudioProps> = {
             { label: 'Full Width', value: 'full' },
           ],
         },
+        content: { type: 'slot' },
       },
       render: (props) => <Section {...props} />,
     },
 
     Container: {
-      label: 'Container',
+      label: 'Standard Container',
       defaultProps: {
         maxWidth: 'xl',
       },
@@ -232,6 +410,7 @@ export const siteStudioPuckConfig: Config<SiteStudioProps> = {
             { label: 'Full', value: 'full' },
           ],
         },
+        content: { type: 'slot' },
       },
       render: (props) => <Container {...props} />,
     },

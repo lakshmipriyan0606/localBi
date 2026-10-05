@@ -93,9 +93,10 @@ export default function SiteStudioPagesPage() {
         setNewSlug('');
         loadPages();
         // Route to builder
+        const resolvedId = brandId || data.page?.brandId;
         router.push(
           `/client/${tenantSlug}/website/builder/${data.page.id}${
-            brandId ? `?brandId=${brandId}` : ''
+            resolvedId ? `?brandId=${resolvedId}` : ''
           }`
         );
       } else {

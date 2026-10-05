@@ -59,6 +59,25 @@ export interface CreateLandingPageInput {
 
 export class SiteStudioService {
   /**
+   * Resolves the target brandId, falling back to the first active brand for the tenant under RLS context.
+   */
+  public static async resolveBrandId(
+    tenantId: string,
+    requestedBrandId?: string | null
+  ): Promise<string | null> {
+    if (requestedBrandId) {
+      return requestedBrandId;
+    }
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const defaultBrand = await tx.brand.findFirst({
+        where: { tenantId, isArchived: false },
+        orderBy: { createdAt: 'asc' },
+      });
+      return defaultBrand?.id || null;
+    });
+  }
+
+  /**
    * Ensures an active LOCALBI WebSurface exists for the given tenant and brand,
    * along with a default HOME template.
    */
@@ -99,6 +118,7 @@ export class SiteStudioService {
         await tx.domain.create({
           data: {
             tenantId,
+            brandId: brand.id,
             webSurfaceId: surface.id,
             hostname: autoSubdomain,
             isPrimary: true,
@@ -131,6 +151,7 @@ export class SiteStudioService {
                 {
                   type: 'BrandHeader',
                   props: {
+                    id: 'BrandHeader-home',
                     showCta: true,
                     ctaLabel: 'Contact Us',
                     link1Label: 'Home',
@@ -142,6 +163,7 @@ export class SiteStudioService {
                 {
                   type: 'StoreHero',
                   props: {
+                    id: 'StoreHero-home',
                     badgeText: 'Official Brand Storefront',
                     primaryCtaText: 'Get Directions',
                     secondaryCtaText: 'Call Now',
@@ -150,6 +172,7 @@ export class SiteStudioService {
                 {
                   type: 'ProductGrid',
                   props: {
+                    id: 'ProductGrid-home',
                     source: 'FEATURED_PRODUCTS',
                     headline: 'Popular Offerings',
                     limit: 6,
@@ -161,6 +184,7 @@ export class SiteStudioService {
                 {
                   type: 'ReviewSummary',
                   props: {
+                    id: 'ReviewSummary-home',
                     headline: 'Customer Satisfaction & Reviews',
                     showGoogleBadge: true,
                   },
@@ -168,6 +192,7 @@ export class SiteStudioService {
                 {
                   type: 'BrandFooter',
                   props: {
+                    id: 'BrandFooter-home',
                     showSocialLinks: true,
                   },
                 },
@@ -231,7 +256,7 @@ export class SiteStudioService {
           where: { tenantId, brandId, isArchived: false },
         }),
         tx.product.count({
-          where: { tenantId, brandId, isArchived: false },
+          where: { tenantId, brandId, status: 'ACTIVE' },
         }),
         tx.pageTemplateVersion.findFirst({
           where: {
@@ -458,49 +483,63 @@ export class SiteStudioService {
    * Returns sensible initial visual blocks for newly created landing pages.
    */
   private static getInitialBlocksForType(type: PageTemplateType): any[] {
+    const uid = () => Math.random().toString(36).slice(2, 8);
     const headerBlock = {
       type: 'BrandHeader',
-      props: { showCta: true, ctaLabel: 'Contact Us', link1Label: 'Home', link1Url: '/', link2Label: 'Catalog', link2Url: '/products' },
+      props: { id: `BrandHeader-${uid()}`, showCta: true, ctaLabel: 'Contact Us', link1Label: 'Home', link1Url: '/', link2Label: 'Catalog', link2Url: '/products' },
     };
     const footerBlock = {
       type: 'BrandFooter',
-      props: { showSocialLinks: true },
+      props: { id: `BrandFooter-${uid()}`, showSocialLinks: true },
     };
 
+    let blocks: any[] = [];
     switch (type) {
       case 'STORE':
-        return [
+        blocks = [
           headerBlock,
-          { type: 'StoreHero', props: { badgeText: 'Verified Storefront', primaryCtaText: 'Get Directions', secondaryCtaText: 'Call Store' } },
-          { type: 'StoreInfo', props: { headline: 'Store Information', showHours: true, showAddress: true } },
-          { type: 'ProductGrid', props: { source: 'CURRENT_STORE_PRODUCTS', headline: 'Available at this Store', limit: 6, columns: 3, showPrice: true, showAvailability: true } },
-          { type: 'ReviewSummary', props: { headline: 'Customer Feedback', showGoogleBadge: true } },
+          { type: 'StoreHero', props: { id: `StoreHero-${uid()}`, badgeText: 'Verified Storefront', primaryCtaText: 'Get Directions', secondaryCtaText: 'Call Store' } },
+          { type: 'StoreInfo', props: { id: `StoreInfo-${uid()}`, headline: 'Store Information', showHours: true, showAddress: true } },
+          { type: 'ProductGrid', props: { id: `ProductGrid-${uid()}`, source: 'CURRENT_STORE_PRODUCTS', headline: 'Available at this Store', limit: 6, columns: 3, showPrice: true, showAvailability: true } },
+          { type: 'ReviewSummary', props: { id: `ReviewSummary-${uid()}`, headline: 'Customer Feedback', showGoogleBadge: true } },
           footerBlock,
         ];
+        break;
       case 'PRODUCT':
       case 'STORE_PRODUCT':
-        return [
+        blocks = [
           headerBlock,
-          { type: 'ProductDetails', props: { showSku: true } },
-          { type: 'ProductGrid', props: { source: 'FEATURED_PRODUCTS', headline: 'Related Offerings', limit: 4, columns: 4, showPrice: true, showAvailability: true } },
+          { type: 'ProductDetails', props: { id: `ProductDetails-${uid()}`, showSku: true } },
+          { type: 'ProductGrid', props: { id: `ProductGrid-${uid()}`, source: 'FEATURED_PRODUCTS', headline: 'Related Offerings', limit: 4, columns: 4, showPrice: true, showAvailability: true } },
           footerBlock,
         ];
+        break;
       case 'CITY':
-        return [
+        blocks = [
           headerBlock,
-          { type: 'BrandHero', props: { headline: 'Explore Our Locations', subheading: 'Discover stores and services in your area.', primaryCtaText: 'View All Stores', primaryCtaUrl: '/locations' } },
-          { type: 'NearbyStores', props: { headline: 'Stores in this Region', limit: 6 } },
+          { type: 'BrandHero', props: { id: `BrandHero-${uid()}`, headline: 'Explore Our Locations', subheading: 'Discover stores and services in your area.', primaryCtaText: 'View All Stores', primaryCtaUrl: '/locations' } },
+          { type: 'NearbyStores', props: { id: `NearbyStores-${uid()}`, headline: 'Stores in this Region', limit: 6 } },
           footerBlock,
         ];
+        break;
       default:
-        return [
+        blocks = [
           headerBlock,
-          { type: 'BrandHero', props: { headline: 'Welcome', subheading: 'Discover authentic offerings and verified locations.', primaryCtaText: 'Explore', primaryCtaUrl: '/locations' } },
-          { type: 'RichText', props: { content: '<p>Customize this landing page with your brand story, announcements, and call-to-actions.</p>', alignment: 'left' } },
-          { type: 'CallCTA', props: { headline: 'Have Questions?', subheading: 'Get in touch with our team today.', buttonText: 'Contact Us' } },
+          { type: 'BrandHero', props: { id: `BrandHero-${uid()}`, headline: 'Welcome', subheading: 'Discover authentic offerings and verified locations.', primaryCtaText: 'Explore', primaryCtaUrl: '/locations' } },
+          { type: 'RichText', props: { id: `RichText-${uid()}`, content: '<p>Customize this landing page with your brand story, announcements, and call-to-actions.</p>', alignment: 'left' } },
+          { type: 'CallCTA', props: { id: `CallCTA-${uid()}`, headline: 'Have Questions?', subheading: 'Get in touch with our team today.', buttonText: 'Contact Us' } },
           footerBlock,
         ];
+        break;
     }
+
+    return blocks.map((b, i) => ({
+      ...b,
+      props: {
+        ...b.props,
+        id: b.props?.id || `${b.type}-${i}-${uid()}`,
+      },
+    }));
   }
 
   /**

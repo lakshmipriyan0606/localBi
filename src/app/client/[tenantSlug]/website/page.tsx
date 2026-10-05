@@ -87,11 +87,31 @@ export default function SiteStudioOverviewPage() {
   }
 
   if (error || !data) {
+    const isNoBrand = error?.toLowerCase().includes('brand');
     return (
-      <div className="p-8 rounded-2xl bg-white border border-rose-200 text-center space-y-3">
-        <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
-        <h3 className="font-bold text-slate-900 text-sm">Unable to load website status</h3>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">{error || 'Please select a brand.'}</p>
+      <div className="p-10 rounded-2xl bg-white border border-slate-200 text-center space-y-4 shadow-2xs">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+          {isNoBrand ? <Globe className="w-6 h-6" /> : <AlertCircle className="w-6 h-6 text-rose-500" />}
+        </div>
+        <div className="space-y-1">
+          <h3 className="font-bold text-slate-900 text-base">
+            {isNoBrand ? 'No Brand Configured Yet' : 'Unable to load website status'}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {isNoBrand
+              ? 'Configure or activate a brand for your business to launch your LocalBi Site Studio storefront.'
+              : error || 'An unexpected error occurred while fetching website details.'}
+          </p>
+        </div>
+        {isNoBrand && (
+          <Link
+            href={`/client/${tenantSlug}/brands`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors"
+          >
+            <span>Manage Brands</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        )}
       </div>
     );
   }
@@ -162,32 +182,28 @@ export default function SiteStudioOverviewPage() {
       {/* ── Key Metrics Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Published Pages"
+          label="Published Pages"
           value={`${data.publishedPagesCount} / ${data.pagesCount}`}
-          description={`Last published: ${formattedDate}`}
-          trend="neutral"
-          icon={<Layers className="w-4 h-4 text-indigo-600" />}
+          comparisonLabel={`Last published: ${formattedDate}`}
+          icon={Layers}
         />
         <MetricCard
-          title="Active Stores"
+          label="Active Stores"
           value={data.storesCount}
-          description="Included in store finder & pages"
-          trend="neutral"
-          icon={<Store className="w-4 h-4 text-emerald-600" />}
+          comparisonLabel="Included in store finder & pages"
+          icon={Store}
         />
         <MetricCard
-          title="Catalog Products"
+          label="Catalog Products"
           value={data.productsCount}
-          description="Ready with store-specific pricing"
-          trend="neutral"
-          icon={<Package className="w-4 h-4 text-amber-600" />}
+          comparisonLabel="Ready with store-specific pricing"
+          icon={Package}
         />
         <MetricCard
-          title="Connected Domains"
+          label="Connected Domains"
           value={data.domainsCount}
-          description="SSL active & route verified"
-          trend="neutral"
-          icon={<Server className="w-4 h-4 text-purple-600" />}
+          comparisonLabel="SSL active & route verified"
+          icon={Server}
         />
       </div>
 

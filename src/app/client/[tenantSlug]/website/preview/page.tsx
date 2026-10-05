@@ -18,6 +18,42 @@ import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-co
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { PageContext } from '@/modules/page-builder/page-context-service';
 
+function sanitizeBlockItem(item: any, idx: number, prefix = 'block'): any {
+  if (!item || typeof item !== 'object') return item;
+  const props = { ...(item.props || {}) };
+  const id = props.id || `${item.type || prefix}-${idx}-${Math.random().toString(36).substring(2, 8)}`;
+  props.id = id;
+
+  for (const [key, val] of Object.entries(props)) {
+    if (Array.isArray(val)) {
+      props[key] = val.map((child, cIdx) => sanitizeBlockItem(child, cIdx, `${id}-${key}`));
+    }
+  }
+
+  return {
+    ...item,
+    props,
+  };
+}
+
+function sanitizeClientPuckData(raw: any) {
+  if (!raw) return { content: [], root: { props: { title: '' } } };
+  const content = (raw.content || []).map((item: any, idx: number) => sanitizeBlockItem(item, idx));
+  const zones: Record<string, any[]> = {};
+  if (raw.zones && typeof raw.zones === 'object') {
+    for (const [zKey, zItems] of Object.entries(raw.zones)) {
+      if (Array.isArray(zItems)) {
+        zones[zKey] = zItems.map((child, cIdx) => sanitizeBlockItem(child, cIdx, zKey));
+      }
+    }
+  }
+  return {
+    ...raw,
+    content,
+    ...(Object.keys(zones).length > 0 ? { zones } : {}),
+  };
+}
+
 export default function SiteStudioPreviewPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -62,8 +98,8 @@ export default function SiteStudioPreviewPage() {
           `/api/tenants/${tenantSlug}/website/pages/${selectedPageId}/puck`
         );
         const data = await res.json();
-        if (data.success) {
-          setPuckData(data.puckData);
+        if (data.success && data.puckData) {
+          setPuckData(sanitizeClientPuckData(data.puckData));
         }
       } catch (err) {
         console.error('Failed to load puck data for preview', err);

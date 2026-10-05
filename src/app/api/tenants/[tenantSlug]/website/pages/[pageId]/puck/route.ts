@@ -43,9 +43,44 @@ export async function GET(
         const publishedVersion = template.versions.find((v) => v.status === 'PUBLISHED');
 
         // Safe fallback puck data if content is empty
-        const puckData = (latestVersion?.puckData as any) || {
+        const rawPuck = (latestVersion?.puckData as any) || {
           content: [],
           root: { props: {} },
+        };
+
+        const sanitizeBlock = (block: any, idx: number, prefix = 'block'): any => {
+          if (!block || typeof block !== 'object') return block;
+          const props = { ...(block.props || {}) };
+          const id = props.id || `${block.type || prefix}-${idx}`;
+          props.id = id;
+
+          // Recursively sanitize any child slot arrays inside props
+          for (const [key, val] of Object.entries(props)) {
+            if (Array.isArray(val)) {
+              props[key] = val.map((child, cIdx) => sanitizeBlock(child, cIdx, `${id}-${key}`));
+            }
+          }
+
+          return {
+            ...block,
+            props,
+          };
+        };
+
+        const puckData = {
+          ...rawPuck,
+          content: Array.isArray(rawPuck.content)
+            ? rawPuck.content.map(sanitizeBlock)
+            : [],
+          root: rawPuck.root || { props: {} },
+          zones: rawPuck.zones
+            ? Object.fromEntries(
+                Object.entries(rawPuck.zones).map(([zoneKey, zoneItems]: [string, any]) => [
+                  zoneKey,
+                  Array.isArray(zoneItems) ? zoneItems.map(sanitizeBlock) : [],
+                ])
+              )
+            : undefined,
         };
 
         const historicalVersions = template.versions.map((v) => ({

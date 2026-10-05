@@ -19,11 +19,14 @@ export type MetricCardState =
   | 'UPSTREAM_ERROR';
 
 export interface MetricCardProps {
-  label: string;
+  label?: string | undefined;
+  title?: string | undefined;
   value: string | number;
   format?: 'number' | 'compact' | 'percent' | 'duration' | 'currency' | 'position' | 'raw';
   deltaPercent?: number | null | undefined;
   deltaText?: string | undefined;
+  description?: string | undefined;
+  trend?: 'positive' | 'negative' | 'neutral' | string | undefined;
   comparisonLabel?: string | undefined;
   higherIsBetter?: boolean | undefined;
   source?: MetricSource | string | undefined;
@@ -35,16 +38,19 @@ export interface MetricCardProps {
   isRefreshing?: boolean | undefined;
   sparkline?: React.ReactNode | undefined;
   href?: string | undefined;
-  icon?: React.ComponentType<{ className?: string }> | undefined;
+  icon?: React.ComponentType<{ className?: string }> | React.ReactNode | undefined;
   onRetry?: (() => void) | undefined;
   className?: string | undefined;
 }
 
 export function MetricCard({
   label,
+  title,
   value,
   deltaPercent,
   deltaText,
+  description,
+  trend,
   comparisonLabel,
   higherIsBetter = true,
   source,
@@ -60,6 +66,8 @@ export function MetricCard({
   onRetry,
   className = '',
 }: MetricCardProps) {
+  const cardLabel = label || title || '';
+  const cardComparison = comparisonLabel || description;
   // Determine trend status
   let trendType: 'positive' | 'negative' | 'neutral' = 'neutral';
   let formattedDelta = deltaText;
@@ -213,9 +221,9 @@ export function MetricCard({
                 <span className="text-[11px] text-slate-400 font-medium">N/A</span>
               ) : null}
 
-              {comparisonLabel && (
+              {cardComparison && (
                 <span className="text-[11px] text-slate-500 font-normal truncate max-w-[170px]">
-                  {comparisonLabel}
+                  {cardComparison}
                 </span>
               )}
             </div>
@@ -237,7 +245,7 @@ export function MetricCard({
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
-            {label}
+            {cardLabel}
           </span>
           {tooltip && (
             <span
@@ -254,7 +262,12 @@ export function MetricCard({
           {source && <SourceBadge source={source} size="sm" />}
           {Icon && (
             <div className="p-1 rounded-md bg-slate-50 border border-slate-100 text-slate-500">
-              <Icon className="w-3.5 h-3.5" />
+              {React.isValidElement(Icon) ? (
+                Icon
+              ) : typeof Icon === 'function' || (typeof Icon === 'object' && Icon !== null) ? (
+                // @ts-expect-error ComponentType invocation
+                <Icon className="w-3.5 h-3.5" />
+              ) : null}
             </div>
           )}
         </div>

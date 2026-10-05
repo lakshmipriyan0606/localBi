@@ -278,6 +278,33 @@ export class SurfaceService {
   }
 
   /**
+   * Lists domains mapped to a web surface.
+   */
+  public static async listDomainsForSurface(
+    tenantId: string,
+    webSurfaceId: string
+  ): Promise<DomainDto[]> {
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const rows = await tx.domain.findMany({
+        where: { tenantId, webSurfaceId },
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
+      });
+      return rows.map((d) => ({
+        id: d.id,
+        tenantId: d.tenantId,
+        brandId: d.brandId,
+        webSurfaceId: d.webSurfaceId,
+        hostname: d.hostname,
+        isPrimary: d.isPrimary,
+        isVerified: d.isVerified,
+        sslStatus: d.sslStatus,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+      }));
+    });
+  }
+
+  /**
    * Resolves an incoming hostname or subdomain to its registered tenant, brand, and webSurface.
    * Runs under unrestricted database query to match host across multi-tenant catalog.
    */

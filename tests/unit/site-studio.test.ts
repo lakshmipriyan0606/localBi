@@ -119,4 +119,86 @@ describe('Site Studio — Core Engine & Security Validations', () => {
       ).toThrow(/Prohibited URL scheme/);
     });
   });
+
+  describe('SiteStudio Visual Builder — Multi-Column & Layout Structure', () => {
+    it('registers Columns, CardBox, Section, Container, and Spacer in layout category', async () => {
+      const { siteStudioPuckConfig } = await import('@/modules/page-builder/site-studio-puck-config');
+
+      expect(siteStudioPuckConfig.categories.layout.components).toContain('Columns');
+      expect(siteStudioPuckConfig.categories.layout.components).toContain('CardBox');
+      expect(siteStudioPuckConfig.categories.layout.components).toContain('Section');
+      expect(siteStudioPuckConfig.categories.layout.components).toContain('Container');
+      expect(siteStudioPuckConfig.categories.layout.components).toContain('Spacer');
+    });
+
+    it('configures Columns with layout, gap, align, stackOnMobile, and 4 slot drop zones', async () => {
+      const { siteStudioPuckConfig } = await import('@/modules/page-builder/site-studio-puck-config');
+      const columnsConfig = siteStudioPuckConfig.components.Columns;
+
+      expect(columnsConfig).toBeDefined();
+      expect(columnsConfig.label).toContain('Columns');
+      expect(columnsConfig.defaultProps.layout).toBe('2-equal');
+      expect(columnsConfig.defaultProps.gap).toBe('medium');
+
+      const fields = columnsConfig.fields as Record<string, any>;
+      expect(fields.layout.type).toBe('select');
+      expect(fields.gap.type).toBe('select');
+      expect(fields.align.type).toBe('select');
+      expect(fields.stackOnMobile.type).toBe('radio');
+      expect(fields.column1.type).toBe('slot');
+      expect(fields.column2.type).toBe('slot');
+      expect(fields.column3.type).toBe('slot');
+      expect(fields.column4.type).toBe('slot');
+    });
+
+    it('configures CardBox with background, border, shadow, padding, radius, and content slot', async () => {
+      const { siteStudioPuckConfig } = await import('@/modules/page-builder/site-studio-puck-config');
+      const cardConfig = siteStudioPuckConfig.components.CardBox;
+
+      expect(cardConfig).toBeDefined();
+      expect(cardConfig.label).toContain('Card');
+      const fields = cardConfig.fields as Record<string, any>;
+      expect(fields.background.type).toBe('select');
+      expect(fields.border.type).toBe('select');
+      expect(fields.shadow.type).toBe('select');
+      expect(fields.padding.type).toBe('select');
+      expect(fields.radius.type).toBe('select');
+      expect(fields.content.type).toBe('slot');
+    });
+
+    it('renders Columns component with multiple column slots', async () => {
+      const { Columns } = await import('@/modules/page-builder/components/layout-components');
+      const element = Columns({
+        layout: '2-wide-left',
+        gap: 'large',
+        align: 'center',
+        stackOnMobile: true,
+        column1: () => 'Left Slot Content',
+        column2: () => 'Right Slot Content',
+      });
+
+      expect(element).toBeDefined();
+      expect(element.props.children.props.className).toContain('grid-cols-[2fr_1fr]');
+      expect(element.props.children.props.className).toContain('gap-8');
+      expect(element.props.children.props.className).toContain('items-center');
+    });
+
+    it('renders CardBox with customizable style tokens and content', async () => {
+      const { CardBox } = await import('@/modules/page-builder/components/layout-components');
+      const element = CardBox({
+        background: 'slate-50',
+        border: 'accent',
+        shadow: 'large',
+        padding: 'large',
+        radius: 'large',
+        content: () => 'Card Inner Content',
+      });
+
+      expect(element).toBeDefined();
+      expect(element.props.className).toContain('bg-slate-50');
+      expect(element.props.className).toContain('border-indigo-500/20');
+      expect(element.props.className).toContain('shadow-xl');
+      expect(element.props.className).toContain('rounded-3xl');
+    });
+  });
 });

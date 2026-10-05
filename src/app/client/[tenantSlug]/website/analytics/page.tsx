@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Users,
   Eye,
@@ -55,13 +56,9 @@ import type {
   JourneyEventDto,
 } from '@/modules/analytics/web-analytics-service';
 
-export default function WebAnalyticsPage({
-  params,
-}: {
-  params: Promise<{ tenantSlug: string }>;
-}) {
-  const resolvedParams = use(params);
-  const tenantSlug = resolvedParams.tenantSlug;
+export default function WebAnalyticsPage() {
+  const routeParams = useParams();
+  const tenantSlug = (routeParams?.tenantSlug as string) || '';
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<

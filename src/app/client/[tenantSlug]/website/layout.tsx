@@ -53,7 +53,11 @@ export default function SiteStudioLayout({
           if (queryBrandId && data.brands.some((b: any) => b.id === queryBrandId)) {
             setSelectedBrandId(queryBrandId);
           } else {
-            setSelectedBrandId(data.brands[0].id);
+            const defaultId = data.brands[0].id;
+            setSelectedBrandId(defaultId);
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.set('brandId', defaultId);
+            router.replace(`${pathname}?${newParams.toString()}`);
           }
         }
       } catch (err) {
@@ -63,7 +67,7 @@ export default function SiteStudioLayout({
       }
     }
     loadBrands();
-  }, [tenantSlug, searchParams]);
+  }, [tenantSlug, pathname, router, searchParams]);
 
   const handleBrandChange = (brandId: string) => {
     setSelectedBrandId(brandId);

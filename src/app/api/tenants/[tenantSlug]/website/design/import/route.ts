@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 import { BrandDesignImportService } from '@/modules/page-builder/brand-design-import';
+import { SiteStudioService } from '@/modules/page-builder/site-studio-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function POST(
@@ -23,10 +24,13 @@ export async function POST(
     let draftDesign;
 
     if (source === 'ORIGINAL_SURFACE') {
-      const targetBrandId = brandId || authorizedContext.brandId;
+      const targetBrandId = await SiteStudioService.resolveBrandId(
+        authorizedContext.tenantId,
+        brandId || authorizedContext.brandId
+      );
       if (!targetBrandId) {
         return NextResponse.json(
-          { success: false, error: 'brandId is required to import from original surface.' },
+          { success: false, error: 'A brand is required to import from original surface.' },
           { status: 400 }
         );
       }

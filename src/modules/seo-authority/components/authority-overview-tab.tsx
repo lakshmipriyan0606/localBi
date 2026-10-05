@@ -170,7 +170,7 @@ export function AuthorityOverviewTab({
               <p className="text-xs text-slate-500">Highest authority external domains linking to your site</p>
             </div>
             <button
-            )}
+              onClick={() => onTabChange('domains')}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
             >
               View all
