@@ -98,25 +98,30 @@ export class ContextResolver {
       throw createResourceNotFoundError('Tenant', cleanSlug);
     }
 
-    // 1. Query membership and scopes inside tenant context
-    const membership = await TenantContextService.withTenantContext(
-      prisma,
-      tenant.id,
-      async (tx) => {
-        return tx.tenantMembership.findUnique({
+    // 1. Query membership and scopes inside combined tenant and user RLS context
+    const membership = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+      await tx.$executeRaw`SELECT set_config('app.current_user_id', ${user.id}, true)`;
+      try {
+        return await tx.tenantMembership.findFirst({
           where: {
-            uq_membership_tenant_user: {
-              tenantId: tenant.id,
-              userId: user.id,
-            },
+            tenantId: tenant.id,
+            userId: user.id,
           },
           include: {
             brandScopes: { select: { brandId: true } },
             locationScopes: { select: { locationId: true } },
           },
         });
+      } catch {
+        return await tx.tenantMembership.findFirst({
+          where: {
+            tenantId: tenant.id,
+            userId: user.id,
+          },
+        });
       }
-    );
+    });
 
     if (!membership) {
       throw createTenantAccessDeniedError(tenant.id);
@@ -133,25 +138,32 @@ export class ContextResolver {
       locationId: string | null;
     }> = [];
     try {
-      accessGrants = await TenantContextService.withTenantContext(
-        prisma,
-        tenant.id,
-        async (tx) => {
-          return tx.accessGrant.findMany({
-            where: {
-              tenantId: tenant.id,
-              userId: user.id,
-              status: 'ACTIVE',
-            },
-          });
-        }
-      );
+      accessGrants = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+        await tx.$executeRaw`SELECT set_config('app.current_user_id', ${user.id}, true)`;
+        return tx.accessGrant.findMany({
+          where: {
+            tenantId: tenant.id,
+            userId: user.id,
+            status: 'ACTIVE',
+          },
+        });
+      });
     } catch {
       accessGrants = [];
     }
 
-    const grantedBrandIds = new Set(membership.brandScopes.map((b) => b.brandId));
-    const grantedLocationIds = new Set(membership.locationScopes.map((l) => l.locationId));
+    const membershipAny = membership as any;
+    const grantedBrandIds = new Set<string>(
+      Array.isArray(membershipAny.brandScopes)
+        ? membershipAny.brandScopes.map((b: { brandId: string }) => b.brandId)
+        : []
+    );
+    const grantedLocationIds = new Set<string>(
+      Array.isArray(membershipAny.locationScopes)
+        ? membershipAny.locationScopes.map((l: { locationId: string }) => l.locationId)
+        : []
+    );
     const grantedClientAccountIds = new Set<string>();
 
     for (const grant of accessGrants) {
@@ -171,24 +183,22 @@ export class ContextResolver {
       | undefined;
 
     if (options?.clientSlug || options?.clientAccountId) {
-      const client = await TenantContextService.withTenantContext(prisma, tenant.id, async (tx) => {
+      const client = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+        await tx.$executeRaw`SELECT set_config('app.current_user_id', ${user.id}, true)`;
         if (options.clientAccountId) {
-          return tx.clientAccount.findUnique({
+          return tx.clientAccount.findFirst({
             where: {
-              uq_client_account_tenant_id: {
-                tenantId: tenant.id,
-                id: options.clientAccountId,
-              },
+              tenantId: tenant.id,
+              id: options.clientAccountId,
             },
           });
         }
         if (options.clientSlug) {
-          return tx.clientAccount.findUnique({
+          return tx.clientAccount.findFirst({
             where: {
-              uq_client_account_tenant_slug: {
-                tenantId: tenant.id,
-                slug: options.clientSlug.trim().toLowerCase(),
-              },
+              tenantId: tenant.id,
+              slug: options.clientSlug.trim().toLowerCase(),
             },
           });
         }

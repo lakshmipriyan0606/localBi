@@ -27,15 +27,45 @@ export default async function TenantWorkspaceLayout({
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
   } catch (err: unknown) {
-    const errorMsg = (err as Error).message || '';
-    if (errorMsg.includes('RESOURCE_NOT_FOUND')) {
-      notFound();
-    }
-    if (errorMsg.includes('UNAUTHENTICATED') || errorMsg.includes('SESSION_EXPIRED')) {
+    const error = err as any;
+    const statusCode = error?.statusCode;
+    const errorCode = error?.code || '';
+    const errorMsg = error?.message || '';
+
+    // 1. Unauthenticated or session expired -> Login page
+    if (
+      statusCode === 401 ||
+      errorCode === 'AUTHENTICATION_REQUIRED' ||
+      errorCode === 'UNAUTHENTICATED' ||
+      errorCode === 'SESSION_EXPIRED' ||
+      errorMsg.includes('Authentication required') ||
+      errorMsg.includes('SESSION_EXPIRED') ||
+      errorMsg.includes('UNAUTHENTICATED')
+    ) {
       redirect('/login');
     }
-    // If access denied or other error, redirect to dashboard selection rather than kicking to login
-    redirect('/dashboard');
+
+    // 2. Resource not found -> 404
+    if (
+      statusCode === 404 ||
+      errorCode === 'RESOURCE_NOT_FOUND' ||
+      errorMsg.includes('not found')
+    ) {
+      notFound();
+    }
+
+    // 3. Access denied / forbidden -> 404 (NEVER redirect to /dashboard to prevent circular redirect loops)
+    if (
+      statusCode === 403 ||
+      errorCode === 'TENANT_ACCESS_DENIED' ||
+      errorCode === 'ACCOUNT_SUSPENDED'
+    ) {
+      notFound();
+    }
+
+    // 4. Any other unexpected failure -> log and show notFound (never redirect to /dashboard!)
+    console.error(`[TenantWorkspaceLayout] Failed to resolve tenant "${tenantSlug}":`, err);
+    notFound();
   }
 
   if (!resolved.tenant) {
@@ -58,8 +88,14 @@ export default async function TenantWorkspaceLayout({
     role: resolved.authorizedContext?.role || 'VIEWER',
   };
 
-  // Fetch authorized tenant organizations for in-place client switching
-  const userTenants = await TenantService.listUserTenants(resolved.user.id);
+  // Fetch authorized tenant organizations for in-place client switching safely
+  let userTenants: any[] = [];
+  try {
+    userTenants = await TenantService.listUserTenants(resolved.user.id);
+  } catch (err) {
+    console.error(`[TenantWorkspaceLayout] Failed to list user tenants:`, err);
+    userTenants = [safeTenant];
+  }
   const authorizedTenants = userTenants.map((t) => ({
     id: t.id,
     name: t.name,
@@ -68,17 +104,23 @@ export default async function TenantWorkspaceLayout({
     role: t.role || 'VIEWER',
   }));
 
-  const brands = await TenantContextService.withTenantContext(
-    prisma,
-    safeTenant.id,
-    async (tx) => {
-      return tx.brand.findMany({
-        where: { tenantId: safeTenant.id, isArchived: false },
-        select: { id: true, name: true, slug: true },
-        orderBy: { name: 'asc' },
-      });
-    }
-  );
+  let brands: Array<{ id: string; name: string; slug: string }> = [];
+  try {
+    brands = await TenantContextService.withTenantContext(
+      prisma,
+      safeTenant.id,
+      async (tx) => {
+        return tx.brand.findMany({
+          where: { tenantId: safeTenant.id, isArchived: false },
+          select: { id: true, name: true, slug: true },
+          orderBy: { name: 'asc' },
+        });
+      }
+    );
+  } catch (err) {
+    console.error(`[TenantWorkspaceLayout] Failed to load brands:`, err);
+    brands = [];
+  }
 
   return (
     <TenantLayoutShell

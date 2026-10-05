@@ -28,16 +28,26 @@ export default async function WorkspaceOverviewPage({
   try {
     resolved = await ContextResolver.resolveTenantContext(token, tenantSlug);
   } catch (err: unknown) {
-    const errorMsg = (err as Error).message || '';
-    if (errorMsg.includes('RESOURCE_NOT_FOUND')) {
-      notFound();
-    }
-    if (errorMsg.includes('UNAUTHENTICATED') || errorMsg.includes('SESSION_EXPIRED')) {
+    const error = err as any;
+    const statusCode = error?.statusCode;
+    const errorCode = error?.code || '';
+    const errorMsg = error?.message || '';
+
+    if (
+      statusCode === 401 ||
+      errorCode === 'AUTHENTICATION_REQUIRED' ||
+      errorCode === 'UNAUTHENTICATED' ||
+      errorCode === 'SESSION_EXPIRED' ||
+      errorMsg.includes('Authentication required') ||
+      errorMsg.includes('SESSION_EXPIRED') ||
+      errorMsg.includes('UNAUTHENTICATED')
+    ) {
       redirect('/login');
     }
-    redirect('/dashboard');
+
+    notFound();
   }
-  if (!resolved.tenant || !resolved.authorizedContext) notFound();
+  if (!resolved?.tenant || !resolved?.authorizedContext) notFound();
 
   const { tenant, authorizedContext } = resolved;
 
