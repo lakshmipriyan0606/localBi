@@ -147,7 +147,7 @@ export function WhiteLabelSettingsView({ tenantSlug }: WhiteLabelSettingsViewPro
                       Configure your portal name, company information, and visual styling.
                     </CardDescription>
                   </div>
-                  <Badge variant={formData.enabled ? 'emerald' : 'slate'}>
+                  <Badge variant={formData.enabled ? 'success' : 'neutral'}>
                     {formData.enabled ? 'White-Label Enabled' : 'Disabled'}
                   </Badge>
                 </div>
@@ -413,17 +413,17 @@ export function WhiteLabelSettingsView({ tenantSlug }: WhiteLabelSettingsViewPro
                               {dom.hostname}
                             </span>
                             {dom.status === 'ACTIVE' && (
-                              <Badge variant="emerald" className="text-[10px]">
+                              <Badge variant="success" className="text-[10px]">
                                 Verified & Active
                               </Badge>
                             )}
                             {dom.status === 'PENDING' && (
-                              <Badge variant="amber" className="text-[10px]">
+                              <Badge variant="warning" className="text-[10px]">
                                 DNS Pending
                               </Badge>
                             )}
                             {dom.status === 'FAILED' && (
-                              <Badge variant="slate" className="text-[10px]">
+                              <Badge variant="neutral" className="text-[10px]">
                                 Verification Failed
                               </Badge>
                             )}

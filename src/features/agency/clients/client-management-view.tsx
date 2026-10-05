@@ -309,17 +309,17 @@ export function ClientManagementView({ tenantSlug }: ClientManagementViewProps) 
                           {client.slug}
                         </span>
                         {client.status === 'ACTIVE' && (
-                          <Badge variant="emerald" className="text-[10px] px-2 py-0.5">
+                          <Badge variant="success" className="text-[10px] px-2 py-0.5">
                             Active
                           </Badge>
                         )}
                         {client.status === 'SUSPENDED' && (
-                          <Badge variant="amber" className="text-[10px] px-2 py-0.5">
+                          <Badge variant="warning" className="text-[10px] px-2 py-0.5">
                             Suspended
                           </Badge>
                         )}
                         {client.status === 'ARCHIVED' && (
-                          <Badge variant="slate" className="text-[10px] px-2 py-0.5">
+                          <Badge variant="neutral" className="text-[10px] px-2 py-0.5">
                             Archived
                           </Badge>
                         )}

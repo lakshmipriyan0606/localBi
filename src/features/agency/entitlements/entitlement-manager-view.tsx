@@ -187,7 +187,7 @@ export function EntitlementManagerView({ tenantSlug }: EntitlementManagerViewPro
                 Toggle feature modules on or off for this target scope
               </CardDescription>
             </div>
-            <Badge variant="indigo" className="text-xs">
+            <Badge variant="default" className="text-xs">
               {featureKeysList.length} Modular Features
             </Badge>
           </div>
@@ -229,16 +229,16 @@ export function EntitlementManagerView({ tenantSlug }: EntitlementManagerViewPro
                         <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                           {key}
                         </span>
-                        <Badge variant="slate" className="text-[10px]">
+                        <Badge variant="neutral" className="text-[10px]">
                           {featureInfo.module}
                         </Badge>
                         {source === 'CLIENT_OVERRIDE' && (
-                          <Badge variant="purple" className="text-[10px]">
+                          <Badge variant="secondary" className="text-[10px]">
                             Client Override
                           </Badge>
                         )}
                         {source === 'MANUAL_OVERRIDE' && (
-                          <Badge variant="indigo" className="text-[10px]">
+                          <Badge variant="default" className="text-[10px]">
                             Agency Custom
                           </Badge>
                         )}
