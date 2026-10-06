@@ -26,7 +26,7 @@ export async function POST(
     if (source === 'ORIGINAL_SURFACE') {
       const targetBrandId = await SiteStudioService.resolveBrandId(
         authorizedContext.tenantId,
-        brandId || authorizedContext.brandId
+        brandId
       );
       if (!targetBrandId) {
         return NextResponse.json(

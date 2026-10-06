@@ -5,21 +5,34 @@ import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   Plus,
-  Edit,
+  Edit3,
   Eye,
-  Send,
-  ExternalLink,
+  Copy,
+  Trash2,
+  MoreVertical,
+  Search,
+  Globe,
+  Clock,
+  CheckCircle2,
   Layers,
   Sparkles,
-  CheckCircle2,
-  Clock,
-  Archive,
-  Copy,
-  ArrowRight,
+  ExternalLink,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
-import { DataTable, ColumnDef } from '@/components/analytics/data-table';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { SitePageDto, CreateLandingPageInput } from '@/modules/page-builder/site-studio-service';
+import { TemplatePickerModal } from '@/components/site-studio/pages/template-picker-modal';
+import { SitePageDto } from '@/modules/page-builder/site-studio-service';
+
+// Curated thumbnail images for templates to match reference Screen 3
+const PAGE_THUMBNAILS: Record<string, string> = {
+  HOME: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+  ABOUT: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=600&q=80',
+  STORE: 'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=600&q=80',
+  PRODUCT: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+  CONTACT: 'https://images.unsplash.com/photo-1578474846511-04ba529f0b88?auto=format&fit=crop&w=600&q=80',
+  CUSTOM: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80',
+  LANDING: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
+};
 
 export default function SiteStudioPagesPage() {
   const params = useParams();
@@ -32,17 +45,10 @@ export default function SiteStudioPagesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
-
-  // Modal State for Create Page
-  const [modalOpen, setModalOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [newPageType, setNewPageType] = useState<string>('LANDING');
-  const [newSlug, setNewSlug] = useState('');
-
-  // Publish State
-  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [pickerModalOpen, setPickerModalOpen] = useState(false);
+  const [actionMenuOpenId, setActionMenuOpenId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const loadPages = async () => {
     try {
@@ -66,339 +72,332 @@ export default function SiteStudioPagesPage() {
     loadPages();
   }, [tenantSlug, brandId]);
 
-  const handleCreatePage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim() || !newSlug.trim()) {
-      setFormError('Please provide a page title and URL slug.');
-      return;
-    }
-
+  const handleCreateFromTemplate = async (
+    templateType: string,
+    templateName: string,
+    initialSlug: string
+  ) => {
     try {
-      setCreating(true);
-      setFormError(null);
       const res = await fetch(`/api/tenants/${tenantSlug}/website/pages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brandId,
-          name: newTitle,
-          pageType: newPageType,
-          slug: newSlug,
+          name: templateName,
+          pageType: templateType,
+          slug: initialSlug,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.page) {
+        const queryBrand = brandId ? `?brandId=${brandId}` : '';
+        router.push(`/client/${tenantSlug}/website/builder/${data.page.id}${queryBrand}`);
+      } else {
+        alert(data.error || 'Failed to create page');
+      }
+    } catch (err) {
+      console.error('Error creating page:', err);
+    }
+  };
+
+  const handleDuplicatePage = async (pageId: string) => {
+    try {
+      setActionLoadingId(pageId);
+      setActionMenuOpenId(null);
+      const res = await fetch(`/api/tenants/${tenantSlug}/website/pages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DUPLICATE',
+          brandId,
+          pageId,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setModalOpen(false);
-        setNewTitle('');
-        setNewSlug('');
+        setNotification({ message: 'Page duplicated successfully!', type: 'success' });
         loadPages();
-        // Route to builder
-        const resolvedId = brandId || data.page?.brandId;
-        router.push(
-          `/client/${tenantSlug}/website/builder/${data.page.id}${
-            resolvedId ? `?brandId=${resolvedId}` : ''
-          }`
-        );
       } else {
-        setFormError(data.error || 'Failed to create page.');
+        setNotification({ message: data.error || 'Failed to duplicate page.', type: 'error' });
       }
     } catch (err: any) {
-      setFormError(err.message || 'Error creating page.');
+      setNotification({ message: err.message || 'Error duplicating page.', type: 'error' });
     } finally {
-      setCreating(false);
+      setActionLoadingId(null);
     }
   };
 
-  const handlePublish = async (pageId: string) => {
+  const handleDeletePage = async (pageId: string) => {
+    if (!confirm('Are you sure you want to delete this page? This cannot be undone.')) {
+      return;
+    }
     try {
-      setPublishingId(pageId);
-      const res = await fetch(`/api/tenants/${tenantSlug}/website/pages/${pageId}/publish`, {
-        method: 'POST',
+      setActionLoadingId(pageId);
+      setActionMenuOpenId(null);
+      const res = await fetch(`/api/tenants/${tenantSlug}/website/pages?pageId=${pageId}`, {
+        method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
+        setNotification({ message: 'Page deleted successfully.', type: 'success' });
         loadPages();
       } else {
-        alert(data.error || 'Failed to publish page.');
+        setNotification({ message: data.error || 'Failed to delete page.', type: 'error' });
       }
-    } catch (err) {
-      alert('Network error publishing page.');
+    } catch (err: any) {
+      setNotification({ message: err.message || 'Error deleting page.', type: 'error' });
     } finally {
-      setPublishingId(null);
+      setActionLoadingId(null);
     }
   };
 
-  // Filtered pages
+  // Filter pages by search and status tab
   const filteredPages = pages.filter((p) => {
     const matchesSearch =
       p.slug.toLowerCase().includes(search.toLowerCase()) ||
-      p.pageType.toLowerCase().includes(search.toLowerCase()) ||
-      (p.storeName && p.storeName.toLowerCase().includes(search.toLowerCase())) ||
-      (p.productName && p.productName.toLowerCase().includes(search.toLowerCase()));
-
-    const matchesStatus =
-      statusFilter === 'ALL' || p.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+      p.pageType.toLowerCase().includes(search.toLowerCase());
+    if (statusFilter === 'ALL') return matchesSearch;
+    if (statusFilter === 'PUBLISHED') return matchesSearch && p.status === 'PUBLISHED';
+    if (statusFilter === 'DRAFT') return matchesSearch && p.status !== 'PUBLISHED';
+    return matchesSearch;
   });
 
-  const columns: ColumnDef<SitePageDto>[] = [
-    {
-      key: 'pageType',
-      header: 'Page Type',
-      accessor: (p) => (
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-            {p.pageType}
-          </span>
-          {p.storeName && (
-            <span className="text-xs text-slate-500">({p.storeName})</span>
-          )}
-          {p.productName && (
-            <span className="text-xs text-slate-500">({p.productName})</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'slug',
-      header: 'URL Route',
-      accessor: (p) => (
-        <span className="font-mono text-xs font-semibold text-slate-900 bg-slate-100 px-2 py-1 rounded-md">
-          {p.slug}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      accessor: (p) => (
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-            p.status === 'PUBLISHED'
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              : 'bg-amber-50 text-amber-700 border border-amber-200'
-          }`}
-        >
-          {p.status === 'PUBLISHED' ? (
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-          ) : (
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
-          )}
-          <span>{p.status === 'PUBLISHED' ? 'Published' : 'Draft'}</span>
-        </span>
-      ),
-    },
-    {
-      key: 'version',
-      header: 'Version',
-      accessor: (p) => (
-        <span className="text-xs text-slate-500">
-          v{p.latestVersion}
-          {p.publishedVersion ? ` (Live: v${p.publishedVersion})` : ''}
-        </span>
-      ),
-    },
-    {
-      key: 'updatedAt',
-      header: 'Last Updated',
-      accessor: (p) => (
-        <span className="text-xs text-slate-400">
-          {new Date(p.updatedAt).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          })}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      align: 'right',
-      accessor: (p) => (
-        <div className="flex items-center justify-end gap-2">
-          <Link
-            href={`/client/${tenantSlug}/website/builder/${p.id}${
-              brandId ? `?brandId=${brandId}` : ''
-            }`}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-          >
-            <Edit className="w-3 h-3 text-slate-400" />
-            <span>Edit</span>
-          </Link>
-
-          {p.status !== 'PUBLISHED' && (
-            <button
-              type="button"
-              disabled={publishingId === p.id}
-              onClick={() => handlePublish(p.id)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-2xs transition-colors disabled:opacity-50"
-            >
-              <Send className="w-3 h-3" />
-              <span>{publishingId === p.id ? 'Publishing...' : 'Publish'}</span>
-            </button>
-          )}
-
-          <a
-            href={p.slug}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-            title="Preview live"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        </div>
-      ),
-    },
-  ];
+  const publishedCount = pages.filter((p) => p.status === 'PUBLISHED').length;
+  const draftCount = pages.length - publishedCount;
 
   return (
     <div className="space-y-6">
-      {/* ── Top Bar with Create Page Button ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 tracking-tight">
-            Website Pages & Templates
-          </h2>
-          <p className="text-xs text-slate-500">
-            Create landing pages, city hubs, store profiles, and catalog showcases without code.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors"
+      {/* Toast notification */}
+      {notification && (
+        <div
+          className={`p-3 rounded-xl text-xs flex items-center justify-between shadow-xs ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          <span>Create Landing Page</span>
-        </button>
-      </div>
-
-      {/* ── Data Table ── */}
-      <DataTable
-        columns={columns}
-        data={filteredPages}
-        keyExtractor={(p) => p.id}
-        isLoading={loading}
-        searchQuery={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search routes or page types..."
-        filterControls={
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-            {(['ALL', 'PUBLISHED', 'DRAFT'] as const).map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                  statusFilter === st
-                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {st === 'ALL' ? 'All Pages' : st === 'PUBLISHED' ? 'Live Only' : 'Drafts'}
-              </button>
-            ))}
-          </div>
-        }
-      />
-
-      {/* ── Create Landing Page Modal ── */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 max-w-lg w-full shadow-xl space-y-6">
-            <div className="space-y-1">
-              <h3 className="text-lg font-bold text-slate-900">Create New Page</h3>
-              <p className="text-xs text-slate-500">
-                Choose a page archetype and custom URL slug for your brand website.
-              </p>
-            </div>
-
-            {formError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
-                {formError}
-              </div>
-            )}
-
-            <form onSubmit={handleCreatePage} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Page Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Summer Artisanal Collection"
-                  value={newTitle}
-                  onChange={(e) => {
-                    setNewTitle(e.target.value);
-                    if (!newSlug) {
-                      setNewSlug(
-                        '/' +
-                          e.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9]+/g, '-')
-                            .replace(/^-|-$/g, '')
-                      );
-                    }
-                  }}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Page Archetype</label>
-                <select
-                  value={newPageType}
-                  onChange={(e) => setNewPageType(e.target.value)}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="LANDING">Custom Landing Page</option>
-                  <option value="STORE">Store Location Profile</option>
-                  <option value="PRODUCT">Product Showcase Page</option>
-                  <option value="CITY">City Hub Page</option>
-                  <option value="SERVICE">Service Offering Page</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">URL Route Slug</label>
-                <div className="flex items-center rounded-xl bg-slate-50 border border-slate-200 overflow-hidden px-3.5 py-2 text-xs">
-                  <span className="text-slate-400 font-mono select-none">/</span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="summer-collection"
-                    value={newSlug.replace(/^\//, '')}
-                    onChange={(e) => setNewSlug('/' + e.target.value.toLowerCase().replace(/[^a-z0-9\-\/]/g, ''))}
-                    className="w-full bg-transparent border-0 p-0 text-slate-900 font-mono focus:outline-hidden focus:ring-0 ml-0.5"
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Example: /chennai/mannadi or /summer-sale
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors disabled:opacity-50 shadow-xs"
-                >
-                  {creating ? 'Creating...' : 'Create & Open Builder'}
-                </button>
-              </div>
-            </form>
-          </div>
+          <span>{notification.message}</span>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="text-xs font-bold px-2 py-0.5"
+          >
+            ✕
+          </button>
         </div>
       )}
+
+      {/* ── Header Controls ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Search Bar */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search pages by path or title..."
+            className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-600 transition-all"
+          />
+        </div>
+
+        {/* Status Filter Pills & Create Button */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="flex items-center p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('ALL')}
+              className={`px-3 py-1 rounded-lg transition-all ${
+                statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'hover:text-slate-900'
+              }`}
+            >
+              All ({pages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('PUBLISHED')}
+              className={`px-3 py-1 rounded-lg transition-all ${
+                statusFilter === 'PUBLISHED'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Published ({publishedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('DRAFT')}
+              className={`px-3 py-1 rounded-lg transition-all ${
+                statusFilter === 'DRAFT'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'hover:text-slate-900'
+              }`}
+            >
+              Draft ({draftCount})
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPickerModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-colors shadow-sm shadow-indigo-600/30"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Page</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Page Cards Grid (Screen 3 Reference) ── */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-64 bg-slate-200 rounded-2xl" />
+          ))}
+        </div>
+      ) : filteredPages.length === 0 ? (
+        <div className="p-12 rounded-2xl bg-white border border-slate-200 text-center space-y-3">
+          <Layers className="w-8 h-8 text-slate-300 mx-auto" />
+          <h4 className="text-sm font-bold text-slate-900">No pages found</h4>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {search ? 'No pages match your search term.' : 'Create your first page to start building your website.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setPickerModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs mt-2"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Page</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPages.map((page) => {
+            const thumbnail =
+              PAGE_THUMBNAILS[page.pageType] || PAGE_THUMBNAILS.CUSTOM;
+            const isMenuOpen = actionMenuOpenId === page.id;
+            const isBusy = actionLoadingId === page.id;
+
+            return (
+              <div
+                key={page.id}
+                className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group"
+              >
+                {/* Visual Thumbnail */}
+                <div className="relative h-36 bg-slate-100 overflow-hidden">
+                  <div
+                    className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-300"
+                    style={{ backgroundImage: `url("${thumbnail}")` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 to-transparent" />
+
+                  {/* Slug Pill */}
+                  <span className="absolute bottom-2.5 left-3 font-mono text-[11px] font-semibold text-white bg-black/40 backdrop-blur-xs px-2.5 py-0.5 rounded-md border border-white/20">
+                    {page.slug}
+                  </span>
+
+                  {/* Status Badge */}
+                  <span
+                    className={`absolute top-2.5 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      page.status === 'PUBLISHED'
+                        ? 'bg-emerald-500/90 text-white border-emerald-400'
+                        : 'bg-amber-500/90 text-white border-amber-400'
+                    }`}
+                  >
+                    ● {page.status === 'PUBLISHED' ? 'Published' : 'Draft'}
+                  </span>
+                </div>
+
+                {/* Card Info */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-sm font-bold text-slate-900 tracking-tight truncate">
+                        {page.slug === '/' ? 'Home' : page.slug.replace('/', '').toUpperCase()}
+                      </h4>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActionMenuOpenId(isMenuOpen ? null : page.id)
+                          }
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isMenuOpen && (
+                          <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl border border-slate-200 shadow-xl py-1 z-30 text-xs font-medium">
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicatePage(page.id)}
+                              disabled={isBusy}
+                              className="w-full px-3 py-1.5 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>Duplicate</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePage(page.id)}
+                              disabled={isBusy}
+                              className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                      <Clock className="w-3 h-3" />
+                      <span>
+                        Updated {new Date(page.updatedAt).toLocaleDateString()}
+                      </span>
+                      <span>·</span>
+                      <span className="font-semibold text-slate-700">v{page.latestVersion}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions on Card */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <Link
+                      href={`/client/${tenantSlug}/website/builder/${page.id}${
+                        brandId ? `?brandId=${brandId}` : ''
+                      }`}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white font-semibold text-xs transition-colors shadow-2xs"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit in Puck</span>
+                    </Link>
+
+                    <Link
+                      href={`/client/${tenantSlug}/website/preview${
+                        brandId ? `?brandId=${brandId}` : ''
+                      }`}
+                      className="p-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                      title="Preview page"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Template Picker Modal */}
+      <TemplatePickerModal
+        isOpen={pickerModalOpen}
+        onClose={() => setPickerModalOpen(false)}
+        onSelectTemplate={handleCreateFromTemplate}
+      />
     </div>
   );
 }

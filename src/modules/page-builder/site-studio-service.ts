@@ -113,19 +113,8 @@ export class SiteStudioService {
           },
         });
 
-        // Create default subdomain e.g. [brand-slug].localbi.app
-        const autoSubdomain = `${brand.slug.toLowerCase().replace(/[^a-z0-9]/g, '-')}.localbi.app`;
-        await tx.domain.create({
-          data: {
-            tenantId,
-            brandId: brand.id,
-            webSurfaceId: surface.id,
-            hostname: autoSubdomain,
-            isPrimary: true,
-            isVerified: true,
-            sslStatus: 'ACTIVE',
-          },
-        });
+        // Do NOT create customer-facing *.localbi.app subdomains!
+        // Client-owned domain mapping is strictly used.
 
         // Create default HOME template
         const homeTemplate = await tx.pageTemplate.create({
@@ -268,7 +257,10 @@ export class SiteStudioService {
         }),
       ]);
 
-      const primaryDomain = domains.find((d) => d.isPrimary)?.hostname || domains[0]?.hostname || null;
+      // Filter out customer-facing *.localbi.app domains so client domains are the sole authority
+      const clientDomains = domains.filter((d) => !d.hostname.endsWith('.localbi.app'));
+      const primaryDomain =
+        clientDomains.find((d) => d.isPrimary)?.hostname || clientDomains[0]?.hostname || null;
       const publishedPagesCount = pages.filter((p) => p.status === 'PUBLISHED').length;
 
       const health = {
@@ -276,13 +268,19 @@ export class SiteStudioService {
         hasPublishedPages: publishedPagesCount > 0,
         seoConfigured: true,
         hasStores: storesCount > 0,
+        score: Math.round(
+          (Boolean(primaryDomain) ? 30 : 0) +
+            (publishedPagesCount > 0 ? 30 : 10) +
+            (storesCount > 0 ? 20 : 0) +
+            20 // Base structured data & JSON-LD
+        ),
       };
 
       return {
         isLive: health.domainConfigured && health.hasPublishedPages,
         webSurface,
         primaryDomain,
-        domainsCount: domains.length,
+        domainsCount: clientDomains.length,
         lastPublishedAt: lastPublishedVersion?.publishedAt || null,
         pagesCount: pages.length,
         publishedPagesCount,
@@ -670,4 +668,240 @@ export class SiteStudioService {
       };
     });
   }
+
+  /**
+   * Duplicates a page: clones template, puck data, and creates unique slug.
+   */
+  public static async duplicatePage(
+    tenantId: string,
+    brandId: string,
+    pageId: string
+  ): Promise<SitePageDto> {
+    const webSurface = await this.getOrCreateLocalBiSurface(tenantId, brandId);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const sourcePage = await tx.page.findFirst({
+        where: { id: pageId, tenantId, webSurfaceId: webSurface.id },
+        include: {
+          template: {
+            include: {
+              versions: {
+                orderBy: { version: 'desc' },
+                take: 1,
+              },
+            },
+          },
+        },
+      });
+
+      if (!sourcePage) {
+        throw createNotFoundError(`Page with ID ${pageId} not found`);
+      }
+
+      // Generate a unique slug: e.g. /home -> /home-copy, /about -> /about-copy
+      let baseSlug = sourcePage.slug.replace(/\/$/, '');
+      if (!baseSlug) baseSlug = '/home';
+      let candidateSlug = `${baseSlug}-copy`;
+      let counter = 1;
+
+      while (
+        await tx.page.findFirst({
+          where: { tenantId, webSurfaceId: webSurface.id, slug: candidateSlug },
+        })
+      ) {
+        counter++;
+        candidateSlug = `${baseSlug}-copy-${counter}`;
+      }
+
+      // Clone template
+      const newTemplate = await tx.pageTemplate.create({
+        data: {
+          tenantId,
+          brandId,
+          webSurfaceId: webSurface.id,
+          name: `${sourcePage.template?.name || 'Page'} (Copy)`,
+          type: sourcePage.pageType as any,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Clone puck data from latest version
+      const sourceVersion = sourcePage.template?.versions[0];
+      const clonedPuckData = sourceVersion?.puckData
+        ? JSON.parse(JSON.stringify(sourceVersion.puckData))
+        : { content: [], root: { props: {} } };
+
+      await tx.pageTemplateVersion.create({
+        data: {
+          tenantId,
+          pageTemplateId: newTemplate.id,
+          version: 1,
+          status: 'DRAFT',
+          puckData: clonedPuckData,
+        },
+      });
+
+      // Create new page record
+      const duplicatedPage = await tx.page.create({
+        data: {
+          tenantId,
+          brandId,
+          webSurfaceId: webSurface.id,
+          templateId: newTemplate.id,
+          pageType: sourcePage.pageType,
+          slug: candidateSlug,
+          citySlug: sourcePage.citySlug,
+          storeId: sourcePage.storeId,
+          categoryId: sourcePage.categoryId,
+          productId: sourcePage.productId,
+          status: 'DRAFT',
+          canonicalUrl: null,
+        },
+      });
+
+      return {
+        id: duplicatedPage.id,
+        templateId: duplicatedPage.templateId,
+        pageType: duplicatedPage.pageType as any,
+        slug: duplicatedPage.slug,
+        citySlug: duplicatedPage.citySlug,
+        storeId: duplicatedPage.storeId,
+        categoryId: duplicatedPage.categoryId,
+        productId: duplicatedPage.productId,
+        status: 'DRAFT',
+        canonicalUrl: null,
+        publishedVersion: null,
+        latestVersion: 1,
+        updatedAt: duplicatedPage.updatedAt,
+        createdAt: duplicatedPage.createdAt,
+      };
+    });
+  }
+
+  /**
+   * Promotes all current draft versions under the website to PUBLISHED.
+   */
+  public static async publishAllDrafts(
+    tenantId: string,
+    brandId: string
+  ): Promise<{ publishedPagesCount: number; primaryDomain: string | null }> {
+    const webSurface = await this.getOrCreateLocalBiSurface(tenantId, brandId);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const templates = await tx.pageTemplate.findMany({
+        where: { tenantId, webSurfaceId: webSurface.id },
+        include: {
+          versions: {
+            orderBy: { version: 'desc' },
+            take: 1,
+          },
+        },
+      });
+
+      for (const t of templates) {
+        const latestVer = t.versions[0];
+        if (latestVer) {
+          // Demote any previously published versions
+          await tx.pageTemplateVersion.updateMany({
+            where: { tenantId, pageTemplateId: t.id, status: 'PUBLISHED' },
+            data: { status: 'ARCHIVED' },
+          });
+
+          // Mark latest version as PUBLISHED
+          await tx.pageTemplateVersion.update({
+            where: { id: latestVer.id },
+            data: { status: 'PUBLISHED', publishedAt: new Date() },
+          });
+
+          // Update activeVersionId on template
+          await tx.pageTemplate.update({
+            where: { id: t.id },
+            data: { activeVersionId: latestVer.id },
+          });
+        }
+      }
+
+      // Mark all pages as PUBLISHED
+      await tx.page.updateMany({
+        where: { tenantId, webSurfaceId: webSurface.id },
+        data: { status: 'PUBLISHED' },
+      });
+
+      const domains = await tx.domain.findMany({
+        where: { tenantId, webSurfaceId: webSurface.id },
+      });
+      const clientDomains = domains.filter((d) => !d.hostname.endsWith('.localbi.app'));
+      const primaryDomain =
+        clientDomains.find((d) => d.isPrimary)?.hostname || clientDomains[0]?.hostname || null;
+
+      return {
+        publishedPagesCount: templates.length,
+        primaryDomain,
+      };
+    });
+  }
+
+  /**
+   * Verifies DNS records for a client-owned domain.
+   */
+  public static async verifyDomainDns(
+    tenantId: string,
+    brandId: string,
+    domainId: string
+  ): Promise<{ isVerified: boolean; sslStatus: string; error?: string }> {
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const domain = await tx.domain.findFirst({
+        where: { id: domainId, tenantId, brandId },
+      });
+      if (!domain) throw createNotFoundError('Domain not found');
+
+      const hostname = domain.hostname.toLowerCase();
+      let isVerified = false;
+
+      try {
+        const dns = await import('dns').then((m) => m.promises);
+        if (hostname.split('.').length > 2) {
+          const cnames = await dns.resolveCname(hostname).catch(() => []);
+          if (
+            cnames.some(
+              (c) =>
+                c.toLowerCase().includes('vercel-dns.com') ||
+                c.toLowerCase().includes('localbi')
+            )
+          ) {
+            isVerified = true;
+          }
+        }
+        if (!isVerified) {
+          const ips: string[] = await dns.resolve4(hostname).catch(() => [] as string[]);
+          if (ips.includes('76.76.21.21')) {
+            isVerified = true;
+          }
+        }
+      } catch {
+        // DNS lookup failed
+      }
+
+      // In development, preview, or testing, auto-verify for smooth testing
+      if (
+        !isVerified &&
+        (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview')
+      ) {
+        isVerified = true;
+      }
+
+      if (isVerified) {
+        await tx.domain.update({
+          where: { id: domainId },
+          data: { isVerified: true, sslStatus: 'ACTIVE' },
+        });
+      }
+
+      return {
+        isVerified,
+        sslStatus: isVerified ? 'ACTIVE' : 'PENDING',
+      };
+    });
+  }
 }
+

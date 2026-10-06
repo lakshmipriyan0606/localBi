@@ -21,7 +21,7 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const brandId = await SiteStudioService.resolveBrandId(
       authorizedContext.tenantId,
-      searchParams.get('brandId') || authorizedContext.brandId
+      searchParams.get('brandId')
     );
 
     if (!brandId) {
@@ -57,7 +57,7 @@ export async function PUT(
     const body = await request.json();
     const brandId = await SiteStudioService.resolveBrandId(
       authorizedContext.tenantId,
-      body.brandId || authorizedContext.brandId
+      body.brandId
     );
 
     if (!brandId) {

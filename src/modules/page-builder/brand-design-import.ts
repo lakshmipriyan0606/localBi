@@ -48,6 +48,9 @@ export class BrandDesignImportService {
     }
 
     const [a, b, c, d] = parts;
+    if (a === undefined || b === undefined || c === undefined || d === undefined) {
+      return true;
+    }
 
     // 0.0.0.0/8 (Current network)
     if (a === 0) return true;
@@ -298,9 +301,11 @@ export class BrandDesignImportService {
       if (colorMatches.length > 0) {
         // Pick the first non-white, non-black prominent color
         for (const match of colorMatches) {
-          const col = match[1].toLowerCase();
+          const rawColor = match[1];
+          if (!rawColor) continue;
+          const col = rawColor.toLowerCase();
           if (col !== '#ffffff' && col !== '#000000' && col !== '#f8fafc' && col !== '#0f172a') {
-            primaryColor = match[1];
+            primaryColor = rawColor;
             break;
           }
         }
@@ -337,15 +342,17 @@ export class BrandDesignImportService {
 
     const googleFontMatch = html.match(/fonts\.googleapis\.com\/css2\?family=([a-zA-Z0-9+:]+)/i);
     if (googleFontMatch && googleFontMatch[1]) {
-      const rawFamily = googleFontMatch[1].split('&')[0].split(':')[0].replace(/\+/g, ' ');
-      fontHeading = `${rawFamily}, sans-serif`;
-      fontBody = `${rawFamily}, sans-serif`;
+      const rawFamily = googleFontMatch[1].split('&')[0]?.split(':')[0]?.replace(/\+/g, ' ');
+      if (rawFamily) {
+        fontHeading = `${rawFamily}, sans-serif`;
+        fontBody = `${rawFamily}, sans-serif`;
+      }
     }
 
     if (!fontHeading) {
       const fontMatch = html.match(/font-family\s*:\s*([^;}{"']+)/i);
       if (fontMatch && fontMatch[1]) {
-        const cleaned = fontMatch[1].trim().split(',')[0].replace(/['"]/g, '');
+        const cleaned = fontMatch[1].trim().split(',')[0]?.replace(/['"]/g, '');
         if (cleaned && cleaned.length < 40 && !cleaned.toLowerCase().includes('inherit')) {
           fontHeading = `${cleaned}, sans-serif`;
           fontBody = `${cleaned}, sans-serif`;

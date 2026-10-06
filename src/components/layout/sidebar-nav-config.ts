@@ -33,6 +33,10 @@ import {
   Briefcase,
   ShieldCheck,
   Palette,
+  Compass,
+  Sparkles,
+  BarChart3,
+  Eye,
 } from 'lucide-react';
 
 export interface SafeTenantNavDto {
@@ -66,6 +70,7 @@ export interface NavItem {
   exact?: boolean;
   pillBadge?: string;
   badgeVariant?: 'purple' | 'slate' | 'emerald' | 'amber' | 'indigo';
+  subItems?: NavItem[];
 }
 
 export interface NavGroup {
@@ -302,6 +307,67 @@ export const getNavGroups = (slug: string, options?: GetNavGroupsOptions): NavGr
         icon: Globe,
         pillBadge: 'Studio',
         badgeVariant: 'indigo',
+        subItems: [
+          {
+            label: 'Overview',
+            href: `/client/${slug}/website`,
+            icon: LayoutDashboard,
+            exact: true,
+          },
+          {
+            label: 'Pages',
+            href: `/client/${slug}/website/pages`,
+            icon: FileText,
+          },
+          {
+            label: 'Design & Theme',
+            href: `/client/${slug}/website/design`,
+            icon: Palette,
+          },
+          {
+            label: 'Navigation',
+            href: `/client/${slug}/website/navigation`,
+            icon: Compass,
+          },
+          {
+            label: 'Locations',
+            href: `/client/${slug}/website/stores`,
+            icon: MapPin,
+          },
+          {
+            label: 'Products',
+            href: `/client/${slug}/website/products`,
+            icon: ShoppingBag,
+          },
+          {
+            label: 'SEO Settings',
+            href: `/client/${slug}/website/seo`,
+            icon: Search,
+            exact: true,
+          },
+          {
+            label: 'SEO Intelligence',
+            href: `/client/${slug}/website/seo/intelligence`,
+            icon: Sparkles,
+            pillBadge: 'AI',
+            badgeVariant: 'indigo',
+          },
+          {
+            label: 'Web Analytics',
+            href: `/client/${slug}/website/analytics`,
+            icon: BarChart3,
+          },
+          {
+            label: 'Domains & SSL',
+            href: `/client/${slug}/website/domains`,
+            icon: Globe,
+          },
+          {
+            label: 'Preview Site',
+            href: `/client/${slug}/website/preview`,
+            icon: Eye,
+          },
+        ],
       },
       {
         label: 'Brand Management',

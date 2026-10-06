@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode } from 'react';
 import type { PageContext } from './page-context-service';
+import { DEFAULT_SITE_NAVIGATION } from './navigation-types';
 import { LocalBiAnalyticsRuntime } from '@/modules/analytics/localbi-tracker';
 
 const PageContextReact = createContext<PageContext | null>(null);
@@ -39,6 +40,7 @@ export function usePageContext(): PageContext {
         updatedAt: new Date(),
       },
       domain: null,
+      navigation: DEFAULT_SITE_NAVIGATION,
       theme: {
         id: 'fallback',
         tenantId: 'fallback',

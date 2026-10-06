@@ -36,6 +36,14 @@ function isItemActive(item: NavItem, pathname: string, searchParams: URLSearchPa
   return pathname === itemPath || pathname.startsWith(itemPath + '/');
 }
 
+function isItemOrSubItemActive(item: NavItem, pathname: string, searchParams: URLSearchParams | null): boolean {
+  if (isItemActive(item, pathname, searchParams)) return true;
+  if (item.subItems && item.subItems.length > 0) {
+    return item.subItems.some((sub) => isItemActive(sub, pathname, searchParams));
+  }
+  return false;
+}
+
 export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -58,7 +66,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
 
     groups.forEach((group, gi) => {
       const groupKey = group.heading || `group-${gi}`;
-      const isActive = group.items.some((item) => isItemActive(item, pathname, currentSp));
+      const isActive = group.items.some((item) => isItemOrSubItemActive(item, pathname, currentSp));
       if (isActive) {
         initial[groupKey] = true;
         foundActive = true;
@@ -89,7 +97,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
 
       groups.forEach((group, gi) => {
         const groupKey = group.heading || `group-${gi}`;
-        const isActive = group.items.some((item) => isItemActive(item, pathname, currentSp));
+        const isActive = group.items.some((item) => isItemOrSubItemActive(item, pathname, currentSp));
         // On navigation, expand the newly active section and collapse other inactive sections
         updated[groupKey] = isActive;
       });
@@ -97,6 +105,45 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
       setOpenGroups(updated);
     }
   }, [routeString, pathname, searchParamsString, groups]);
+
+  // Track open state of parent items with subItems (e.g. LocalBi Site Studio)
+  const [openSubMenus, setOpenSubMenus] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    const currentSp = searchParamsString ? new URLSearchParams(searchParamsString) : null;
+    groups.forEach((group) => {
+      group.items.forEach((item) => {
+        if (item.subItems && item.subItems.length > 0) {
+          initial[item.href] = isItemOrSubItemActive(item, pathname, currentSp);
+        }
+      });
+    });
+    return initial;
+  });
+
+  // Keep submenus open whenever navigating to any child route
+  useEffect(() => {
+    const currentSp = searchParamsString ? new URLSearchParams(searchParamsString) : null;
+    setOpenSubMenus((prev) => {
+      const updated = { ...prev };
+      groups.forEach((group) => {
+        group.items.forEach((item) => {
+          if (item.subItems && item.subItems.length > 0) {
+            if (isItemOrSubItemActive(item, pathname, currentSp)) {
+              updated[item.href] = true;
+            }
+          }
+        });
+      });
+      return updated;
+    });
+  }, [routeString, pathname, searchParamsString, groups]);
+
+  const toggleSubMenu = useCallback((itemHref: string) => {
+    setOpenSubMenus((prev) => ({
+      ...prev,
+      [itemHref]: !prev[itemHref],
+    }));
+  }, []);
 
   // Accordion toggle:
   // - If clicking an OPEN section (including active): collapses it!
@@ -128,7 +175,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
     <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-2" aria-label="Workspace navigation">
       {groups.map((group, gi) => {
         const groupKey = group.heading || `group-${gi}`;
-        const isGroupActive = group.items.some((item) => isItemActive(item, pathname, currentSp));
+        const isGroupActive = group.items.some((item) => isItemOrSubItemActive(item, pathname, currentSp));
         const isOpen = Boolean(openGroups[groupKey]);
 
         // Unified, consistent header styling across all sections (no rainbow color shifts)
@@ -234,8 +281,131 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                   connectorColor
                 )}>
                   {group.items.map((item) => {
-                    const isActive = isItemActive(item, pathname, currentSp);
+                    const hasSub = Boolean(item.subItems && item.subItems.length > 0);
+                    const isAnySubActive = hasSub && item.subItems!.some((sub) => isItemActive(sub, pathname, currentSp));
+                    const isDirectActive = isItemActive(item, pathname, currentSp) && !isAnySubActive;
+                    const isParentActive = isDirectActive || isAnySubActive;
+                    const isSubOpen = Boolean(openSubMenus[item.href]);
                     const Icon = item.icon;
+
+                    if (hasSub) {
+                      return (
+                        <div key={item.href} className="space-y-0.5 pt-0.5">
+                          {/* Parent Nav Item Row */}
+                          <div className="flex items-center group/parent">
+                            <Link
+                              href={item.href}
+                              {...(onNavigate ? { onClick: onNavigate } : {})}
+                              className={cn(
+                                'flex-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-all duration-100 select-none cursor-pointer',
+                                isDirectActive
+                                  ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                                  : isAnySubActive
+                                  ? 'bg-indigo-50/90 text-indigo-950 font-bold border border-indigo-200/80 shadow-2xs'
+                                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-950'
+                              )}
+                              aria-current={isDirectActive ? 'page' : undefined}
+                            >
+                              <Icon
+                                className={cn(
+                                  'h-4 w-4 flex-shrink-0 transition-colors',
+                                  isDirectActive
+                                    ? 'text-white'
+                                    : isAnySubActive
+                                    ? 'text-indigo-600'
+                                    : 'text-slate-400 group-hover/parent:text-slate-700'
+                                )}
+                                aria-hidden="true"
+                              />
+                              <span className="truncate">{item.label}</span>
+                              {item.pillBadge && (
+                                <span
+                                  className={cn(
+                                    'ml-auto text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0',
+                                    isDirectActive
+                                      ? 'bg-white/20 text-white'
+                                      : 'bg-indigo-100 text-indigo-700'
+                                  )}
+                                >
+                                  {item.pillBadge}
+                                </span>
+                              )}
+                            </Link>
+
+                            {/* Expand/Collapse Chevron Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                toggleSubMenu(item.href);
+                              }}
+                              className={cn(
+                                'p-1.5 rounded-md hover:bg-slate-200/70 ml-0.5 transition-colors cursor-pointer',
+                                isParentActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-700'
+                              )}
+                              title={`Toggle ${item.label} pages`}
+                              aria-expanded={isSubOpen}
+                            >
+                              <ChevronDown
+                                className={cn(
+                                  'h-3.5 w-3.5 transition-transform duration-200 ease-in-out',
+                                  isSubOpen ? 'rotate-0' : '-rotate-90'
+                                )}
+                              />
+                            </button>
+                          </div>
+
+                          {/* Sub-Items Tree Connector */}
+                          {isSubOpen && (
+                            <div className="ml-3 pl-2.5 border-l-2 border-indigo-200/80 space-y-0.5 py-1 animate-in fade-in-50 duration-150">
+                              {item.subItems!.map((sub) => {
+                                const isSubActive = isItemActive(sub, pathname, currentSp);
+                                const SubIcon = sub.icon;
+
+                                return (
+                                  <Link
+                                    key={sub.href}
+                                    href={sub.href}
+                                    {...(onNavigate ? { onClick: onNavigate } : {})}
+                                    className={cn(
+                                      'group flex items-center gap-2 rounded-md px-2 py-1.5 text-[11.5px] transition-all select-none cursor-pointer',
+                                      isSubActive
+                                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 font-medium'
+                                    )}
+                                    aria-current={isSubActive ? 'page' : undefined}
+                                  >
+                                    <SubIcon
+                                      className={cn(
+                                        'h-3.5 w-3.5 flex-shrink-0 transition-colors',
+                                        isSubActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700'
+                                      )}
+                                      aria-hidden="true"
+                                    />
+                                    <span className="truncate">{sub.label}</span>
+                                    {sub.pillBadge && (
+                                      <span
+                                        className={cn(
+                                          'ml-auto text-[8.5px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full flex-shrink-0',
+                                          isSubActive
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-indigo-100 text-indigo-700'
+                                        )}
+                                      >
+                                        {sub.pillBadge}
+                                      </span>
+                                    )}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    const isActive = isItemActive(item, pathname, currentSp);
 
                     return (
                       <Link

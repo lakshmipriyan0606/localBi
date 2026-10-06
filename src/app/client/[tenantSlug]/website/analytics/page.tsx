@@ -43,6 +43,7 @@ import {
   HorizontalBarChart,
   FunnelChart,
 } from '@/components/charts';
+import type { DateRangePreset } from '@/shared/analytics/date-range';
 import type {
   WebAnalyticsOverviewDto,
   AudienceDto,
@@ -66,7 +67,7 @@ export default function WebAnalyticsPage() {
   >('overview');
 
   // Date Range State
-  const [preset, setPreset] = useState<string>('LAST_30_DAYS');
+  const [preset, setPreset] = useState<DateRangePreset>('LAST_30_DAYS');
   const [selectedMetric, setSelectedMetric] = useState<'visitors' | 'sessions' | 'pageViews' | 'conversions'>('visitors');
 
   // Loading & Data States
@@ -188,8 +189,8 @@ export default function WebAnalyticsPage() {
   return (
     <AnalyticsPageShell
       title="First-Party Web Analytics"
-      subtitle="Accurate visitor journeys, active engagement time, store & product conversion attribution"
-      headerActions={
+      description="Accurate visitor journeys, active engagement time, store & product conversion attribution"
+      secondaryActions={
         <div className="flex flex-wrap items-center gap-3">
           {/* Live Visitors Pill */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium">
@@ -200,9 +201,9 @@ export default function WebAnalyticsPage() {
             <span><strong>{realtimeVisitors}</strong> active now</span>
           </div>
 
-          <SourceBadge source="LOCALBI" label="LocalBi First-Party" />
+          <SourceBadge source="LOCALBI" />
           <DateRangeSelector
-            currentPreset={preset as any}
+            preset={preset}
             onPresetChange={(p) => setPreset(p)}
           />
           <button
@@ -341,7 +342,8 @@ export default function WebAnalyticsPage() {
                       date: t.date,
                       value: t[selectedMetric],
                     }))}
-                    seriesName={selectedMetric.toUpperCase()}
+                    series={[{ key: 'value', name: selectedMetric.toUpperCase(), color: '#4F46E5' }]}
+                    xAxisKey="date"
                   />
                 </div>
               </div>
@@ -355,8 +357,7 @@ export default function WebAnalyticsPage() {
                   <FunnelChart
                     stages={overview.funnel.map((f) => ({
                       name: f.stage,
-                      value: f.count,
-                      percentage: f.dropoffPercent,
+                      count: f.count,
                     }))}
                   />
                 </div>

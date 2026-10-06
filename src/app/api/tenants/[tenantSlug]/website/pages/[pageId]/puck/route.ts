@@ -70,14 +70,14 @@ export async function GET(
         const puckData = {
           ...rawPuck,
           content: Array.isArray(rawPuck.content)
-            ? rawPuck.content.map(sanitizeBlock)
+            ? rawPuck.content.map((b: any, i: number) => sanitizeBlock(b, i))
             : [],
           root: rawPuck.root || { props: {} },
           zones: rawPuck.zones
             ? Object.fromEntries(
                 Object.entries(rawPuck.zones).map(([zoneKey, zoneItems]: [string, any]) => [
                   zoneKey,
-                  Array.isArray(zoneItems) ? zoneItems.map(sanitizeBlock) : [],
+                  Array.isArray(zoneItems) ? zoneItems.map((b: any, i: number) => sanitizeBlock(b, i)) : [],
                 ])
               )
             : undefined,

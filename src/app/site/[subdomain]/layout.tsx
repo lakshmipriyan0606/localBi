@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { PuckService } from '@/modules/microsites/puck-service';
+import { PageContextService } from '@/modules/page-builder/page-context-service';
 
 export default async function MicrositeLayout({
   children,
@@ -22,6 +23,14 @@ export default async function MicrositeLayout({
   params: Promise<{ subdomain: string }>;
 }) {
   const { subdomain } = await params;
+
+  // 1. Check canonical LocalBi WebSurface / Custom Domain PageContext
+  const pageContext = await PageContextService.resolveByHostnameOrSubdomain(subdomain, []);
+  if (pageContext) {
+    return <>{children}</>;
+  }
+
+  // 2. Fallback to legacy microsites for backwards compatibility
   const [site, puckData] = await Promise.all([
     MicrositeService.getMicrositeBySubdomain(subdomain),
     PuckService.getPuckData(subdomain),

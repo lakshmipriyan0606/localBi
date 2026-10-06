@@ -228,7 +228,7 @@ export default function SiteStudioBuilderPage() {
       tenantId: 't1',
       brandId: 'b1',
       webSurfaceId: 'ws1',
-      hostname: `${tenantSlug}.localbi.app`,
+      hostname: 'www.example.com',
       isPrimary: true,
       isVerified: true,
       sslStatus: 'ACTIVE',
@@ -290,7 +290,7 @@ export default function SiteStudioBuilderPage() {
     seo: {
       title: 'Storefront | Official LocalBi Website',
       description: 'Official storefront and products.',
-      canonicalUrl: `https://${tenantSlug}.localbi.app${pageInfo?.slug || '/'}`,
+      canonicalUrl: `${pageInfo?.slug || '/'}`,
       robots: 'index, follow',
       openGraph: { title: 'Storefront', description: 'Storefront', url: '', siteName: '', type: 'website' },
       twitter: { card: 'summary', title: 'Storefront', description: 'Storefront' },

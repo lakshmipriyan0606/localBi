@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/cn';
 import {
   TenantSidebar,
   SafeTenantNavDto,
@@ -25,6 +27,8 @@ export function TenantLayoutShell({
   children,
 }: TenantLayoutShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const isWebsite = pathname?.includes('/website');
 
   return (
     <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
@@ -50,7 +54,7 @@ export function TenantLayoutShell({
 
         {/* Page Content */}
         <main className="flex-1 w-full">
-          <div className="w-full px-4 py-4 lg:px-5">
+          <div className={cn('w-full', isWebsite ? 'p-0' : 'px-4 py-4 lg:px-5')}>
             {children}
           </div>
         </main>

@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
-  Server,
+  Globe,
   Plus,
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
   Copy,
   ExternalLink,
-  Globe,
-  Radio,
+  RefreshCw,
+  Trash2,
+  Star,
+  Check,
 } from 'lucide-react';
 import { DomainDto } from '@/modules/page-builder/surface-service';
 
@@ -25,6 +27,7 @@ export default function SiteStudioDomainsPage() {
   const [loading, setLoading] = useState(true);
   const [newHostname, setNewHostname] = useState('');
   const [adding, setAdding] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -37,7 +40,11 @@ export default function SiteStudioDomainsPage() {
       const res = await fetch(url);
       const data = await res.json();
       if (data.success && data.domains) {
-        setDomains(data.domains);
+        // Exclude any customer-facing *.localbi.app subdomains strictly
+        const filtered = data.domains.filter(
+          (d: DomainDto) => !d.hostname.endsWith('.localbi.app')
+        );
+        setDomains(filtered);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load domains.');
@@ -54,6 +61,13 @@ export default function SiteStudioDomainsPage() {
     e.preventDefault();
     if (!newHostname.trim()) return;
 
+    if (newHostname.trim().toLowerCase().endsWith('.localbi.app')) {
+      setError(
+        'LocalBi customer subdomains (*.localbi.app) are not allowed. Please enter your client-owned domain (e.g. www.abc.com).'
+      );
+      return;
+    }
+
     try {
       setAdding(true);
       setError(null);
@@ -62,7 +76,7 @@ export default function SiteStudioDomainsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brandId,
-          hostname: newHostname,
+          hostname: newHostname.trim().toLowerCase(),
           isPrimary: domains.length === 0,
         }),
       });
@@ -71,12 +85,74 @@ export default function SiteStudioDomainsPage() {
         setNewHostname('');
         loadDomains();
       } else {
-        setError(data.error || 'Failed to add domain.');
+        setError(data.error || 'Failed to connect domain.');
       }
     } catch (err: any) {
-      setError(err.message || 'Error adding domain.');
+      setError(err.message || 'Error connecting domain.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleVerifyDns = async (domainId: string) => {
+    try {
+      setVerifyingId(domainId);
+      setError(null);
+      const res = await fetch(`/api/tenants/${tenantSlug}/website/domains`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId,
+          domainId,
+          action: 'VERIFY',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadDomains();
+      } else {
+        setError(data.error || 'DNS records not yet propagated.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to verify DNS.');
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const handleMakePrimary = async (domainId: string) => {
+    try {
+      const res = await fetch(`/api/tenants/${tenantSlug}/website/domains`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandId,
+          domainId,
+          action: 'MAKE_PRIMARY',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadDomains();
+      }
+    } catch {
+      alert('Failed to set primary domain');
+    }
+  };
+
+  const handleRemoveDomain = async (domainId: string) => {
+    if (!confirm('Are you sure you want to remove this domain mapping?')) return;
+    try {
+      const res = await fetch(
+        `/api/tenants/${tenantSlug}/website/domains?domainId=${domainId}&brandId=${brandId || ''}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (data.success) {
+        loadDomains();
+      }
+    } catch {
+      alert('Failed to remove domain');
     }
   };
 
@@ -86,136 +162,225 @@ export default function SiteStudioDomainsPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const primaryDomain = domains.find((d) => d.isPrimary) || domains[0] || null;
+
   return (
     <div className="space-y-6">
       {/* ── Top Bar ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Server className="w-4 h-4 text-indigo-600" />
-            <span>Connected Hostnames & Custom Domains</span>
-          </h2>
-          <p className="text-xs text-slate-500">
-            Publish your website to a custom branded subdomain (e.g. locate.brand.com) with automated TLS.
-          </p>
-        </div>
+      <div>
+        <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <Globe className="w-4 h-4 text-indigo-600" />
+          <span>Domains</span>
+        </h2>
+        <p className="text-xs text-slate-500">
+          Connect and map your client-owned public domain (e.g. www.abc.com or site.abc.com)
+        </p>
       </div>
 
       {error && (
-        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-rose-600" />
-          <span>{error}</span>
+        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          <div>{error}</div>
         </div>
       )}
 
-      {/* ── Connected Domains List ── */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 shadow-2xs">
-        <h3 className="text-sm font-bold text-slate-900">Active Hostnames</h3>
+      {/* ── 1. Primary Domain Card (Screen 11 Reference) ── */}
+      {primaryDomain ? (
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Primary Domain
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live & Serving
+            </span>
+          </div>
 
-        <div className="space-y-3">
-          {domains.map((dom) => (
-            <div
-              key={dom.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-slate-900">
-                    {dom.hostname}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                <Globe className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-base font-bold text-slate-900 font-mono">
+                  {primaryDomain.hostname}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                    <Check className="w-3.5 h-3.5" /> Connected
                   </span>
-                  {dom.isPrimary && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                      Primary Domain
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                    SSL Active
+                  <span>·</span>
+                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                    <Check className="w-3.5 h-3.5" /> Verified
+                  </span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                    <Check className="w-3.5 h-3.5" /> SSL Active
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Directs incoming traffic to this brand’s LOCALBI WebSurface.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a
-                  href={`https://${dom.hostname}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors"
-                >
-                  <span>Visit Domain</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* ── Add Custom Domain Card ── */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5 shadow-2xs">
-        <div className="space-y-1">
-          <h3 className="text-sm font-bold text-slate-900">Connect New Custom Domain</h3>
-          <p className="text-xs text-slate-500">
-            Enter a subdomain of your brand’s main website. Point a CNAME record to complete verification.
+            <a
+              href={`https://${primaryDomain.hostname}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors self-start sm:self-auto"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open Website</span>
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-dashed border-amber-300 p-6 shadow-2xs space-y-2 bg-amber-50/20">
+          <div className="font-bold text-sm text-slate-900">No Domain Connected Yet</div>
+          <p className="text-xs text-slate-600">
+            Connect your client-owned domain below (e.g.{' '}
+            <code className="text-indigo-600 font-bold font-mono">www.abc.com</code>) to map your
+            website to public traffic.
+          </p>
+        </div>
+      )}
+
+      {/* ── 2. Custom Domain Input Card (Screen 11 Reference) ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 tracking-tight">Connect Client Domain</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Add a domain owned by your organization. LocalBi resolves traffic without subdomains or redirects.
           </p>
         </div>
 
-        <form onSubmit={handleAddDomain} className="flex flex-col sm:flex-row gap-3 max-w-xl">
+        <form onSubmit={handleAddDomain} className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
-            required
-            placeholder="e.g. locate.aalimperfumes.com"
             value={newHostname}
             onChange={(e) => setNewHostname(e.target.value)}
-            className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+            placeholder="e.g. www.abc.com or site.abc.com"
+            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-indigo-600"
           />
           <button
             type="submit"
-            disabled={adding}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors disabled:opacity-50 shadow-xs flex items-center justify-center gap-1.5"
+            disabled={adding || !newHostname.trim()}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-600/30 disabled:opacity-50"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>{adding ? 'Connecting...' : 'Connect Domain'}</span>
+            {adding ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Connecting...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Connect Domain</span>
+              </>
+            )}
           </button>
         </form>
+      </div>
 
-        {/* DNS Configuration Instructions */}
-        <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-3 max-w-2xl">
-          <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
-            <Globe className="w-4 h-4 text-indigo-600" />
-            <span>DNS Configuration for Custom Domains</span>
-          </div>
+      {/* ── 3. Additional Domains List (if > 1 domain) ── */}
+      {domains.length > 1 && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-2xs">
+          <h3 className="text-sm font-bold text-slate-900 tracking-tight">Additional Domains</h3>
+          <div className="divide-y divide-slate-100">
+            {domains
+              .filter((d) => !d.isPrimary)
+              .map((d) => (
+                <div key={d.id} className="py-3 flex items-center justify-between gap-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-slate-400" />
+                    <span className="font-mono font-semibold text-slate-900">{d.hostname}</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
+                      ✓ Connected
+                    </span>
+                  </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-            <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-semibold">RECORD TYPE</span>
-              <span className="font-mono font-bold text-slate-800">CNAME</span>
-            </div>
-            <div className="p-2.5 bg-white rounded-xl border border-slate-200">
-              <span className="text-[10px] text-slate-400 block font-semibold">HOST / NAME</span>
-              <span className="font-mono font-bold text-slate-800">locate (or subdomain)</span>
-            </div>
-            <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] text-slate-400 block font-semibold">VALUE / TARGET</span>
-                <span className="font-mono font-bold text-indigo-600">proxy.localbi.app</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => copyToClipboard('proxy.localbi.app', 'cname')}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded"
-              >
-                {copiedKey === 'cname' ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleMakePrimary(d.id)}
+                      className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-[11px]"
+                    >
+                      Make Primary
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveDomain(d.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
           </div>
+        </div>
+      )}
+
+      {/* ── 4. DNS Configuration Guide (Screen 11 Reference) ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-2xs space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+            <span>DNS Configuration Instructions</span>
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Log into your domain registrar (GoDaddy, Cloudflare, Namecheap, Route 53) and add the following records:
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+              <tr>
+                <th className="px-4 py-2.5">Type</th>
+                <th className="px-4 py-2.5">Name / Host</th>
+                <th className="px-4 py-2.5">Value / Points To</th>
+                <th className="px-4 py-2.5 text-right">Copy</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-mono text-slate-800">
+              <tr>
+                <td className="px-4 py-3 font-bold text-indigo-600">CNAME</td>
+                <td className="px-4 py-3">www (or subdomain)</td>
+                <td className="px-4 py-3 text-slate-900 font-bold">cname.vercel-dns.com.</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('cname.vercel-dns.com.', 'cname')}
+                    className="p-1 rounded-md hover:bg-slate-100 text-slate-500"
+                  >
+                    {copiedKey === 'cname' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 font-bold text-indigo-600">A Record</td>
+                <td className="px-4 py-3">@ (apex root)</td>
+                <td className="px-4 py-3 text-slate-900 font-bold">76.76.21.21</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('76.76.21.21', 'a')}
+                    className="p-1 rounded-md hover:bg-slate-100 text-slate-500"
+                  >
+                    {copiedKey === 'a' ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -123,6 +123,27 @@ export interface PageContext {
 
 export class PageContextService {
   /**
+   * Resolves Host to Tenant, Brand & Surface via SurfaceService, then resolves PageContext.
+   */
+  public static async resolveByHostnameOrSubdomain(
+    hostnameOrSubdomain: string,
+    pathSegments: string[] = [],
+    isDraftOrPreview = false
+  ): Promise<PageContext | null> {
+    const resolved = await SurfaceService.resolveHost(hostnameOrSubdomain);
+    if (!resolved) return null;
+
+    return this.resolveContext({
+      tenant: resolved.tenant,
+      brand: resolved.brand,
+      webSurface: resolved.webSurface,
+      domain: resolved.domain,
+      pathSegments,
+      isDraftOrPreview,
+    });
+  }
+
+  /**
    * Resolves full PageContext for any incoming route under a resolved tenant and brand.
    */
   public static async resolveContext(params: {
@@ -747,27 +768,6 @@ export class PageContextService {
         breadcrumbs,
         trackingContext,
       };
-    });
-  }
-
-  /**
-   * Resolves PageContext directly from incoming HTTP hostname and path.
-   */
-  public static async resolveByHostnameOrSubdomain(
-    hostnameOrSubdomain: string,
-    pathSegments: string[],
-    isDraftOrPreview = false
-  ): Promise<PageContext | null> {
-    const hostInfo = await SurfaceService.resolveHost(hostnameOrSubdomain);
-    if (!hostInfo) return null;
-
-    return this.resolveContext({
-      tenant: hostInfo.tenant,
-      brand: hostInfo.brand,
-      webSurface: hostInfo.webSurface,
-      domain: hostInfo.domain,
-      pathSegments,
-      isDraftOrPreview,
     });
   }
 }

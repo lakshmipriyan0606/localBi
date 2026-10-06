@@ -39,6 +39,15 @@ export default function SiteStudioDesignPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Active sub-tab in design controls matching Screen 5
+  const [activeDesignTab, setActiveDesignTab] = useState<
+    'brand' | 'colors' | 'typography' | 'components' | 'style'
+  >('brand');
+  const [brandName, setBrandName] = useState('Lakshmi Food');
+  const [tagline, setTagline] = useState('Authentic. Fresh. Local.');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [faviconUrl, setFaviconUrl] = useState('');
+
   // Import Modal State
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -182,144 +191,228 @@ export default function SiteStudioDesignPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* ── Form Controls (Left 7 Cols) ── */}
         <div className="lg:col-span-7 space-y-6">
-          {/* Colors Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Color Palette Tokens
-            </h3>
+          {/* Sub-tab Pills (Screen 5 Reference) */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl text-xs font-semibold text-slate-600 overflow-x-auto">
+            {[
+              { id: 'brand', label: 'Brand' },
+              { id: 'colors', label: 'Colors' },
+              { id: 'typography', label: 'Typography' },
+              { id: 'components', label: 'Components' },
+              { id: 'style', label: 'Site Style' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveDesignTab(tab.id as any)}
+                className={`px-3.5 py-1.5 rounded-lg transition-all shrink-0 ${
+                  activeDesignTab === tab.id
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Primary Brand</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
-                  <input
-                    type="color"
-                    value={theme.primaryColor || '#4F46E5'}
-                    onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
-                  />
-                  <input
-                    type="text"
-                    value={theme.primaryColor || '#4F46E5'}
-                    onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
-                    className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
-                  />
+          {/* 1. Brand Identity Tab */}
+          {activeDesignTab === 'brand' && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Brand Identity
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Logo</label>
+                  <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/20 transition-all flex flex-col items-center justify-center min-h-[110px]">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold mb-1">
+                      ⚡
+                    </div>
+                    <span className="text-xs font-semibold text-indigo-600">Upload Logo</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">PNG, SVG or WEBP (Max 2MB)</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Favicon</label>
+                  <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-xl p-4 text-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/20 transition-all flex flex-col items-center justify-center min-h-[110px]">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center font-bold mb-1 text-xs">
+                      ICO
+                    </div>
+                    <span className="text-xs font-semibold text-indigo-600">Upload Favicon</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">32x32px or 64x64px ICO/PNG</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Secondary / Slate</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
-                  <input
-                    type="color"
-                    value={theme.secondaryColor || '#0F172A'}
-                    onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
-                  />
+              <div className="space-y-3 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Brand Name</label>
                   <input
                     type="text"
-                    value={theme.secondaryColor || '#0F172A'}
-                    onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
-                    className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
+                    value={brandName}
+                    onChange={(e) => setBrandName(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Accent / Highlight</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
-                  <input
-                    type="color"
-                    value={theme.accentColor || '#F59E0B'}
-                    onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
-                    className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
-                  />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tagline</label>
                   <input
                     type="text"
-                    value={theme.accentColor || '#F59E0B'}
-                    onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
-                    className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:ring-2 focus:ring-indigo-600 focus:outline-hidden"
                   />
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Typography Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Typography Stack
-            </h3>
+          {/* 2. Colors Card */}
+          {activeDesignTab === 'colors' && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Color Palette Tokens
+              </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Headings Font</label>
-                <select
-                  value={theme.fontHeading || 'Inter, sans-serif'}
-                  onChange={(e) => setTheme({ ...theme, fontHeading: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-semibold"
-                >
-                  <option value="Inter, sans-serif">Inter (Modern Clean Sans)</option>
-                  <option value="'Playfair Display', serif">Playfair Display (Editorial Luxury Serif)</option>
-                  <option value="'Outfit', sans-serif">Outfit (Contemporary Geometric)</option>
-                  <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Crisp Tech)</option>
-                  <option value="'Merriweather', serif">Merriweather (Classic Warm Serif)</option>
-                </select>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Primary Brand</label>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                    <input
+                      type="color"
+                      value={theme.primaryColor || '#4F46E5'}
+                      onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
+                      className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={theme.primaryColor || '#4F46E5'}
+                      onChange={(e) => setTheme({ ...theme, primaryColor: e.target.value })}
+                      className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
+                    />
+                  </div>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Body Font</label>
-                <select
-                  value={theme.fontBody || 'Inter, sans-serif'}
-                  onChange={(e) => setTheme({ ...theme, fontBody: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-semibold"
-                >
-                  <option value="Inter, sans-serif">Inter (High Legibility)</option>
-                  <option value="'Roboto', sans-serif">Roboto (Clean Neutral)</option>
-                  <option value="'Outfit', sans-serif">Outfit (Modern Tech)</option>
-                </select>
-              </div>
-            </div>
-          </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Secondary / Slate</label>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                    <input
+                      type="color"
+                      value={theme.secondaryColor || '#0F172A'}
+                      onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
+                      className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={theme.secondaryColor || '#0F172A'}
+                      onChange={(e) => setTheme({ ...theme, secondaryColor: e.target.value })}
+                      className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
+                    />
+                  </div>
+                </div>
 
-          {/* Shape & Radius Tokens */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Corner Radius Tendencies
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Button Curvature</label>
-                <select
-                  value={theme.buttonRadius || '0.5rem'}
-                  onChange={(e) => setTheme({ ...theme, buttonRadius: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden"
-                >
-                  <option value="0px">Sharp (0px)</option>
-                  <option value="0.375rem">Subtle Rounded (6px)</option>
-                  <option value="0.5rem">Standard Rounded (8px)</option>
-                  <option value="0.75rem">Smooth Curved (12px)</option>
-                  <option value="9999px">Pill / Full Oval (9999px)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Card Curvature</label>
-                <select
-                  value={theme.cardRadius || '0.75rem'}
-                  onChange={(e) => setTheme({ ...theme, cardRadius: e.target.value })}
-                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden"
-                >
-                  <option value="0px">Sharp (0px)</option>
-                  <option value="0.5rem">Small (8px)</option>
-                  <option value="0.75rem">Medium (12px)</option>
-                  <option value="1rem">Large (16px)</option>
-                  <option value="1.5rem">Extra Large (24px)</option>
-                </select>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Accent / Highlight</label>
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2">
+                    <input
+                      type="color"
+                      value={theme.accentColor || '#F59E0B'}
+                      onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
+                      className="w-7 h-7 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={theme.accentColor || '#F59E0B'}
+                      onChange={(e) => setTheme({ ...theme, accentColor: e.target.value })}
+                      className="text-xs font-mono font-semibold text-slate-800 bg-transparent border-0 w-full focus:outline-hidden"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* 3. Typography Card */}
+          {activeDesignTab === 'typography' && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Typography Stack
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Headings Font</label>
+                  <select
+                    value={theme.fontHeading || 'Inter, sans-serif'}
+                    onChange={(e) => setTheme({ ...theme, fontHeading: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-semibold"
+                  >
+                    <option value="Inter, sans-serif">Inter (Modern Clean Sans)</option>
+                    <option value="'Playfair Display', serif">Playfair Display (Editorial Luxury Serif)</option>
+                    <option value="'Outfit', sans-serif">Outfit (Contemporary Geometric)</option>
+                    <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Crisp Tech)</option>
+                    <option value="'Merriweather', serif">Merriweather (Classic Warm Serif)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Body Font</label>
+                  <select
+                    value={theme.fontBody || 'Inter, sans-serif'}
+                    onChange={(e) => setTheme({ ...theme, fontBody: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-semibold"
+                  >
+                    <option value="Inter, sans-serif">Inter (High Legibility)</option>
+                    <option value="'Roboto', sans-serif">Roboto (Clean Neutral)</option>
+                    <option value="'Outfit', sans-serif">Outfit (Modern Tech)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Shape & Radius Tokens */}
+          {(activeDesignTab === 'components' || activeDesignTab === 'style') && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 shadow-2xs">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Corner Radius Tendencies
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Button Curvature</label>
+                  <select
+                    value={theme.buttonRadius || '0.5rem'}
+                    onChange={(e) => setTheme({ ...theme, buttonRadius: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden"
+                  >
+                    <option value="0px">Sharp (0px)</option>
+                    <option value="0.375rem">Subtle Rounded (6px)</option>
+                    <option value="0.5rem">Standard Rounded (8px)</option>
+                    <option value="0.75rem">Smooth Curved (12px)</option>
+                    <option value="9999px">Pill / Full Oval (9999px)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Card Curvature</label>
+                  <select
+                    value={theme.cardRadius || '0.75rem'}
+                    onChange={(e) => setTheme({ ...theme, cardRadius: e.target.value })}
+                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 focus:outline-hidden"
+                  >
+                    <option value="0px">Sharp (0px)</option>
+                    <option value="0.5rem">Small (8px)</option>
+                    <option value="0.75rem">Medium (12px)</option>
+                    <option value="1rem">Large (16px)</option>
+                    <option value="1.5rem">Extra Large (24px)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Live Interactive Preview Card (Right 5 Cols) ── */}

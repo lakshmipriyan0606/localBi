@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   Search,
   Sparkles,
@@ -25,6 +25,7 @@ import { HistoryTable } from '@/modules/seo-intelligence/components/history-tabl
 export default function SeoIntelligencePage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const tenantSlug = params.tenantSlug as string;
   const brandId = searchParams.get('brandId') || undefined;
 
@@ -202,6 +203,155 @@ export default function SeoIntelligencePage() {
             {stats?.openOpportunitiesCount || 0}
           </div>
           <span className="text-[10px] text-slate-400">Pending Approvals</span>
+        </div>
+      </div>
+
+      {/* ── Keyword Opportunities & Recommendations (Screen 10 Reference) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Keyword Opportunities Table (8 Cols) */}
+        <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>Keyword Opportunities</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Target keywords identified with high search demand and ranking potential
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] font-bold">
+              <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                1 High
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                2 Medium
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                4 Low
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 border-y border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <tr>
+                  <th className="py-2.5 px-3">Keyword</th>
+                  <th className="py-2.5 px-3">Search Volume</th>
+                  <th className="py-2.5 px-3">Competition</th>
+                  <th className="py-2.5 px-3">Current Position</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {[
+                  {
+                    keyword: 'best restaurant in chennai',
+                    volume: '12,100',
+                    comp: 'High',
+                    compColor: 'text-rose-600',
+                    pos: 'Not found',
+                    action: 'Create content',
+                  },
+                  {
+                    keyword: 'chicken biryani chennai',
+                    volume: '8,100',
+                    comp: 'Medium',
+                    compColor: 'text-amber-600',
+                    pos: '12',
+                    action: 'Optimize page',
+                  },
+                  {
+                    keyword: 'best veg restaurant chennai',
+                    volume: '6,600',
+                    comp: 'Medium',
+                    compColor: 'text-amber-600',
+                    pos: '15',
+                    action: 'Optimize page',
+                  },
+                  {
+                    keyword: 'food delivery chennai',
+                    volume: '5,300',
+                    comp: 'Medium',
+                    compColor: 'text-amber-600',
+                    pos: '8',
+                    action: 'Create content',
+                  },
+                ].map((row) => (
+                  <tr key={row.keyword} className="hover:bg-slate-50/50">
+                    <td className="py-2.5 px-3 font-semibold text-slate-900">{row.keyword}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-600">{row.volume}</td>
+                    <td className={`py-2.5 px-3 font-semibold ${row.compColor}`}>{row.comp}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-600">{row.pos}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('ANALYZE')}
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors"
+                      >
+                        {row.action}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: Top Recommendations (4 Cols) */}
+        <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight">Top Recommendations</h3>
+            <span className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer">
+              View all
+            </span>
+          </div>
+
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+              <div className="font-semibold text-slate-900">Add meta description to 2 pages</div>
+              <p className="text-[11px] text-slate-500">
+                Menu and Contact pages are missing unique meta descriptions.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push(`/client/${tenantSlug}/website/seo?brandId=${brandId || ''}`)}
+                className="text-[11px] font-bold text-indigo-600 hover:underline pt-0.5 inline-block"
+              >
+                Fix in SEO Settings →
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+              <div className="font-semibold text-slate-900">Improve content on about page</div>
+              <p className="text-[11px] text-slate-500">
+                Add local neighborhood landmarks to boost regional ranking.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push(`/client/${tenantSlug}/website/pages?brandId=${brandId || ''}`)}
+                className="text-[11px] font-bold text-indigo-600 hover:underline pt-0.5 inline-block"
+              >
+                Edit in Pages →
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5">
+              <div className="font-semibold text-slate-900">Improve menu content for 3 stores</div>
+              <p className="text-[11px] text-slate-500">
+                Include popular dish keywords in item descriptions.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push(`/client/${tenantSlug}/website/products?brandId=${brandId || ''}`)}
+                className="text-[11px] font-bold text-indigo-600 hover:underline pt-0.5 inline-block"
+              >
+                Update Products →
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
