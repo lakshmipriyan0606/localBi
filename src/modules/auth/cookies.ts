@@ -14,10 +14,7 @@ import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
  */
 
 export const SESSION_COOKIE_NAME =
-  process.env.NODE_ENV === 'production' && !process.env.VERCEL
-    ? '__Host-localbi_session'
-    : 'localbi_session';
-
+  process.env.NODE_ENV === 'production' ? '__Host-localbi_session' : 'localbi_session';
 
 export const SESSION_COOKIE_OPTIONS: Partial<ResponseCookie> = {
   httpOnly: true,
