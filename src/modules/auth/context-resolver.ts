@@ -86,7 +86,7 @@ export class ContextResolver {
         name: true,
         slug: true,
         plan: true,
-        // tenantType omitted — column not yet in prod DB (run migration 20261015000000_phase14_agency_whitelabel)
+        tenantType: true,
         timezone: true,
         status: true,
         version: true,
@@ -110,7 +110,7 @@ export class ContextResolver {
           name: true,
           slug: true,
           plan: true,
-          // tenantType omitted — column not yet in prod DB (run migration 20261015000000_phase14_agency_whitelabel)
+          tenantType: true,
           timezone: true,
           status: true,
           version: true,
