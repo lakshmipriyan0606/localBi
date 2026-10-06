@@ -115,6 +115,74 @@ export interface OverviewDataDto {
 
 export class OverviewService {
   /**
+   * Generates a safe, fully-populated fallback OverviewDataDto.
+   */
+  public static getFallbackOverviewData(tenantName: string, tenantSlug: string): OverviewDataDto {
+    const safeName = tenantName || 'Organization';
+    return {
+      isDemo: false,
+      isConnected: false,
+      isDataReady: false,
+      externalEmail: null,
+      mappedResourcesCount: 0,
+      tenantName: safeName,
+      tenantSlug,
+      locationsCount: 0,
+      brandsCount: 0,
+      categoriesCount: 0,
+      brandTagline: 'Real-time local presence, search visibility, and customer analytics.',
+      storeBadgeName: safeName.toUpperCase().slice(0, 16),
+      storeBadgeIcon: '🏢',
+      marketingQuote: {
+        quote: `"Measurable local growth and customer reach for ${safeName}."`,
+        authorOrStore: safeName,
+      },
+      gbp: {
+        profileViews: 0,
+        profileViewsDelta: 0,
+        calls: 0,
+        callsDelta: 0,
+        directions: 0,
+        directionsDelta: 0,
+        reviews: 0,
+        reviewsDelta: 0,
+        photoViews: 0,
+        photoViewsDelta: 0,
+        hasData: false,
+      },
+      gsc: {
+        clicks: 0,
+        clicksDelta: 0,
+        impressions: 0,
+        impressionsDelta: 0,
+        ctr: 0,
+        ctrDelta: 0,
+        position: 0,
+        positionDelta: 0,
+        hasData: false,
+        queries: [],
+        keywordOpportunities: [],
+        trendData: [],
+      },
+      web: {
+        users: 0,
+        usersDelta: 0,
+        sessions: 0,
+        sessionsDelta: 0,
+        engagedSessions: 0,
+        engagedSessionsDelta: 0,
+        conversionRate: 0,
+        conversionRateDelta: 0,
+        conversions: 0,
+        conversionsDelta: 0,
+        hasData: false,
+        locations: [],
+        rankings: [],
+      },
+    };
+  }
+
+  /**
    * Fetches overview data for any tenant.
    * Strictly queries real data from PostgreSQL with Row-Level Security (Zero Mock Data).
    */
@@ -127,8 +195,9 @@ export class OverviewService {
       throw createTenantAccessDeniedError(tenantId);
     }
 
-    // 1. Fetch all data in a single RLS transaction (previously split across two transactions)
-    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+    try {
+      // 1. Fetch all data in a single RLS transaction (previously split across two transactions)
+      return await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // Tenant profile, entities, and connection state
       const t = await tx.tenant.findUnique({
         where: { id: tenantId },
@@ -327,16 +396,21 @@ export class OverviewService {
         trend: 0,
       }));
 
-      const ga4Mapping = await tx.internalResourceMapping.findFirst({
-        where: {
-          tenantId,
-          resource: {
-            provider: 'GOOGLE_ANALYTICS_4',
+      let hasWebData = false;
+      try {
+        const ga4Mapping = await tx.internalResourceMapping.findFirst({
+          where: {
+            tenantId,
+            resource: {
+              provider: 'GOOGLE_ANALYTICS_4',
+            },
           },
-        },
-      });
-
-      const hasWebData = Boolean(ga4Mapping);
+          select: { id: true },
+        });
+        hasWebData = Boolean(ga4Mapping);
+      } catch {
+        hasWebData = false;
+      }
 
       return {
         isDemo: false,
@@ -400,5 +474,9 @@ export class OverviewService {
         },
       };
     });
+    } catch (err) {
+      console.error('[OverviewService.getOverviewData] Unexpected error, returning safe fallback:', err);
+      return this.getFallbackOverviewData(tenantSlug, tenantSlug);
+    }
   }
 }

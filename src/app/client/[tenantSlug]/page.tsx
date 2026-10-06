@@ -56,11 +56,17 @@ export default async function WorkspaceOverviewPage({
   const { tenant, authorizedContext } = resolved;
 
   // Backend single source of truth for overview data (showcase dental for abc-dental, real database metrics for all other clients)
-  const overviewData = await OverviewService.getOverviewData(
-    tenant.id,
-    tenant.slug,
-    authorizedContext
-  );
+  let overviewData: any = null;
+  try {
+    overviewData = await OverviewService.getOverviewData(
+      tenant.id,
+      tenant.slug,
+      authorizedContext
+    );
+  } catch (err) {
+    console.error('[WorkspaceOverviewPage] Error getting overview data:', err);
+    overviewData = OverviewService.getFallbackOverviewData(tenant.name || tenant.slug, tenant.slug);
+  }
 
   return (
     <div className="space-y-3.5 pb-8">
