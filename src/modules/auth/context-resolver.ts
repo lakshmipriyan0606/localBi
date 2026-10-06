@@ -123,29 +123,32 @@ export class ContextResolver {
     }
 
     // 1. Query membership and scopes inside combined tenant and user RLS context
-    const membership = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
-      await tx.$executeRaw`SELECT set_config('app.current_user_id', ${user.id}, true)`;
-      try {
-        return await tx.tenantMembership.findFirst({
-          where: {
-            tenantId: tenant.id,
-            userId: user.id,
-          },
-          include: {
-            brandScopes: { select: { brandId: true } },
-            locationScopes: { select: { locationId: true } },
-          },
-        });
-      } catch {
-        return await tx.tenantMembership.findFirst({
-          where: {
-            tenantId: tenant.id,
-            userId: user.id,
-          },
-        });
+    const membership = await TenantContextService.withTenantContext(
+      prisma,
+      tenant.id,
+      async (tx) => {
+        try {
+          return await tx.tenantMembership.findFirst({
+            where: {
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+            include: {
+              brandScopes: { select: { brandId: true } },
+              locationScopes: { select: { locationId: true } },
+            },
+          });
+        } catch {
+          return await tx.tenantMembership.findFirst({
+            where: {
+              tenantId: tenant.id,
+              userId: user.id,
+            },
+          });
+        }
       }
-    });
+    );
+
 
     if (!membership) {
       throw createTenantAccessDeniedError(tenant.id);
@@ -162,20 +165,23 @@ export class ContextResolver {
       locationId: string | null;
     }> = [];
     try {
-      accessGrants = await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
-        await tx.$executeRaw`SELECT set_config('app.current_user_id', ${user.id}, true)`;
-        return tx.accessGrant.findMany({
-          where: {
-            tenantId: tenant.id,
-            userId: user.id,
-            status: 'ACTIVE',
-          },
-        });
-      });
+      accessGrants = await TenantContextService.withTenantContext(
+        prisma,
+        tenant.id,
+        async (tx) => {
+          return tx.accessGrant.findMany({
+            where: {
+              tenantId: tenant.id,
+              userId: user.id,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      );
     } catch {
       accessGrants = [];
     }
+
 
     const membershipAny = membership as any;
     const grantedBrandIds = new Set<string>(
