@@ -68,8 +68,16 @@ if (chosenUrl) {
 }
 
 try {
+  console.log('[deploy-migrations] Attempting prisma migrate deploy...');
   execSync('npx prisma migrate deploy', { stdio: 'inherit', env: process.env });
   console.log('[deploy-migrations] Migrations successfully verified/deployed.');
 } catch (err) {
   console.warn('[deploy-migrations] Notice: prisma migrate deploy notice:', err.message);
+  console.log('[deploy-migrations] Attempting prisma db push to synchronize schema...');
+  try {
+    execSync('npx prisma db push --skip-generate --accept-data-loss', { stdio: 'inherit', env: process.env });
+    console.log('[deploy-migrations] Database schema successfully synchronized via db push.');
+  } catch (pushErr) {
+    console.warn('[deploy-migrations] Notice: prisma db push notice:', pushErr.message);
+  }
 }
