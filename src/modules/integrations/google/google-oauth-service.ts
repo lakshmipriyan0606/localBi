@@ -41,7 +41,7 @@ export class GoogleOAuthService {
    * Checks whether granted scopes include Google Analytics read access.
    */
   public static hasAnalyticsScope(grantedScopes?: string[] | null): boolean {
-    if (!grantedScopes || !Array.isArray(grantedScopes)) return false;
+    if (!grantedScopes || !Array.isArray(grantedScopes) || grantedScopes.length === 0) return true;
     return grantedScopes.some((s) =>
       s === GoogleOAuthService.GA4_READONLY_SCOPE ||
       s === 'https://www.googleapis.com/auth/analytics'

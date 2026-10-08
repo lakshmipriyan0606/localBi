@@ -291,11 +291,47 @@ export async function POST(
         );
       }
 
+      // Query refreshed mapping state to return updated resources to frontend
+      const mappingState = await ResourceMappingService.listTenantMappingState(
+        tenant.id,
+        authorizedContext,
+      );
+
+      const mappedResIds = new Set(mappingState.internalMappings.map((m) => m.resourceId));
+      const seen = new Map<string, (typeof mappingState.externalResources)[0]>();
+      for (const r of mappingState.externalResources) {
+        const key = `${r.provider}::${r.externalResourceId.toLowerCase().replace(/\/$/, '')}`;
+        if (!seen.has(key)) {
+          seen.set(key, r);
+        } else if (mappedResIds.has(r.id) && !mappedResIds.has(seen.get(key)!.id)) {
+          seen.set(key, r);
+        }
+      }
+      const deduplicatedResources = Array.from(seen.values());
+
       return NextResponse.json({
         success: true,
         data: {
           resource,
           mapping: mappingResult,
+          externalResources: deduplicatedResources.map((r) => ({
+            id: r.id,
+            provider: r.provider,
+            externalResourceId: r.externalResourceId,
+            resourceType: r.resourceType as 'LOCATION' | 'PROPERTY',
+            resourceName: r.resourceName,
+            accountName: r.account?.accountName || 'Google Account',
+          })),
+          internalMappings: mappingState.internalMappings.map((m) => ({
+            id: m.id,
+            resourceId: m.resourceId,
+            internalType: m.internalType as 'LOCATION' | 'BRAND' | 'WEBSURFACE',
+            internalId: m.internalId,
+            brandId: m.brandId,
+            resourceName: m.resource.resourceName,
+            externalResourceId: m.resource.externalResourceId,
+            provider: m.resource.provider,
+          })),
         },
       });
     }
@@ -305,9 +341,47 @@ export async function POST(
       connection.id,
     );
 
+    // Fetch refreshed tenant resources and mappings to return directly
+    const mappingState = await ResourceMappingService.listTenantMappingState(
+      tenant.id,
+      authorizedContext,
+    );
+
+    const mappedResIds = new Set(mappingState.internalMappings.map((m) => m.resourceId));
+    const seen = new Map<string, (typeof mappingState.externalResources)[0]>();
+    for (const r of mappingState.externalResources) {
+      const key = `${r.provider}::${r.externalResourceId.toLowerCase().replace(/\/$/, '')}`;
+      if (!seen.has(key)) {
+        seen.set(key, r);
+      } else if (mappedResIds.has(r.id) && !mappedResIds.has(seen.get(key)!.id)) {
+        seen.set(key, r);
+      }
+    }
+    const deduplicatedResources = Array.from(seen.values());
+
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        summary: result,
+        externalResources: deduplicatedResources.map((r) => ({
+          id: r.id,
+          provider: r.provider,
+          externalResourceId: r.externalResourceId,
+          resourceType: r.resourceType as 'LOCATION' | 'PROPERTY',
+          resourceName: r.resourceName,
+          accountName: r.account?.accountName || 'Google Account',
+        })),
+        internalMappings: mappingState.internalMappings.map((m) => ({
+          id: m.id,
+          resourceId: m.resourceId,
+          internalType: m.internalType as 'LOCATION' | 'BRAND' | 'WEBSURFACE',
+          internalId: m.internalId,
+          brandId: m.brandId,
+          resourceName: m.resource.resourceName,
+          externalResourceId: m.resource.externalResourceId,
+          provider: m.resource.provider,
+        })),
+      },
     });
   } catch (error) {
     return handleRouteError(error);

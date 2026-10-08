@@ -1,4 +1,4 @@
-import { Store, Globe, BarChart3 } from "lucide-react";
+import React from "react";
 import { cn } from "@/lib/cn";
 
 export type GoogleProduct = "GBP" | "GSC" | "GA4" | "GOOGLE";
@@ -14,31 +14,30 @@ export function GoogleProductIcon({
   className,
   size = "md",
 }: GoogleProductIconProps) {
-  const sizeClasses = {
-    sm: "w-6 h-6 p-1",
-    md: "w-8 h-8 p-1.5",
-    lg: "w-10 h-10 p-2",
-    xl: "w-14 h-14 p-3",
+  const containerSizes = {
+    sm: "w-7 h-7 rounded-lg",
+    md: "w-9 h-9 rounded-xl",
+    lg: "w-11 h-11 rounded-xl",
+    xl: "w-14 h-14 rounded-2xl",
   };
 
-  const iconSizes = {
-    sm: "w-4 h-4",
-    md: "w-5 h-5",
-    lg: "w-6 h-6",
-    xl: "w-8 h-8",
+  const svgSizes = {
+    sm: "w-3.5 h-3.5",
+    md: "w-4.5 h-4.5",
+    lg: "w-5 h-5",
+    xl: "w-7 h-7",
   };
 
   if (product === "GOOGLE") {
-    // Official Google G Logo SVG
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-white rounded-full shadow-sm border border-slate-100",
-          sizeClasses[size],
+          "flex items-center justify-center bg-white shadow-2xs border border-slate-200/80 shrink-0",
+          containerSizes[size],
           className
         )}
       >
-        <svg viewBox="0 0 24 24" className={iconSizes[size]}>
+        <svg viewBox="0 0 24 24" className={svgSizes[size]}>
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
             fill="#4285F4"
@@ -60,39 +59,60 @@ export function GoogleProductIcon({
     );
   }
 
-  // Define brand styling for products
-  const productStyles = {
-    GBP: {
-      bg: "bg-blue-50 border-blue-100",
-      text: "text-blue-600",
-      Icon: Store,
-    },
-    GSC: {
-      bg: "bg-slate-100 border-slate-200",
-      text: "text-slate-700",
-      Icon: Globe,
-    },
-    GA4: {
-      bg: "bg-amber-50 border-amber-100",
-      text: "text-amber-600",
-      Icon: BarChart3,
-    },
-  };
+  if (product === "GSC") {
+    // Google Search Console Icon
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center bg-blue-50 border border-blue-200/60 shadow-2xs shrink-0 text-blue-600",
+          containerSizes[size],
+          className
+        )}
+      >
+        <svg viewBox="0 0 24 24" fill="none" className={svgSizes[size]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="14" x="2" y="3" rx="2" />
+          <line x1="8" x2="16" y1="21" y2="21" />
+          <line x1="12" x2="12" y1="17" y2="21" />
+          <path d="M7 10l3 3 7-7" strokeWidth="2.5" />
+        </svg>
+      </div>
+    );
+  }
 
-  const style = productStyles[product];
-  const Icon = style.Icon;
+  if (product === "GA4") {
+    // Google Analytics 4 Icon (Orange Bar Chart)
+    return (
+      <div
+        className={cn(
+          "flex items-center justify-center bg-amber-50 border border-amber-200/60 shadow-2xs shrink-0 text-amber-500",
+          containerSizes[size],
+          className
+        )}
+      >
+        <svg viewBox="0 0 24 24" className={svgSizes[size]} fill="currentColor">
+          <rect x="3" y="14" width="4.5" height="7" rx="1.5" />
+          <rect x="9.75" y="8" width="4.5" height="13" rx="1.5" />
+          <rect x="16.5" y="3" width="4.5" height="18" rx="1.5" />
+        </svg>
+      </div>
+    );
+  }
 
+  // GBP (Google Business Profile Storefront)
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-xl border shadow-2xs",
-        style.bg,
-        style.text,
-        sizeClasses[size],
+        "flex items-center justify-center bg-indigo-50 border border-indigo-200/60 shadow-2xs shrink-0 text-indigo-600",
+        containerSizes[size],
         className
       )}
     >
-      <Icon className={iconSizes[size]} />
+      <svg viewBox="0 0 24 24" fill="none" className={svgSizes[size]} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
+        <path d="M2 7h20" />
+      </svg>
     </div>
   );
 }

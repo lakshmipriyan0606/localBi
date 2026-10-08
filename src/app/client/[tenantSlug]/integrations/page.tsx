@@ -64,6 +64,24 @@ export default async function TenantIntegrationsPage({
     return Array.from(seen.values());
   })();
 
+  // Resolve brand domain from WebSurfaces if available
+  const brandDomains = new Map<string, string>();
+  mappingState.webSurfaces.forEach((ws) => {
+    if (ws.brandId && ws.domains && ws.domains.length > 0) {
+      const primary = ws.domains.find((d) => d.isPrimary) || ws.domains[0];
+      if (primary?.domainName && !brandDomains.has(ws.brandId)) {
+        brandDomains.set(ws.brandId, primary.domainName);
+      }
+    }
+  });
+
+  const enrichedBrands = mappingState.brands.map((b) => ({
+    id: b.id,
+    name: b.name,
+    slug: b.slug,
+    domain: brandDomains.get(b.id) || `${b.slug}.localbi.app`,
+  }));
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -99,13 +117,14 @@ export default async function TenantIntegrationsPage({
           internalMappings: mappingState.internalMappings.map((m) => ({
             id: m.id,
             resourceId: m.resourceId,
-            internalType: m.internalType as 'LOCATION' | 'BRAND',
+            internalType: m.internalType as 'LOCATION' | 'BRAND' | 'WEBSURFACE',
             internalId: m.internalId,
+            brandId: m.brandId,
             resourceName: m.resource.resourceName,
             externalResourceId: m.resource.externalResourceId,
             provider: m.resource.provider,
           })),
-          brands: mappingState.brands,
+          brands: enrichedBrands,
           locations: mappingState.locations,
         }}
         userRole={user ? authorizedContext.role : 'VIEWER'}
