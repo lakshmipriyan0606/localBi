@@ -89,6 +89,8 @@ interface RankExplorerProps {
   initialBrandId: string;
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function RankExplorer({
   tenantSlug,
   tenantName,
@@ -96,9 +98,25 @@ export function RankExplorer({
   locations,
   initialBrandId,
 }: RankExplorerProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(initialBrandId || brands[0]?.id || '');
+  const brandCtx = useActiveBrand();
+  const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId || brands[0]?.id || '';
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(effectiveBrandId);
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId, selectedBrandId]);
+
   const brandLocations = locations.filter((loc) => !selectedBrandId || loc.brandId === selectedBrandId);
   const [selectedStoreId, setSelectedStoreId] = useState<string>(brandLocations[0]?.id || '');
+
+  // Reset store if it doesn't belong to newly selected brand
+  useEffect(() => {
+    if (selectedStoreId && !brandLocations.some(l => l.id === selectedStoreId)) {
+      setSelectedStoreId(brandLocations[0]?.id || '');
+    }
+  }, [selectedBrandId, brandLocations, selectedStoreId]);
 
   // State
   const [keywords, setKeywords] = useState<KeywordItem[]>([]);

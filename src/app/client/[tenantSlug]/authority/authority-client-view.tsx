@@ -43,6 +43,8 @@ interface SeoAuthorityClientViewProps {
   initialSurfaceId?: string;
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function SeoAuthorityClientView({
   tenantSlug,
   brands,
@@ -52,9 +54,15 @@ export function SeoAuthorityClientView({
   initialStoreId,
   initialSurfaceId,
 }: SeoAuthorityClientViewProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    initialBrandId || brands[0]?.id || ''
-  );
+  const brandCtx = useActiveBrand();
+  const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId || brands[0]?.id || '';
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(effectiveBrandId);
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId, selectedBrandId]);
 
   const brandSurfaces = surfaces.filter((s) => s.brandId === selectedBrandId);
   const [selectedSurfaceId, setSelectedSurfaceId] = useState<string>(
@@ -282,7 +290,7 @@ export function SeoAuthorityClientView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Brand Selector */}
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           <select
             value={selectedBrandId}
             onChange={(e) => setSelectedBrandId(e.target.value)}
@@ -294,6 +302,7 @@ export function SeoAuthorityClientView({
               </option>
             ))}
           </select>
+          */}
 
           {/* WebSurface Selector */}
           {brandSurfaces.length > 0 && (

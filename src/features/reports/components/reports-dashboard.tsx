@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,13 @@ export function ReportsDashboard({
     () => locations.filter((l) => l.brandId === selectedBrandId),
     [locations, selectedBrandId]
   );
+
+  // Clear location filter if location does not belong to active brand
+  useEffect(() => {
+    if (state.locationId && !brandLocations.some((l) => l.id === state.locationId)) {
+      setLocationId(undefined);
+    }
+  }, [selectedBrandId, brandLocations, state.locationId, setLocationId]);
 
   // Timezone-aware date resolution via canonical DateRangeService
   const resolvedRange = useMemo(() => {

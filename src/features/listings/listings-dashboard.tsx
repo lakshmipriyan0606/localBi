@@ -14,6 +14,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 interface ScopedBrand {
   id: string;
   name: string;
@@ -41,9 +43,16 @@ export function ListingsDashboard({
   initialBrandId,
   initialStoreId,
 }: ListingsDashboardProps) {
+  const brandCtx = useActiveBrand();
   const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    initialBrandId || brands[0]?.id || ''
+    initialBrandId || brandCtx?.activeBrandId || brands[0]?.id || ''
   );
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId]);
 
   const filteredStores = locations.filter((loc) =>
     selectedBrandId ? loc.brandId === selectedBrandId : true
@@ -251,10 +260,15 @@ export function ListingsDashboard({
 
         {/* Brand & Store Selectors */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 1 && (
             <select
               value={selectedBrandId}
-              onChange={(e) => setSelectedBrandId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedBrandId(newId);
+                brandCtx?.setActiveBrandId(newId);
+              }}
               className="text-sm rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
             >
               {brands.map((b) => (
@@ -264,6 +278,7 @@ export function ListingsDashboard({
               ))}
             </select>
           )}
+          */}
 
           <select
             value={selectedStoreId}

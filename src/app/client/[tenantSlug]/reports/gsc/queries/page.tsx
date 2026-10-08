@@ -5,6 +5,8 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
 import { QueriesExplorer } from '@/features/reports/components/queries-explorer';
 
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
+
 export const metadata: Metadata = {
   title: 'Search Queries Explorer — localBi',
   description: 'Google Search Console organic queries analytics and rankings',
@@ -12,10 +14,13 @@ export const metadata: Metadata = {
 
 export default async function QueriesReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -29,6 +34,7 @@ export default async function QueriesReportPage({
   }
 
   const { tenant, brands, locations, isGscConnected } = context;
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
 
   return (
     <div className="space-y-6">
@@ -37,7 +43,7 @@ export default async function QueriesReportPage({
         tenantName={tenant.name}
         brands={brands}
         locations={locations}
-        initialBrandId={brands[0]?.id || ''}
+        initialBrandId={initialBrandId}
         isConnected={isGscConnected}
       />
     </div>

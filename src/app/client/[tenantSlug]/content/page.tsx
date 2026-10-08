@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
 import { ContentManager } from '@/features/content/components/content-manager';
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
 
 export const metadata: Metadata = {
   title: 'Content & Blog CMS — localBi',
@@ -12,10 +13,13 @@ export const metadata: Metadata = {
 
 export default async function ContentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -29,13 +33,14 @@ export default async function ContentPage({
   }
 
   const { tenant, brands } = context;
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
 
   return (
     <div className="space-y-6">
       <ContentManager
         tenantSlug={tenant.slug}
         brands={brands}
-        initialBrandId={brands[0]?.id || ''}
+        initialBrandId={initialBrandId}
       />
     </div>
   );

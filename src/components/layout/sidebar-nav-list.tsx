@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { NavGroup, NavItem } from './sidebar-nav-config';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 interface SidebarNavListProps {
   groups: NavGroup[];
@@ -48,6 +49,20 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
   const pathname = usePathname();
   const sp = useSearchParams();
   const searchParamsString = sp?.toString() || '';
+  const brandCtx = useActiveBrand();
+  const activeBrandId = brandCtx?.activeBrandId;
+
+  const getHrefWithBrand = useCallback(
+    (baseHref: string) => {
+      if (!activeBrandId) return baseHref;
+      if (baseHref.startsWith('http') || baseHref.includes('brandId=')) return baseHref;
+      const [path, query] = baseHref.split('?');
+      const params = new URLSearchParams(query || '');
+      params.set('brandId', activeBrandId);
+      return `${path}?${params.toString()}`;
+    },
+    [activeBrandId]
+  );
 
   // Helper to parse searchParams safely
   const getSearchParams = useCallback((): URLSearchParams | null => {
@@ -294,7 +309,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                           {/* Parent Nav Item Row */}
                           <div className="flex items-center group/parent">
                             <Link
-                              href={item.href}
+                              href={getHrefWithBrand(item.href)}
                               {...(onNavigate ? { onClick: onNavigate } : {})}
                               className={cn(
                                 'flex-1 flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-all duration-100 select-none cursor-pointer',
@@ -366,7 +381,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                                 return (
                                   <Link
                                     key={sub.href}
-                                    href={sub.href}
+                                    href={getHrefWithBrand(sub.href)}
                                     {...(onNavigate ? { onClick: onNavigate } : {})}
                                     className={cn(
                                       'group flex items-center gap-2 rounded-md px-2 py-1.5 text-[11.5px] transition-all select-none cursor-pointer',
@@ -410,7 +425,7 @@ export function SidebarNavList({ groups, onNavigate }: SidebarNavListProps) {
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={getHrefWithBrand(item.href)}
                         {...(onNavigate ? { onClick: onNavigate } : {})}
                         className={cn(
                           'group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-all duration-100 select-none cursor-pointer',

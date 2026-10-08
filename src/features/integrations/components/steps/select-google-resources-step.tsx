@@ -4,7 +4,7 @@ import { ResourceSection } from "../resource-selection/resource-section";
 import { ResourceRow } from "../resource-selection/resource-row";
 import { SelectionSummary } from "../resource-selection/selection-summary";
 import { IntegrationStatus } from "../integration-status-badge";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Tag } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type ResourceSelection = {
@@ -21,10 +21,13 @@ interface SelectGoogleResourcesStepProps {
   ga4Resources: any[];
   draftSelections: Record<string, ResourceSelection>;
   locationOptions: Array<{ id: string; name: string }>;
+  brandOptions?: Array<{ id: string; name: string }>;
+  activeBrand?: { id: string; name: string };
   onChangeAccount: () => void;
   onRefresh: () => void;
   onToggleSelection: (id: string, resourceType: 'GSC' | 'GBP' | 'GA4', targetBrandId: string) => void;
   onLocationMap: (id: string, locationId: string) => void;
+  onBrandMap?: (id: string, brandId: string) => void;
   onSelectAll: (resourceType: 'GSC' | 'GBP' | 'GA4', selected: boolean, resources: any[], targetBrandId: string) => void;
   onBack: () => void;
   onContinue: () => void;
@@ -38,10 +41,13 @@ export function SelectGoogleResourcesStep({
   ga4Resources,
   draftSelections,
   locationOptions,
+  brandOptions = [],
+  activeBrand,
   onChangeAccount,
   onRefresh,
   onToggleSelection,
   onLocationMap,
+  onBrandMap,
   onSelectAll,
   onBack,
   onContinue,
@@ -72,6 +78,21 @@ export function SelectGoogleResourcesStep({
     <div className="w-full max-w-6xl mx-auto flex flex-col pb-24">
       <GoogleAccountCard email={email} onChangeAccount={onChangeAccount} />
 
+      {activeBrand && (
+        <div className="bg-indigo-50/80 border border-indigo-200/80 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-4 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Tag className="h-4 w-4 text-indigo-600 shrink-0" />
+            <span className="text-xs font-medium text-slate-700">Connecting resources for Brand:</span>
+            <span className="text-xs font-bold text-indigo-900 bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+              {activeBrand.name}
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 font-medium">
+            Selected resources will be assigned to this brand by default
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row gap-6 items-start mt-2">
         {/* Main Content */}
         <div className="flex-1 w-full min-w-0 flex flex-col gap-0">
@@ -97,6 +118,9 @@ export function SelectGoogleResourcesStep({
                 isSelected={!!draftSelections[res.id]?.selected}
                 onToggle={(id) => onToggleSelection(id, 'GSC', defaultBrandId)}
                 onViewDetails={() => {}}
+                brandOptions={brandOptions}
+                brandMappingValue={draftSelections[res.id]?.target?.brandId || defaultBrandId}
+                onBrandMap={onBrandMap}
               />
             ))}
           </ResourceSection>
@@ -122,6 +146,9 @@ export function SelectGoogleResourcesStep({
                 isSelected={!!draftSelections[res.id]?.selected}
                 onToggle={(id) => onToggleSelection(id, 'GBP', defaultBrandId)}
                 onViewDetails={() => {}}
+                brandOptions={brandOptions}
+                brandMappingValue={draftSelections[res.id]?.target?.brandId || defaultBrandId}
+                onBrandMap={onBrandMap}
                 requiresLocationMapping={true}
                 locationOptions={locationOptions}
                 locationMappingValue={draftSelections[res.id]?.target?.locationId || ''}
@@ -151,6 +178,9 @@ export function SelectGoogleResourcesStep({
                 isSelected={!!draftSelections[res.id]?.selected}
                 onToggle={(id) => onToggleSelection(id, 'GA4', defaultBrandId)}
                 onViewDetails={() => {}}
+                brandOptions={brandOptions}
+                brandMappingValue={draftSelections[res.id]?.target?.brandId || defaultBrandId}
+                onBrandMap={onBrandMap}
               />
             ))}
           </ResourceSection>

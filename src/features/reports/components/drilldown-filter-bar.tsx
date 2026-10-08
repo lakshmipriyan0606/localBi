@@ -37,7 +37,7 @@ export function DrilldownFilterBar({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2.5 px-3.5 py-2 bg-white border border-slate-200 rounded-xl shadow-2xs">
       <div className="flex flex-wrap items-center gap-2">
-        {/* Brand Selector */}
+        {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
         {brands.length > 1 && (
           <NiceSelect
             icon={<Tag className="w-3.5 h-3.5 text-slate-500" />}
@@ -47,6 +47,7 @@ export function DrilldownFilterBar({
             className="w-auto min-w-[130px]"
           />
         )}
+        */}
 
         {/* Location Selector */}
         {brandLocations.length > 0 && onLocationChange && (

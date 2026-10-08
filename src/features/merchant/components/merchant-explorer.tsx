@@ -34,15 +34,23 @@ interface MerchantExplorerProps {
   initialBrandId?: string;
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function MerchantExplorer({
   tenantSlug,
   brands,
   stores,
   initialBrandId,
 }: MerchantExplorerProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    initialBrandId || brands[0]?.id || ''
-  );
+  const brandCtx = useActiveBrand();
+  const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId || brands[0]?.id || '';
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(effectiveBrandId);
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId, selectedBrandId]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>(
     stores[0]?.id || ''
   );
@@ -255,6 +263,7 @@ export function MerchantExplorer({
 
         {/* Brand Selector & Action Controls */}
         <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 1 && (
             <select
               value={selectedBrandId}
@@ -268,6 +277,7 @@ export function MerchantExplorer({
               ))}
             </select>
           )}
+          */}
 
           <Button
             onClick={handleSyncAll}

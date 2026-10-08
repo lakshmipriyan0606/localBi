@@ -28,6 +28,8 @@ import {
   useArchiveCategory,
 } from '../hooks/use-catalog';
 import { Plus, Edit2, Archive, Tags, Loader2, AlertCircle } from 'lucide-react';
+import { useActiveBrand } from '@/providers/active-brand-context';
+import { useEffect } from 'react';
 
 interface CategoryManagerProps {
   tenantSlug: string;
@@ -35,7 +37,16 @@ interface CategoryManagerProps {
 }
 
 export function CategoryManager({ tenantSlug, brands }: CategoryManagerProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(brands[0]?.id || '');
+  const brandCtx = useActiveBrand();
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(
+    brandCtx?.activeBrandId || brands[0]?.id || ''
+  );
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryDto | null>(null);
 
@@ -133,7 +144,11 @@ export function CategoryManager({ tenantSlug, brands }: CategoryManagerProps) {
           </label>
           <select
             value={selectedBrandId}
-            onChange={(e) => setSelectedBrandId(e.target.value)}
+            onChange={(e) => {
+              const newId = e.target.value;
+              setSelectedBrandId(newId);
+              brandCtx?.setActiveBrandId(newId);
+            }}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white min-w-[200px]"
           >
             {brands.map((b) => (

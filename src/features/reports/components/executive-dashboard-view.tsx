@@ -187,7 +187,7 @@ export function ExecutiveDashboardView({
       {/* ── Global Control Filters ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Brand Selector */}
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 1 && (
             <select
               value={selectedBrandId}
@@ -201,6 +201,7 @@ export function ExecutiveDashboardView({
               ))}
             </select>
           )}
+          */}
 
           {/* WebSurface Selector (LocalBi vs Original) */}
           <select

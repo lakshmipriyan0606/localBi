@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Tag } from "lucide-react";
 import { GoogleProductIcon, GoogleProduct } from "../google-product-icon";
 import { IntegrationStatusBadge, IntegrationStatus } from "../integration-status-badge";
 import { cn } from "@/lib/cn";
@@ -15,6 +15,10 @@ export interface ResourceRowProps {
   isSelected: boolean;
   onToggle: (id: string, selected: boolean) => void;
   onViewDetails?: () => void;
+  // Brand mapping
+  brandOptions?: Array<{ id: string; name: string }>;
+  brandMappingValue?: string;
+  onBrandMap?: (id: string, brandId: string) => void;
   // Specific for GBP
   requiresLocationMapping?: boolean;
   locationMappingValue?: string;
@@ -33,6 +37,9 @@ export function ResourceRow({
   isSelected,
   onToggle,
   onViewDetails,
+  brandOptions,
+  brandMappingValue,
+  onBrandMap,
   requiresLocationMapping,
   locationMappingValue,
   locationOptions,
@@ -73,6 +80,29 @@ export function ResourceRow({
             <span className="text-[14px] font-bold text-slate-900 truncate">{name}</span>
             <span className="text-[12px] text-slate-500 truncate">{metadata}</span>
             
+            {/* Brand Mapping Selector */}
+            {brandOptions && brandOptions.length > 1 && (
+              <div className="mt-2 flex items-center gap-1.5">
+                <Tag className="h-3 w-3 text-indigo-500 shrink-0" />
+                <span className="text-[11px] font-bold text-slate-500">Brand:</span>
+                {isSelected && onBrandMap ? (
+                  <select
+                    value={brandMappingValue || ""}
+                    onChange={(e) => onBrandMap(id, e.target.value)}
+                    className="text-xs border border-indigo-200 bg-white font-semibold text-indigo-900 rounded-md px-2 py-0.5 shadow-2xs focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {brandOptions.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    {brandOptions.find(b => b.id === brandMappingValue)?.name || "Unassigned"}
+                  </span>
+                )}
+              </div>
+            )}
+
             {requiresLocationMapping && isSelected && onLocationMap && locationOptions && (
               <div className="mt-2 flex items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-600">Maps to:</span>

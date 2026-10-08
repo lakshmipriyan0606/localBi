@@ -28,6 +28,7 @@ import {
   OpportunityStatusValue,
 } from '@/modules/intelligence/opportunity-types';
 import { ScopedBrandDto, ScopedLocationDto } from '@/modules/reports/report-context-service';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 interface Props {
   tenantSlug: string;
@@ -42,9 +43,17 @@ export function OpportunityExplorer({
   stores,
   initialBrandId,
 }: Props) {
+  const brandCtx = useActiveBrand();
   const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    initialBrandId || brands[0]?.id || ''
+    initialBrandId || brandCtx?.activeBrandId || brands[0]?.id || ''
   );
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+      setSelectedStoreId('');
+    }
+  }, [brandCtx?.activeBrandId]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
@@ -262,10 +271,16 @@ export function OpportunityExplorer({
 
         {/* Brand & Store Selectors + Evaluation CTA */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 1 && (
             <select
               value={selectedBrandId}
-              onChange={(e) => setSelectedBrandId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedBrandId(newId);
+                setSelectedStoreId('');
+                brandCtx?.setActiveBrandId(newId);
+              }}
               className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
               {brands.map((b) => (
@@ -275,6 +290,7 @@ export function OpportunityExplorer({
               ))}
             </select>
           )}
+          */}
 
           {stores.length > 0 && (
             <select

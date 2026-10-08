@@ -19,6 +19,8 @@ interface TenantLayoutShellProps {
   children: React.ReactNode;
 }
 
+import { ActiveBrandProvider } from '@/providers/active-brand-context';
+
 export function TenantLayoutShell({
   tenant,
   user,
@@ -31,34 +33,36 @@ export function TenantLayoutShell({
   const isWebsite = pathname?.includes('/website');
 
   return (
-    <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
-      {/* ── Sidebar ── */}
-      <TenantSidebar
-        tenant={tenant}
-        user={user}
-        tenants={tenants}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-      />
-
-      {/* ── Main content area with Top Navigation Bar ── */}
-      <div className="flex flex-1 flex-col min-w-0 min-h-screen">
-        {/* Top Navbar */}
-        <TenantTopNav
+    <ActiveBrandProvider brands={brands} tenantSlug={tenant.slug}>
+      <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
+        {/* ── Sidebar ── */}
+        <TenantSidebar
           tenant={tenant}
           user={user}
-          brands={brands}
           tenants={tenants}
-          onToggleMobileSidebar={() => setMobileOpen((v) => !v)}
+          mobileOpen={mobileOpen}
+          onCloseMobile={() => setMobileOpen(false)}
         />
 
-        {/* Page Content */}
-        <main className="flex-1 w-full">
-          <div className={cn('w-full', isWebsite ? 'p-0' : 'px-4 py-4 lg:px-5')}>
-            {children}
-          </div>
-        </main>
+        {/* ── Main content area with Top Navigation Bar ── */}
+        <div className="flex flex-1 flex-col min-w-0 min-h-screen">
+          {/* Top Navbar */}
+          <TenantTopNav
+            tenant={tenant}
+            user={user}
+            brands={brands}
+            tenants={tenants}
+            onToggleMobileSidebar={() => setMobileOpen((v) => !v)}
+          />
+
+          {/* Page Content */}
+          <main className="flex-1 w-full">
+            <div className={cn('w-full', isWebsite ? 'p-0' : 'px-4 py-4 lg:px-5')}>
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </ActiveBrandProvider>
   );
 }

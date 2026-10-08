@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { LocationTable } from './location-table';
 import { LocationCreateDialog } from './location-create-dialog';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { ErrorState } from '@/components/ui/error-state';
 import { PageHeader } from '@/components/layout/page-header';
 import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 interface LocationsViewProps {
   tenantSlug: string;
@@ -17,9 +18,16 @@ interface LocationsViewProps {
 }
 
 export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
+  const brandCtx = useActiveBrand();
   const [search, setSearch] = useState('');
-  const [selectedBrandId, setSelectedBrandId] = useState('');
+  const [selectedBrandId, setSelectedBrandId] = useState(brandCtx?.activeBrandId || '');
   const [includeArchived, setIncludeArchived] = useState(false);
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useLocationsQuery(tenantSlug, {
     search: search || undefined,
@@ -91,10 +99,15 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
             />
           </div>
 
+          {/* Brand Filter - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 0 && (
             <select
               value={selectedBrandId}
-              onChange={(e) => setSelectedBrandId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedBrandId(newId);
+                if (newId) brandCtx?.setActiveBrandId(newId);
+              }}
               aria-label="Filter by brand"
               className="h-9 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[12px] text-slate-700 shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600"
             >
@@ -106,6 +119,7 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
               ))}
             </select>
           )}
+          */}
         </div>
 
         <label className="flex items-center gap-2 text-[12px] font-medium text-slate-600 cursor-pointer select-none">

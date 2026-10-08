@@ -723,7 +723,7 @@ export function WebsiteAnalyticsView({
 
       {/* ── Brand, Location & Connection Row ── */}
       <div className="flex flex-wrap items-center gap-4 text-xs">
-        {/* Brand Dropdown */}
+        {/* Brand Dropdown - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
         <div className="relative" ref={brandDropdownRef}>
           <button
             type="button"
@@ -778,6 +778,7 @@ export function WebsiteAnalyticsView({
             </div>
           )}
         </div>
+        */}
 
         {/* Location Dropdown */}
         <div className="relative" ref={locationDropdownRef}>

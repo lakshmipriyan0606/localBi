@@ -24,6 +24,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { PublishModal } from '@/components/site-studio/publishing/publish-modal';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 interface SiteOverviewData {
   isLive: boolean;
@@ -51,7 +52,8 @@ export default function SiteStudioOverviewPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const tenantSlug = params.tenantSlug as string;
-  const brandId = searchParams.get('brandId');
+  const brandCtx = useActiveBrand();
+  const brandId = searchParams.get('brandId') || brandCtx?.activeBrandId;
 
   const [data, setData] = useState<SiteOverviewData | null>(null);
   const [loading, setLoading] = useState(true);

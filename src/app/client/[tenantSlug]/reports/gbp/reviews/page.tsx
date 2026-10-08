@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
 import { GbpReviewsExplorer } from '@/features/reports/components/gbp-reviews-explorer';
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
 
 export const metadata: Metadata = {
   title: 'Customer Reviews — localBi',
@@ -12,10 +13,13 @@ export const metadata: Metadata = {
 
 export default async function GbpReviewsReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -29,6 +33,7 @@ export default async function GbpReviewsReportPage({
   }
 
   const { tenant, brands, locations, isGbpConnected } = context;
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
 
   return (
     <div className="space-y-6">
@@ -37,7 +42,7 @@ export default async function GbpReviewsReportPage({
         tenantName={tenant.name}
         brands={brands}
         locations={locations}
-        initialBrandId={brands[0]?.id || ''}
+        initialBrandId={initialBrandId}
         isConnected={isGbpConnected}
       />
     </div>

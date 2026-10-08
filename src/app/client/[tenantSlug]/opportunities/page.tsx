@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
 import { OpportunityExplorer } from '@/features/intelligence/components/opportunity-explorer';
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
 
 export const metadata: Metadata = {
   title: 'SEO Opportunities & Intelligence — localBi',
@@ -12,10 +13,13 @@ export const metadata: Metadata = {
 
 export default async function OpportunitiesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -29,6 +33,7 @@ export default async function OpportunitiesPage({
   }
 
   const { tenant, brands, locations } = context;
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
 
   return (
     <div className="space-y-6">
@@ -36,7 +41,7 @@ export default async function OpportunitiesPage({
         tenantSlug={tenant.slug}
         brands={brands}
         stores={locations}
-        initialBrandId={brands[0]?.id || ''}
+        initialBrandId={initialBrandId}
       />
     </div>
   );

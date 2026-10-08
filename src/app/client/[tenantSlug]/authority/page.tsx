@@ -5,6 +5,7 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
 import { SeoAuthorityClientView } from './authority-client-view';
 
 export const metadata: Metadata = {
@@ -14,10 +15,13 @@ export const metadata: Metadata = {
 
 export default async function AuthorityPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -77,13 +81,15 @@ export default async function AuthorityPage({
     originalUrl: null,
   }));
 
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
+
   return (
     <SeoAuthorityClientView
       tenantSlug={tenant.slug}
       brands={brands}
       locations={locations}
       surfaces={safeSurfaces}
-      initialBrandId={brands[0]?.id || ''}
+      initialBrandId={initialBrandId}
       initialStoreId={locations[0]?.id || ''}
       initialSurfaceId={safeSurfaces[0]?.id || ''}
     />

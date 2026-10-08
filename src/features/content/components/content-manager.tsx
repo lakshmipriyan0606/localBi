@@ -18,6 +18,8 @@ import {
   History,
 } from 'lucide-react';
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 interface BrandOption {
   id: string;
   name: string;
@@ -30,7 +32,16 @@ interface ContentManagerProps {
 }
 
 export function ContentManager({ tenantSlug, brands, initialBrandId }: ContentManagerProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState(initialBrandId || brands[0]?.id || '');
+  const brandCtx = useActiveBrand();
+  const [selectedBrandId, setSelectedBrandId] = useState(
+    initialBrandId || brandCtx?.activeBrandId || brands[0]?.id || ''
+  );
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId]);
   const [activeTab, setActiveTab] = useState<'articles' | 'briefs' | 'ai' | 'links'>('articles');
   const [loading, setLoading] = useState(false);
   const [articles, setArticles] = useState<any[]>([]);
@@ -212,13 +223,17 @@ export function ContentManager({ tenantSlug, brands, initialBrandId }: ContentMa
           </div>
         </div>
 
-        {/* Brand selector */}
+        {/* Brand selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
         {brands.length > 1 && (
           <div className="flex items-center gap-2">
             <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Brand:</label>
             <select
               value={selectedBrandId}
-              onChange={(e) => setSelectedBrandId(e.target.value)}
+              onChange={(e) => {
+                const newId = e.target.value;
+                setSelectedBrandId(newId);
+                brandCtx?.setActiveBrandId(newId);
+              }}
               className="text-sm rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {brands.map((b) => (
@@ -229,6 +244,7 @@ export function ContentManager({ tenantSlug, brands, initialBrandId }: ContentMa
             </select>
           </div>
         )}
+        */}
       </div>
 
       {/* Tabs */}

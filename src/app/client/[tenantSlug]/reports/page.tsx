@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
 import { ReportsDashboard } from '@/features/reports/components/reports-dashboard';
 
 export const metadata: Metadata = {
@@ -12,10 +13,13 @@ export const metadata: Metadata = {
 
 export default async function ReportsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -30,13 +34,15 @@ export default async function ReportsPage({
 
   const { tenant, brands, locations, isGbpConnected, isGscConnected } = context;
 
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
+
   return (
     <ReportsDashboard
       tenantSlug={tenant.slug}
       tenantName={tenant.name}
       brands={brands}
       locations={locations}
-      initialBrandId={brands[0]?.id || ''}
+      initialBrandId={initialBrandId}
       isGbpConnected={isGbpConnected}
       isGscConnected={isGscConnected}
     />

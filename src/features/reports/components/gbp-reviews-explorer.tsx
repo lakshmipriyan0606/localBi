@@ -27,11 +27,16 @@ export interface GbpReviewsExplorerProps {
   isConnected: boolean;
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function GbpReviewsExplorer({
   tenantSlug,
   initialBrandId,
   isConnected,
 }: GbpReviewsExplorerProps) {
+  const brandCtx = useActiveBrand();
+  const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId;
+
   const [filterBy, setFilterBy] = useState<'all' | 'replied' | 'unreplied' | 'low'>('all');
   const [page, setPage] = useState(1);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export function GbpReviewsExplorer({
 
   const { data, isLoading } = useGbpReviews({
     tenantSlug,
-    brandId: initialBrandId,
+    brandId: effectiveBrandId,
     filterBy,
     page,
     pageSize: 10,
@@ -50,7 +55,7 @@ export function GbpReviewsExplorer({
   const deleteMutation = useDeleteReviewReply();
 
   const handleSync = () => {
-    syncMutation.mutate({ tenantSlug, brandId: initialBrandId });
+    syncMutation.mutate({ tenantSlug, brandId: effectiveBrandId });
   };
 
   const handleReplySubmit = (reviewId: string) => {

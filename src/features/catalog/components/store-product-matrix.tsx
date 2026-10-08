@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AnalyticsLoader } from '@/components/ui/analytics-loader';
@@ -20,6 +20,7 @@ import {
   Package,
   Loader2,
 } from 'lucide-react';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 interface StoreProductMatrixProps {
   tenantSlug: string;
@@ -32,7 +33,19 @@ export function StoreProductMatrix({
   brands,
   stores,
 }: StoreProductMatrixProps) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(brands[0]?.id || '');
+  const brandCtx = useActiveBrand();
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(
+    brandCtx?.activeBrandId || brands[0]?.id || ''
+  );
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+      const firstStore = stores.find((s) => s.brandId === brandCtx.activeBrandId);
+      if (firstStore) setSelectedStoreId(firstStore.id);
+      setIsDraftDirty(false);
+    }
+  }, [brandCtx?.activeBrandId]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>(
     stores.find((s) => s.brandId === (brands[0]?.id || ''))?.id || stores[0]?.id || ''
   );
@@ -200,10 +213,12 @@ export function StoreProductMatrix({
           <select
             value={selectedBrandId}
             onChange={(e) => {
-              setSelectedBrandId(e.target.value);
-              const firstStore = stores.find((s) => s.brandId === e.target.value);
+              const newId = e.target.value;
+              setSelectedBrandId(newId);
+              const firstStore = stores.find((s) => s.brandId === newId);
               if (firstStore) setSelectedStoreId(firstStore.id);
               setIsDraftDirty(false);
+              brandCtx?.setActiveBrandId(newId);
             }}
             className="px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white min-w-[200px]"
           >

@@ -5,6 +5,8 @@ import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ReportContextService } from '@/modules/reports/report-context-service';
 import { RankExplorer } from '@/features/rank/components/rank-explorer';
 
+import { resolveActiveBrandId } from '@/shared/utils/active-brand-resolver';
+
 export const metadata: Metadata = {
   title: 'Hyper Rank Intelligence — localBi',
   description: 'Deterministic local search geo-grid rank tracking, heatmaps, and competitor intelligence',
@@ -12,10 +14,13 @@ export const metadata: Metadata = {
 
 export default async function RankIntelligencePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams?: Promise<{ brandId?: string }>;
 }) {
   const { tenantSlug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
 
@@ -29,6 +34,7 @@ export default async function RankIntelligencePage({
   }
 
   const { tenant, brands, locations } = context;
+  const initialBrandId = resolveActiveBrandId(brands, tenant.slug, cookieStore, sp.brandId);
 
   return (
     <div className="space-y-6">
@@ -37,7 +43,7 @@ export default async function RankIntelligencePage({
         tenantName={tenant.name}
         brands={brands}
         locations={locations}
-        initialBrandId={brands[0]?.id || ''}
+        initialBrandId={initialBrandId}
       />
     </div>
   );

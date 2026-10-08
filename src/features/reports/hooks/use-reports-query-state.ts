@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import type { DateRangePreset } from '@/shared/analytics/date-range';
 import type { ComparisonType } from '@/shared/analytics/comparison';
 
@@ -54,10 +54,21 @@ function presetToDays(preset: DateRangePreset): number {
   }
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const brandCtx = useActiveBrand();
+
+  const segments = pathname.split('/');
+  const tenantSlug = segments[1] === 'client' ? segments[2] : (brandCtx?.tenantSlug || '');
+
+  // Read persisted brand if available
+  const persistedBrandId = typeof window !== 'undefined' && tenantSlug
+    ? localStorage.getItem(`localbi_active_brand_${tenantSlug}`)
+    : null;
 
   const state: ReportQueryState = useMemo(() => {
     const rawPreset = searchParams.get('preset') as DateRangePreset | null;
@@ -87,20 +98,27 @@ export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
         ? comparisonParam
         : defaults?.comparison || 'NONE';
 
+    const effectiveBrandId =
+      searchParams.get('brandId') ||
+      brandCtx?.activeBrandId ||
+      persistedBrandId ||
+      defaults?.brandId ||
+      undefined;
+
     return {
       preset,
       dateRangeDays,
       startDate: searchParams.get('startDate') || defaults?.startDate || undefined,
       endDate: searchParams.get('endDate') || defaults?.endDate || undefined,
       comparison,
-      brandId: searchParams.get('brandId') || defaults?.brandId || undefined,
+      brandId: effectiveBrandId,
       locationId: searchParams.get('locationId') || defaults?.locationId || undefined,
       tab: searchParams.get('tab') || defaults?.tab || 'overview',
       search: searchParams.get('q') || defaults?.search || '',
       sortBy: searchParams.get('sortBy') || defaults?.sortBy || 'clicks',
       sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || defaults?.sortOrder || 'desc',
     };
-  }, [searchParams, defaults]);
+  }, [searchParams, defaults, brandCtx?.activeBrandId, persistedBrandId]);
 
   const updateState = useCallback(
     (updates: Partial<ReportQueryState>) => {
@@ -152,6 +170,14 @@ export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
       if (updates.brandId !== undefined) {
         if (updates.brandId) {
           params.set('brandId', updates.brandId);
+          if (typeof window !== 'undefined' && tenantSlug) {
+            localStorage.setItem(`localbi_active_brand_${tenantSlug}`, updates.brandId);
+            document.cookie = `localbi_active_brand_${tenantSlug}=${updates.brandId}; path=/; max-age=31536000; SameSite=Lax`;
+            window.dispatchEvent(new CustomEvent('localbi-brand-changed', { detail: { brandId: updates.brandId } }));
+          }
+          if (brandCtx) {
+            brandCtx.setActiveBrandId(updates.brandId);
+          }
         } else {
           params.delete('brandId');
         }
@@ -193,8 +219,23 @@ export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
       const targetUrl = queryString ? `${pathname}?${queryString}` : pathname;
       router.replace(targetUrl, { scroll: false });
     },
-    [searchParams, pathname, router]
+    [searchParams, pathname, router, tenantSlug]
   );
+
+  // Listen for global brand change event dispatched from top navigation
+  useEffect(() => {
+    const handleBrandChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.brandId && detail.brandId !== searchParams.get('brandId')) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('brandId', detail.brandId);
+        params.delete('locationId');
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }
+    };
+    window.addEventListener('localbi-brand-changed', handleBrandChanged);
+    return () => window.removeEventListener('localbi-brand-changed', handleBrandChanged);
+  }, [searchParams, pathname, router]);
 
   return {
     state,
@@ -204,7 +245,16 @@ export function useReportsQueryState(defaults?: Partial<ReportQueryState>) {
       updateState({ preset: 'CUSTOM', startDate, endDate }),
     setDateRangeDays: (days: number) => updateState({ dateRangeDays: days }),
     setComparison: (comparison: ComparisonType) => updateState({ comparison }),
-    setBrandId: (brandId: string | undefined) => updateState({ brandId, locationId: undefined }),
+    setBrandId: (brandId: string | undefined) => {
+      if (brandId && brandCtx) {
+        brandCtx.setActiveBrandId(brandId);
+      } else if (brandId && typeof window !== 'undefined' && tenantSlug) {
+        localStorage.setItem(`localbi_active_brand_${tenantSlug}`, brandId);
+        document.cookie = `localbi_active_brand_${tenantSlug}=${brandId}; path=/; max-age=31536000; SameSite=Lax`;
+        window.dispatchEvent(new CustomEvent('localbi-brand-changed', { detail: { brandId } }));
+      }
+      updateState({ brandId, locationId: undefined });
+    },
     setLocationId: (locationId: string | undefined) => updateState({ locationId }),
     setTab: (tab: string) => updateState({ tab }),
     setSearch: (search: string) => updateState({ search }),

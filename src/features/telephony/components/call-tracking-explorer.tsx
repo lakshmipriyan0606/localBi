@@ -34,15 +34,23 @@ interface Props {
   initialBrandId?: string;
 }
 
+import { useActiveBrand } from '@/providers/active-brand-context';
+
 export function CallTrackingExplorer({
   tenantSlug,
   brands,
   stores,
   initialBrandId,
 }: Props) {
-  const [selectedBrandId, setSelectedBrandId] = useState<string>(
-    initialBrandId || brands[0]?.id || ''
-  );
+  const brandCtx = useActiveBrand();
+  const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId || brands[0]?.id || '';
+  const [selectedBrandId, setSelectedBrandId] = useState<string>(effectiveBrandId);
+
+  useEffect(() => {
+    if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
+      setSelectedBrandId(brandCtx.activeBrandId);
+    }
+  }, [brandCtx?.activeBrandId, selectedBrandId]);
   const [activeTab, setActiveTab] = useState<'overview' | 'calls' | 'numbers' | 'funnel'>('overview');
 
   // Loading states
@@ -284,6 +292,7 @@ export function CallTrackingExplorer({
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Brand Filter */}
+          {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
           {brands.length > 1 && (
             <div className="flex items-center gap-2">
               <Building className="w-4 h-4 text-slate-400" />
@@ -301,6 +310,7 @@ export function CallTrackingExplorer({
               </select>
             </div>
           )}
+          */}
 
           <button
             onClick={loadDashboardData}

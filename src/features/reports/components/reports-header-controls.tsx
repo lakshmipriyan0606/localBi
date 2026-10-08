@@ -32,6 +32,7 @@ export function ReportsHeaderControls({
 }: HeaderControlProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {/* Brand Selector - Commented out per client feedback: Brand selection is handled globally via the top header. Uncomment if local selection is needed.
       <NiceSelect
         label="BRAND"
         icon={<Tag className="w-3.5 h-3.5" />}
@@ -40,6 +41,7 @@ export function ReportsHeaderControls({
         onChange={onBrandChange}
         className="w-auto min-w-[140px]"
       />
+      */}
 
       <NiceSelect
         label="LOCATION"

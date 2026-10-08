@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { browserClient } from "@/lib/http/browser-client";
 import { notify } from "@/lib/notify";
 import { BrandCreateDialog } from "@/features/brands/components/brand-create-dialog";
@@ -60,11 +60,67 @@ export interface IntegrationsManagerProps {
   userRole: string;
 }
 
+function guessBrandForResource(
+  resource: { resourceName: string; externalResourceId: string },
+  brands: Array<{ id: string; name: string; slug: string }>,
+  fallbackBrandId: string
+): string {
+  const text = `${resource.resourceName} ${resource.externalResourceId}`.toLowerCase();
+  for (const b of brands) {
+    const slugKey = b.slug.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nameWords = b.name.toLowerCase().split(/[\s-_]+/).filter(w => w.length >= 3);
+    if (slugKey && text.includes(slugKey)) return b.id;
+    for (const w of nameWords) {
+      if (text.includes(w)) return b.id;
+    }
+  }
+  return fallbackBrandId;
+}
+
 export function IntegrationsManager({
   tenantSlug,
   initialState,
 }: IntegrationsManagerProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Active brand tracking (synced with top nav)
+  const queryBrandId = searchParams.get('brandId');
+  const [persistedBrandId, setPersistedBrandId] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && tenantSlug) {
+      const saved = localStorage.getItem(`localbi_active_brand_${tenantSlug}`);
+      if (saved) {
+        setPersistedBrandId(saved);
+      }
+
+      const handleBrandChanged = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail?.brandId) {
+          setPersistedBrandId(detail.brandId);
+        }
+      };
+      window.addEventListener('localbi-brand-changed', handleBrandChanged);
+      return () => window.removeEventListener('localbi-brand-changed', handleBrandChanged);
+    }
+  }, [tenantSlug]);
+
+  const activeBrandId = useMemo(() => {
+    if (queryBrandId && initialState.brands.some((b) => b.id === queryBrandId)) {
+      return queryBrandId;
+    }
+    if (persistedBrandId && initialState.brands.some((b) => b.id === persistedBrandId)) {
+      return persistedBrandId;
+    }
+    return initialState.brands[0]?.id || '';
+  }, [queryBrandId, persistedBrandId, initialState.brands]);
+
+  const activeBrand = useMemo(() => {
+    return initialState.brands.find((b) => b.id === activeBrandId) || initialState.brands[0];
+  }, [initialState.brands, activeBrandId]);
+
+  const defaultBrand = activeBrand || initialState.brands[0];
 
   // Async action states
   const [isSyncing, setIsSyncing] = useState(false);
@@ -82,18 +138,32 @@ export function IntegrationsManager({
   // Step 1 -> Step 2 -> Step 3
   const [activeStep, setActiveStep] = useState<1 | 2 | 3>(() => {
     if (!isAuthorized) return 1;
-    if (initialState.internalMappings.length > 0) return 3; // if already configured, jump to 3 to review
-    return 2; // if connected but no mappings, go to 2
+    const initialBrandId = queryBrandId || initialState.brands[0]?.id;
+    const brandHasMappings = initialState.internalMappings.some(
+      m => m.internalType === 'BRAND' && m.internalId === initialBrandId
+    );
+    if (brandHasMappings) return 3;
+    if (initialState.internalMappings.length > 0) return 3;
+    return 2;
   });
 
-  // Default targets
-  const defaultBrand = initialState.brands[0];
+  // When active brand changes, adapt wizard step if brand has no mapped resources yet
+  useEffect(() => {
+    if (!isAuthorized) return;
+    const brandHasMappings = initialState.internalMappings.some(
+      m => m.internalType === 'BRAND' && m.internalId === activeBrandId
+    );
+    if (!brandHasMappings && initialState.brands.length > 1) {
+      // Prompt user to select resources for the unmapped brand
+      setActiveStep(2);
+    }
+  }, [activeBrandId, isAuthorized, initialState.internalMappings, initialState.brands.length]);
 
-  // Initialize draft selections from backend mappings
+  // Initialize draft selections from backend mappings and smart guess for unmapped items
   const [draftSelections, setDraftSelections] = useState<Record<string, ResourceSelection>>(() => {
     const drafts: Record<string, ResourceSelection> = {};
 
-    // Auto-fill existing mappings
+    // 1. Auto-fill existing mappings from database
     initialState.internalMappings.forEach(mapping => {
       const resourceType = mapping.provider === "GOOGLE_SEARCH_CONSOLE" ? 'GSC' : mapping.provider === "GOOGLE_ANALYTICS_4" ? 'GA4' : 'GBP';
       drafts[mapping.resourceId] = {
@@ -105,6 +175,22 @@ export function IntegrationsManager({
           ...(mapping.internalType === 'LOCATION' ? { locationId: mapping.internalId } : {})
         }
       };
+    });
+
+    // 2. Pre-assign unmapped resources with smart target brand matching
+    initialState.externalResources.forEach(res => {
+      if (!drafts[res.id]) {
+        const resourceType = res.resourceType === 'LOCATION' ? 'GBP' : res.provider === 'GOOGLE_SEARCH_CONSOLE' ? 'GSC' : 'GA4';
+        const guessedBrandId = guessBrandForResource(res, initialState.brands, defaultBrand?.id || '');
+        drafts[res.id] = {
+          resourceType,
+          externalResourceId: res.externalResourceId,
+          selected: false,
+          target: {
+            brandId: guessedBrandId
+          }
+        };
+      }
     });
 
     return drafts;
@@ -155,21 +241,38 @@ export function IntegrationsManager({
     try {
       // 1. Calculate diff
       const existingMappings = new Map(initialState.internalMappings.map(m => [m.resourceId, m]));
-      const additions: Array<{ type: 'GA4_PROPERTY' | 'BRAND' | 'LOCATION'; internalId: string; externalResourceId: string }> = [];
+      const additions: Array<{ type: 'GA4_PROPERTY' | 'BRAND' | 'LOCATION'; internalId: string; externalResourceId: string; internalType?: 'BRAND' | 'LOCATION' }> = [];
       const removals: string[] = [];
 
       // Check for additions/updates
       Object.entries(draftSelections).forEach(([resourceId, draft]) => {
         if (draft.selected) {
-          if (!existingMappings.has(resourceId)) {
-            // Addition
-            const type = draft.resourceType === 'GA4' ? 'GA4_PROPERTY' : draft.resourceType === 'GSC' ? 'BRAND' : 'LOCATION';
-            const internalId = draft.target.locationId || draft.target.brandId;
-            additions.push({ type, internalId, externalResourceId: resourceId });
+          const type = draft.resourceType === 'GA4' ? 'GA4_PROPERTY' : draft.resourceType === 'GSC' ? 'BRAND' : 'LOCATION';
+          const internalId = draft.target.locationId || draft.target.brandId;
+          const existing = existingMappings.get(resourceId);
+
+          if (!existing) {
+            // New mapping
+            additions.push({
+              type,
+              internalId,
+              externalResourceId: resourceId,
+              ...(draft.resourceType === 'GA4' ? { internalType: draft.target.locationId ? 'LOCATION' : 'BRAND' } : {})
+            });
+          } else if (existing.internalId !== internalId) {
+            // Re-assigned to a different brand or location
+            removals.push(existing.id);
+            additions.push({
+              type,
+              internalId,
+              externalResourceId: resourceId,
+              ...(draft.resourceType === 'GA4' ? { internalType: draft.target.locationId ? 'LOCATION' : 'BRAND' } : {})
+            });
           }
         } else {
-          if (existingMappings.has(resourceId)) {
-            removals.push(existingMappings.get(resourceId)!.id); // mapping ID
+          const existing = existingMappings.get(resourceId);
+          if (existing) {
+            removals.push(existing.id); // mapping ID
           }
         }
       });
@@ -183,15 +286,22 @@ export function IntegrationsManager({
         }
       });
 
-      // 2. Perform API calls
-      await Promise.allSettled([
-        ...additions.map(add =>
-          browserClient.post(`/tenants/${tenantSlug}/integrations/google/mappings`, add)
-        ),
-        ...removals.map(removeId =>
-          browserClient.delete(`/tenants/${tenantSlug}/integrations/google/mappings?mappingId=${removeId}`)
-        )
-      ]);
+      // 2. Perform API calls: removals first, then additions
+      if (removals.length > 0) {
+        await Promise.allSettled(
+          removals.map(removeId =>
+            browserClient.delete(`/tenants/${tenantSlug}/integrations/google/mappings?mappingId=${removeId}`)
+          )
+        );
+      }
+
+      if (additions.length > 0) {
+        await Promise.allSettled(
+          additions.map(add =>
+            browserClient.post(`/tenants/${tenantSlug}/integrations/google/mappings`, add)
+          )
+        );
+      }
 
       // 3. Trigger Sync (allow up to 60s for full initial Google ingestion)
       await browserClient.post(`/tenants/${tenantSlug}/sync`, {}, { timeout: 60000 });
@@ -210,13 +320,34 @@ export function IntegrationsManager({
     setDraftSelections(prev => {
       const existing = prev[id];
       const resource = initialState.externalResources.find(r => r.id === id);
+      const brandId = existing?.target?.brandId || targetBrandId;
       return {
         ...prev,
         [id]: {
           resourceType,
           externalResourceId: resource?.externalResourceId || '',
           selected: !(existing?.selected),
-          target: existing?.target || { brandId: targetBrandId }
+          target: {
+            ...existing?.target,
+            brandId,
+          }
+        }
+      };
+    });
+  };
+
+  const handleBrandMap = (id: string, brandId: string) => {
+    setDraftSelections(prev => {
+      const existing = prev[id];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...existing,
+          target: {
+            ...existing.target,
+            brandId,
+          }
         }
       };
     });
@@ -286,7 +417,11 @@ export function IntegrationsManager({
     <div className="min-h-screen bg-[#F6F8FC] -m-4 sm:-m-6 md:-m-8 p-4 sm:p-6 md:p-8 pt-10">
 
       {/* Stepper Header */}
-      <GoogleIntegrationStepper activeStep={activeStep} />
+      <GoogleIntegrationStepper
+        activeStep={activeStep}
+        onStepClick={(step) => setActiveStep(step)}
+        canNavigate={isAuthorized}
+      />
 
       {/* Main Content Area */}
       <div className="mt-2">
@@ -309,14 +444,17 @@ export function IntegrationsManager({
             ga4Resources={ga4Resources}
             draftSelections={draftSelections}
             locationOptions={initialState.locations}
+            brandOptions={initialState.brands}
+            activeBrand={activeBrand}
             onChangeAccount={() => setShowDisconnectModal(true)}
             onRefresh={handleRefresh}
             onToggleSelection={toggleSelection}
             onLocationMap={setLocationMapping}
+            onBrandMap={handleBrandMap}
             onSelectAll={handleSelectAll}
             onBack={() => setActiveStep(1)}
             onContinue={() => setActiveStep(3)}
-            defaultBrandId={defaultBrand?.id || ''}
+            defaultBrandId={activeBrand?.id || defaultBrand?.id || ''}
           />
         )}
 
@@ -326,6 +464,8 @@ export function IntegrationsManager({
             draftSelections={draftSelections}
             resources={initialState.externalResources}
             locationOptions={initialState.locations}
+            brandOptions={initialState.brands}
+            activeBrand={activeBrand}
             onChangeAccount={() => setShowDisconnectModal(true)}
             onEditSelection={() => setActiveStep(2)}
             onSync={handleTriggerSync}

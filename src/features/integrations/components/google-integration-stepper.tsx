@@ -6,12 +6,16 @@ export type IntegrationWizardStep = 1 | 2 | 3;
 
 interface GoogleIntegrationStepperProps {
   activeStep: IntegrationWizardStep;
+  onStepClick?: (step: IntegrationWizardStep) => void;
+  canNavigate?: boolean;
 }
 
 export function GoogleIntegrationStepper({
   activeStep,
+  onStepClick,
+  canNavigate = false,
 }: GoogleIntegrationStepperProps) {
-  const steps = [
+  const steps: Array<{ step: IntegrationWizardStep; title: string; description: string }> = [
     {
       step: 1,
       title: "Google Account",
@@ -34,19 +38,30 @@ export function GoogleIntegrationStepper({
       {steps.map((s, index) => {
         const isCompleted = activeStep > s.step;
         const isActive = activeStep === s.step;
+        const isClickable = canNavigate && onStepClick;
 
         return (
           <React.Fragment key={s.step}>
             {/* Step Item */}
-            <div className="flex items-center gap-3 relative z-10 bg-transparent">
+            <div
+              className={cn(
+                "flex items-center gap-3 relative z-10 bg-transparent select-none",
+                isClickable && "cursor-pointer group"
+              )}
+              onClick={() => {
+                if (isClickable) onStepClick(s.step);
+              }}
+              role={isClickable ? "button" : undefined}
+              tabIndex={isClickable ? 0 : undefined}
+            >
               <div
                 className={cn(
                   "flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold transition-all shadow-sm",
                   isCompleted
-                    ? "bg-emerald-500 text-white"
+                    ? "bg-emerald-500 text-white group-hover:bg-emerald-600"
                     : isActive
-                    ? "bg-[#5138EE] text-white"
-                    : "bg-slate-100 text-slate-400"
+                    ? "bg-[#5138EE] text-white ring-4 ring-indigo-100"
+                    : "bg-slate-100 text-slate-400 group-hover:bg-slate-200"
                 )}
               >
                 {isCompleted ? <Check className="w-5 h-5 stroke-[3]" /> : s.step}

@@ -6,7 +6,6 @@ import { Menu, Calendar, Search, CheckCircle2 } from 'lucide-react';
 import { TopNavDatePicker } from './top-nav-date-picker';
 import { TopNavBrandSelector, BrandOption } from './top-nav-brand-selector';
 import { TopNavUserMenu } from './top-nav-user-menu';
-import { TopNavTenantSwitcher } from './top-nav-tenant-switcher';
 import { SafeTenantNavDto, SafeUserNavDto, AuthorizedTenantDto } from './sidebar-nav-config';
 import { usePermissions } from '@/hooks/use-permissions';
 import { Action } from '@/shared/authorization/roles';
@@ -69,8 +68,6 @@ export function TenantTopNav({
           <span>Google Integrations</span>
         </Link>
 
-        <TopNavTenantSwitcher tenant={tenant} userRole={user.role} tenants={tenants} />
-        <div className="mx-2 h-4 w-px bg-slate-200"></div>
         <TopNavBrandSelector brands={brands} canCreateBrand={can(Action.BRAND_CREATE)} />
         <div className="mx-2 h-4 w-px bg-slate-200"></div>
         <TopNavUserMenu user={user} />
