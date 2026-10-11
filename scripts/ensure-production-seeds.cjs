@@ -321,28 +321,18 @@ async function main() {
         },
       };
 
-      // Ensure ALL versions (draft and published) of this template have the single-page layout
-      await tx.pageTemplateVersion.updateMany({
-        where: { pageTemplateId: template.id },
-        data: { puckData: singlePagePuckData },
+      // Ensure ALL templates and versions for this brand have the single-page layout
+      const brandTemplates = await tx.pageTemplate.findMany({
+        where: { tenantId, brandId: brand.id },
       });
 
-      const publishedVersion = await tx.pageTemplateVersion.findFirst({
-        where: {
-          pageTemplateId: template.id,
-          status: 'PUBLISHED',
-        },
-      });
-
-      if (!publishedVersion) {
-        await tx.pageTemplateVersion.create({
+      for (const t of brandTemplates) {
+        await tx.pageTemplateVersion.updateMany({
+          where: { pageTemplateId: t.id },
           data: {
-            tenantId,
-            pageTemplateId: template.id,
-            version: 1,
+            puckData: singlePagePuckData,
             status: 'PUBLISHED',
             publishedAt: new Date(),
-            puckData: singlePagePuckData,
           },
         });
       }

@@ -34,10 +34,29 @@ export function BrandHeader({
         { id: '4', label: 'Contact', target: '/#contact', openInNewTab: false },
       ];
 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
+    if (!target) return;
+    const hash = target.includes('#') ? target.split('#')[1] : null;
+    if (hash) {
+      const el = document.getElementById(hash);
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (typeof window !== 'undefined' && window.history?.pushState) {
+          window.history.pushState(null, '', `#${hash}`);
+        }
+      }
+    }
+  };
+
   return (
     <header id={id || 'header'} className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
+        <Link
+          href="/"
+          onClick={(e) => handleNavClick(e, '#home')}
+          className="flex items-center gap-3"
+        >
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
             style={{ backgroundColor: 'var(--brand-primary, #4F46E5)' }}
@@ -61,6 +80,7 @@ export function BrandHeader({
             <Link
               key={item.id}
               href={item.target}
+              onClick={(e) => handleNavClick(e, item.target)}
               target={item.openInNewTab ? '_blank' : undefined}
               rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
               className="hover:text-slate-900 transition-colors"
@@ -73,6 +93,11 @@ export function BrandHeader({
         {showCta && (
           <a
             href={store?.phone ? `tel:${store.phone}` : '/#contact'}
+            onClick={(e) => {
+              if (!store?.phone) {
+                handleNavClick(e, '#contact');
+              }
+            }}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm hover:opacity-95 transition-opacity"
             style={{
               backgroundColor: 'var(--brand-primary, #4F46E5)',
@@ -91,6 +116,7 @@ export function BrandHeader({
           <Link
             key={item.id}
             href={item.target}
+            onClick={(e) => handleNavClick(e, item.target)}
             className="hover:text-slate-900 transition-colors px-2 py-1"
           >
             {item.label}
