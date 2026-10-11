@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import {
   HeartHandshake,
   ShieldCheck,
@@ -8,6 +8,10 @@ import {
   Users,
 } from 'lucide-react';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
+import { PageContextService } from '@/modules/page-builder/page-context-service';
+import { SitePageRenderer } from '@/components/site-studio/site-page-renderer';
+import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 export default async function MicrositeAboutPage({
   params,
@@ -15,6 +19,46 @@ export default async function MicrositeAboutPage({
   params: Promise<{ subdomain: string }>;
 }) {
   const { subdomain } = await params;
+
+  // 1. Try canonical LocalBi PageContext
+  const pageContext = await PageContextService.resolveByHostnameOrSubdomain(subdomain, ['about']);
+  if (pageContext) {
+    const pageRecord = await TenantContextService.withTenantContext(
+      prisma,
+      pageContext.tenant.id,
+      async (tx) => {
+        return tx.page.findFirst({
+          where: {
+            tenantId: pageContext.tenant.id,
+            webSurfaceId: pageContext.webSurface.id,
+            slug: { in: ['/about', 'about'] },
+            status: 'PUBLISHED',
+          },
+          include: {
+            template: {
+              include: {
+                versions: {
+                  where: { status: 'PUBLISHED' },
+                  orderBy: { version: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        });
+      }
+    );
+
+    const puckData = pageRecord?.template?.versions[0]?.puckData;
+    if (puckData && typeof puckData === 'object' && 'content' in puckData && Array.isArray((puckData as { content: unknown[] }).content) && (puckData as { content: unknown[] }).content.length > 0) {
+      return <SitePageRenderer pageContext={pageContext} puckData={puckData} />;
+    }
+
+    // Single-page site: redirect to the #about anchor on the home page
+    redirect('/#about');
+  }
+
+  // 2. Fallback to legacy microsite
   const site = await MicrositeService.getMicrositeBySubdomain(subdomain);
 
   if (!site) {

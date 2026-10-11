@@ -176,7 +176,12 @@ export class SurfaceService {
         };
       }
 
-      if (isPrimary) {
+      const existingCount = await tx.domain.count({
+        where: { tenantId, brandId, webSurfaceId },
+      });
+      const shouldBePrimary = isPrimary || existingCount === 0;
+
+      if (shouldBePrimary) {
         // Demote other primary domains for this surface
         await tx.domain.updateMany({
           where: { tenantId, brandId, webSurfaceId, isPrimary: true },
@@ -190,7 +195,7 @@ export class SurfaceService {
           brandId,
           webSurfaceId,
           hostname: cleanHost,
-          isPrimary,
+          isPrimary: shouldBePrimary,
           isVerified: true, // Auto-verified in local/dev test environments
           sslStatus: 'ACTIVE',
         },

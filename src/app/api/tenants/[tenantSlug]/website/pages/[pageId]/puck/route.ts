@@ -24,6 +24,12 @@ export async function GET(
       async (tx) => {
         const page = await tx.page.findFirst({
           where: { tenantId: authorizedContext.tenantId, id: pageId },
+          include: {
+            brand: true,
+            webSurface: {
+              include: { domains: true },
+            },
+          },
         });
 
         if (!page) {
@@ -91,6 +97,11 @@ export async function GET(
           createdAt: v.createdAt,
         }));
 
+        const primaryDomain =
+          page.webSurface?.domains?.find((d) => d.isPrimary) ||
+          page.webSurface?.domains?.[0] ||
+          null;
+
         return {
           page: {
             id: page.id,
@@ -98,6 +109,20 @@ export async function GET(
             pageType: page.pageType,
             status: page.status,
           },
+          brand: page.brand
+            ? {
+                id: page.brand.id,
+                name: page.brand.name,
+                slug: page.brand.slug,
+              }
+            : null,
+          domain: primaryDomain
+            ? {
+                id: primaryDomain.id,
+                hostname: primaryDomain.hostname,
+                isPrimary: primaryDomain.isPrimary,
+              }
+            : null,
           template: {
             id: template.id,
             name: template.name,

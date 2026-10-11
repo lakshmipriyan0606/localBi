@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import {
   MapPin,
   Clock,
@@ -9,6 +9,10 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
+import { PageContextService } from '@/modules/page-builder/page-context-service';
+import { SitePageRenderer } from '@/components/site-studio/site-page-renderer';
+import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 export default async function MicrositeContactPage({
   params,
@@ -16,6 +20,46 @@ export default async function MicrositeContactPage({
   params: Promise<{ subdomain: string }>;
 }) {
   const { subdomain } = await params;
+
+  // 1. Try canonical LocalBi PageContext
+  const pageContext = await PageContextService.resolveByHostnameOrSubdomain(subdomain, ['contact']);
+  if (pageContext) {
+    const pageRecord = await TenantContextService.withTenantContext(
+      prisma,
+      pageContext.tenant.id,
+      async (tx) => {
+        return tx.page.findFirst({
+          where: {
+            tenantId: pageContext.tenant.id,
+            webSurfaceId: pageContext.webSurface.id,
+            slug: { in: ['/contact', 'contact'] },
+            status: 'PUBLISHED',
+          },
+          include: {
+            template: {
+              include: {
+                versions: {
+                  where: { status: 'PUBLISHED' },
+                  orderBy: { version: 'desc' },
+                  take: 1,
+                },
+              },
+            },
+          },
+        });
+      }
+    );
+
+    const puckData = pageRecord?.template?.versions[0]?.puckData;
+    if (puckData && typeof puckData === 'object' && 'content' in puckData && Array.isArray((puckData as { content: unknown[] }).content) && (puckData as { content: unknown[] }).content.length > 0) {
+      return <SitePageRenderer pageContext={pageContext} puckData={puckData} />;
+    }
+
+    // Single-page site: redirect to the #contact anchor on the home page
+    redirect('/#contact');
+  }
+
+  // 2. Fallback to legacy microsite
   const site = await MicrositeService.getMicrositeBySubdomain(subdomain);
 
   if (!site) {

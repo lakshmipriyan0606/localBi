@@ -1184,6 +1184,8 @@ function SiteStudioBuilderContent() {
   // Page & Version State
   const [pageInfo, setPageInfo] = useState<any | null>(null);
   const [templateInfo, setTemplateInfo] = useState<any | null>(null);
+  const [brandInfo, setBrandInfo] = useState<{ id: string; name: string; slug: string } | null>(null);
+  const [domainInfo, setDomainInfo] = useState<{ id: string; hostname: string; isPrimary: boolean } | null>(null);
   const [puckData, setPuckData] = useState<Data | null>(null);
   const [currentVersion, setCurrentVersion] = useState<number>(1);
   const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
@@ -1218,6 +1220,8 @@ function SiteStudioBuilderContent() {
       if (data.success && data.puckData) {
         setPageInfo(data.page);
         setTemplateInfo(data.template);
+        if (data.brand) setBrandInfo(data.brand);
+        if (data.domain) setDomainInfo(data.domain);
         setPuckData(sanitizeClientPuckData(data.puckData));
         setCurrentVersion(data.currentVersion);
         setPublishedVersion(data.publishedVersion);
@@ -1341,36 +1345,49 @@ function SiteStudioBuilderContent() {
     }
   };
 
-  // Safe Mock PageContext for visual builder preview
+  // Dynamic PageContext for visual builder preview
   const previewContext: PageContext = {
-    tenant: { id: 't1', name: 'Demo Organization', slug: tenantSlug },
-    brand: { id: 'b1', name: 'Brand Showcase', slug: 'brand' },
+    tenant: { id: 't1', name: 'Organization', slug: tenantSlug },
+    brand: brandInfo || { id: brandId || 'b1', name: 'Local Brand', slug: 'brand' },
     webSurface: {
       id: 'ws1',
       tenantId: 't1',
-      brandId: 'b1',
+      brandId: brandInfo?.id || brandId || 'b1',
       type: 'LOCALBI',
-      name: 'Main Website',
+      name: `${brandInfo?.name || 'Local Brand'} Website`,
       status: 'ACTIVE',
       createdAt: new Date(),
       updatedAt: new Date(),
     },
-    domain: {
-      id: 'd1',
-      tenantId: 't1',
-      brandId: 'b1',
-      webSurfaceId: 'ws1',
-      hostname: 'www.example.com',
-      isPrimary: true,
-      isVerified: true,
-      sslStatus: 'ACTIVE',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    domain: domainInfo
+      ? {
+          id: domainInfo.id,
+          tenantId: 't1',
+          brandId: brandInfo?.id || brandId || 'b1',
+          webSurfaceId: 'ws1',
+          hostname: domainInfo.hostname,
+          isPrimary: domainInfo.isPrimary,
+          isVerified: true,
+          sslStatus: 'ACTIVE',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      : {
+          id: 'd1',
+          tenantId: 't1',
+          brandId: brandInfo?.id || brandId || 'b1',
+          webSurfaceId: 'ws1',
+          hostname: `${tenantSlug}.localbi.app`,
+          isPrimary: true,
+          isVerified: true,
+          sslStatus: 'ACTIVE',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
     theme: {
       id: 'th1',
       tenantId: 't1',
-      brandId: 'b1',
+      brandId: brandInfo?.id || brandId || 'b1',
       primaryColor: '#4F46E5',
       secondaryColor: '#0F172A',
       accentColor: '#F59E0B',
@@ -1385,11 +1402,12 @@ function SiteStudioBuilderContent() {
       updatedAt: new Date(),
     },
     cssBlock: ':root { --brand-primary: #4F46E5; }',
-    navigation: {
+    navigation: (puckData?.root?.props as any)?.navigation || {
       headerItems: [
-        { id: '1', label: 'Home', type: 'INTERNAL_PAGE', target: '/', order: 0 },
-        { id: '2', label: 'Locations', type: 'INTERNAL_PAGE', target: '/locations', order: 1 },
-        { id: '3', label: 'Catalog', type: 'INTERNAL_PAGE', target: '/products', order: 2 },
+        { id: '1', label: 'Home', type: 'INTERNAL_PAGE', target: '/#home', order: 0 },
+        { id: '2', label: 'About', type: 'INTERNAL_PAGE', target: '/#about', order: 1 },
+        { id: '3', label: 'Services', type: 'INTERNAL_PAGE', target: '/#services', order: 2 },
+        { id: '4', label: 'Contact', type: 'INTERNAL_PAGE', target: '/#contact', order: 3 },
       ],
       footerItems: [
         { id: 'f1', label: 'Privacy Policy', type: 'INTERNAL_PAGE', target: '/privacy', order: 0 },
@@ -1397,41 +1415,24 @@ function SiteStudioBuilderContent() {
     },
     pageType: pageInfo?.pageType || 'HOME',
     path: pageInfo?.slug || '/',
-    store: {
-      id: 's1',
-      name: 'Mannadi Storefront',
-      addressLine1: 'No. 42 Angappa Naicken Street',
-      city: 'Chennai',
-      state: 'Tamil Nadu',
-      postalCode: '600001',
-      phone: '+91 98400 12345',
-      rating: 4.8,
-      reviewCount: 142,
-    },
-    products: [
-      { id: 'p1', name: 'Royal White Oudh (12ml)', sku: 'OUD-01', slug: 'royal-white-oudh', basePrice: 2499, currency: 'INR', isAvailable: true },
-      { id: 'p2', name: 'Dehn Al Oudh Cambodi', sku: 'OUD-02', slug: 'cambodi-oudh', basePrice: 3899, currency: 'INR', isAvailable: true },
-      { id: 'p3', name: 'Mukhallat Rose Petals', sku: 'ATT-03', slug: 'mukhallat-rose', basePrice: 1250, currency: 'INR', isAvailable: true },
-    ],
+    store: null,
+    products: [],
     nearbyStores: [],
-    reviews: [
-      { id: 'r1', authorName: 'Ibrahim K.', rating: 5, comment: 'Exceptional long-lasting fragrance and polite staff assistance.' },
-      { id: 'r2', authorName: 'Saravanan M.', rating: 5, comment: 'Authentic local branch with great variety of attars.' },
-    ],
+    reviews: [],
     faqs: [],
     seo: {
-      title: 'Storefront | Official LocalBi Website',
-      description: 'Official storefront and products.',
+      title: `${brandInfo?.name || 'Storefront'} | Official Website`,
+      description: `Official website for ${brandInfo?.name || 'our business'}.`,
       canonicalUrl: `${pageInfo?.slug || '/'}`,
       robots: 'index, follow',
-      openGraph: { title: 'Storefront', description: 'Storefront', url: '', siteName: '', type: 'website' },
-      twitter: { card: 'summary', title: 'Storefront', description: 'Storefront' },
+      openGraph: { title: brandInfo?.name || 'Storefront', description: '', url: '', siteName: brandInfo?.name || '', type: 'website' },
+      twitter: { card: 'summary', title: brandInfo?.name || 'Storefront', description: '' },
     },
     structuredData: [],
     breadcrumbs: [{ name: 'Home', url: '/' }],
     trackingContext: {
       tenantSlug,
-      brandId: 'b1',
+      brandId: brandInfo?.id || brandId || 'b1',
       webSurfaceId: 'ws1',
       pageType: pageInfo?.pageType || 'HOME',
     },

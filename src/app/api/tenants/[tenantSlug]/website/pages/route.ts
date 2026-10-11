@@ -28,12 +28,25 @@ export async function GET(
       return NextResponse.json({ success: true, pages: [] });
     }
 
-    const pages = await SiteStudioService.listSitePages(
-      authorizedContext.tenantId,
-      brandId
-    );
+    const [pages, brandRecord, domainRecord] = await Promise.all([
+      SiteStudioService.listSitePages(authorizedContext.tenantId, brandId),
+      prisma.brand.findUnique({
+        where: { id: brandId },
+        select: { id: true, name: true, slug: true },
+      }),
+      prisma.domain.findFirst({
+        where: { tenantId: authorizedContext.tenantId, brandId, isPrimary: true },
+        select: { id: true, hostname: true, isPrimary: true },
+      }),
+    ]);
 
-    return NextResponse.json({ success: true, pages, brandId });
+    return NextResponse.json({
+      success: true,
+      pages,
+      brandId,
+      brand: brandRecord,
+      domain: domainRecord,
+    });
   } catch (error) {
     return handleRouteError(error, 'Failed to list website pages.');
   }
