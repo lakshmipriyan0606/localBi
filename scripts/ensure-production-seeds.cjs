@@ -28,9 +28,26 @@ async function main() {
     }
 
     if (!tenant) {
+      const knownBrand = await prisma.brand.findFirst({
+        where: {
+          OR: [
+            { id: 'cmuz7p1u70001l006d1zgoaqr' },
+            { slug: 'sastikaa-travel-agency' },
+            { name: { contains: 'Sastikaa', mode: 'insensitive' } },
+          ],
+        },
+        include: { tenant: true },
+      });
+      if (knownBrand?.tenant) {
+        tenant = knownBrand.tenant;
+      }
+    }
+
+    if (!tenant) {
       tenant = await prisma.tenant.findFirst({
         where: {
           OR: [
+            { slug: 'lakshmi-food-001' },
             { slug: 'lakshmi-food' },
             { name: { contains: 'Lakshmi', mode: 'insensitive' } },
           ],
@@ -48,7 +65,7 @@ async function main() {
       tenant = await prisma.tenant.create({
         data: {
           name: 'Lakshmi food',
-          slug: 'lakshmi-food',
+          slug: 'lakshmi-food-001',
           status: 'ACTIVE',
         },
       });
@@ -66,6 +83,7 @@ async function main() {
         where: {
           tenantId,
           OR: [
+            { id: 'cmuz7p1u70001l006d1zgoaqr' },
             { slug: 'sastikaa-travel-agency' },
             { slug: 'sastikaa-travel' },
             { name: { contains: 'Sastikaa', mode: 'insensitive' } },

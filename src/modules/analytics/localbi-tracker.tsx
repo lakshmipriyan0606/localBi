@@ -20,6 +20,8 @@ export type LocalBiEventType =
 export interface LocalBiEventParams {
   brand?: string | undefined;
   brandId?: string | undefined;
+  tenantSlug?: string | undefined;
+  subdomain?: string | undefined;
   surface?: string | undefined;
   webSurfaceId?: string | undefined;
   pageType?: string | undefined;
@@ -242,6 +244,7 @@ export class LocalBiTracker {
       const visitorId = this.getVisitorId();
       const sessionId = this.getSessionId();
       const pageViewId = params.pageViewId || this.getOrCreatePageViewId();
+      const currentHost = window.location.hostname;
 
       const payload = JSON.stringify({
         eventType: eventName,
@@ -249,6 +252,8 @@ export class LocalBiTracker {
         sessionId,
         pageViewId,
         brandId: params.brandId,
+        tenantSlug: params.tenantSlug,
+        subdomain: params.subdomain || currentHost,
         webSurfaceId: params.webSurfaceId,
         pageId: params.pageId,
         pageType: params.pageType,
@@ -261,16 +266,19 @@ export class LocalBiTracker {
         metadata: sanitized,
       });
 
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon('/api/v1/pixel/track', new Blob([payload], { type: 'application/json' }));
-      } else {
-        fetch('/api/v1/pixel/track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-          keepalive: true,
-        }).catch(() => {});
-      }
+      // Always try fetch with keepalive first for reliable JSON POST delivery
+      fetch('/api/v1/pixel/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {
+        if (navigator.sendBeacon) {
+          try {
+            navigator.sendBeacon('/api/v1/pixel/track', new Blob([payload], { type: 'application/json' }));
+          } catch {}
+        }
+      });
     } catch {
       // Fire-and-forget: never break client-side execution
     }
@@ -312,6 +320,8 @@ export function LocalBiAnalyticsRuntime({
     pendingActiveMsRef.current = 0;
 
     LocalBiTracker.track('heartbeat', {
+      tenantSlug: trackingContext?.tenantSlug,
+      subdomain: typeof window !== 'undefined' ? window.location.hostname : undefined,
       brandId: trackingContext?.brandId,
       webSurfaceId: trackingContext?.webSurfaceId,
       pageId: trackingContext?.pageId,
@@ -340,9 +350,24 @@ export function LocalBiAnalyticsRuntime({
     }, 60000); // 60s idle threshold
   };
 
-  // Set up listeners for engagement timing
+  // Set up listeners for engagement timing and website actions (calls, WhatsApp, direction clicks)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Expose window.LocalBi for programmatic tracking
+    window.LocalBi = {
+      track: (evt, meta) => {
+        LocalBiTracker.track(evt as LocalBiEventType, {
+          tenantSlug: trackingContext?.tenantSlug,
+          brandId: trackingContext?.brandId,
+          webSurfaceId: trackingContext?.webSurfaceId,
+          ...meta,
+        });
+      },
+      getVisitorId: () => LocalBiTracker.getVisitorId(),
+      getSessionId: () => LocalBiTracker.getSessionId(),
+      flush: () => flushHeartbeat(),
+    };
 
     isVisibleRef.current = document.visibilityState === 'visible';
     lastTickRef.current = Date.now();
@@ -380,11 +405,50 @@ export function LocalBiAnalyticsRuntime({
       flushHeartbeat();
     };
 
+    // User interaction delegation for actions (calls, whatsapp, forms, buttons)
+    const handleDocumentClick = (e: MouseEvent) => {
+      resetIdle();
+      const target = (e.target as HTMLElement)?.closest('a, button');
+      if (!target) return;
+
+      const href = target.getAttribute('href') || '';
+      if (href.startsWith('tel:')) {
+        LocalBiTracker.track('click_call', {
+          tenantSlug: trackingContext?.tenantSlug,
+          brandId: trackingContext?.brandId,
+          webSurfaceId: trackingContext?.webSurfaceId,
+          destination: href,
+        });
+      } else if (href.includes('wa.me') || href.includes('whatsapp.com')) {
+        LocalBiTracker.track('whatsapp_click', {
+          tenantSlug: trackingContext?.tenantSlug,
+          brandId: trackingContext?.brandId,
+          webSurfaceId: trackingContext?.webSurfaceId,
+          destination: href,
+        });
+      } else if (href.includes('maps.google') || href.includes('goo.gl/maps')) {
+        LocalBiTracker.track('directions_click', {
+          tenantSlug: trackingContext?.tenantSlug,
+          brandId: trackingContext?.brandId,
+          webSurfaceId: trackingContext?.webSurfaceId,
+          destination: href,
+        });
+      } else if (target.tagName.toLowerCase() === 'button' || target.getAttribute('role') === 'button') {
+        LocalBiTracker.track('cta_click', {
+          tenantSlug: trackingContext?.tenantSlug,
+          brandId: trackingContext?.brandId,
+          webSurfaceId: trackingContext?.webSurfaceId,
+          label: (target.textContent || '').trim().substring(0, 50),
+        });
+      }
+    };
+
     const interactionEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
     const handleInteraction = () => resetIdle();
     interactionEvents.forEach((evt) => window.addEventListener(evt, handleInteraction, { passive: true }));
 
     document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('click', handleDocumentClick, { passive: true });
     window.addEventListener('focus', onFocus);
     window.addEventListener('blur', onBlur);
     window.addEventListener('pagehide', onPageHide);
@@ -399,12 +463,13 @@ export function LocalBiAnalyticsRuntime({
       clearInterval(heartbeatInterval);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('click', handleDocumentClick);
       window.removeEventListener('focus', onFocus);
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('pagehide', onPageHide);
       interactionEvents.forEach((evt) => window.removeEventListener(evt, handleInteraction));
     };
-  }, []);
+  }, [trackingContext]);
 
   // Track pageview on initial mount or route navigation
   useEffect(() => {
@@ -426,6 +491,8 @@ export function LocalBiAnalyticsRuntime({
       lastTickRef.current = Date.now();
 
       LocalBiTracker.track('localbi_page_view', {
+        tenantSlug: trackingContext.tenantSlug,
+        subdomain: typeof window !== 'undefined' ? window.location.hostname : undefined,
         brand: trackingContext.brandName || trackingContext.brandId,
         brandId: trackingContext.brandId,
         surface: trackingContext.webSurfaceType || 'LOCALBI',
@@ -444,3 +511,4 @@ export function LocalBiAnalyticsRuntime({
 
   return null;
 }
+

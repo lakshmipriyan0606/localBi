@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
   Users,
   Eye,
@@ -59,7 +59,9 @@ import type {
 
 export default function WebAnalyticsPage() {
   const routeParams = useParams();
+  const searchParams = useSearchParams();
   const tenantSlug = (routeParams?.tenantSlug as string) || '';
+  const brandId = searchParams?.get('brandId') || undefined;
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
@@ -95,7 +97,7 @@ export default function WebAnalyticsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const qs = `?preset=${preset}`;
+      const qs = `?preset=${preset}${brandId ? `&brandId=${encodeURIComponent(brandId)}` : ''}`;
       if (activeTab === 'overview') {
         const res = await fetch(`/api/tenants/${tenantSlug}/analytics/web${qs}`);
         if (res.ok) setOverview(await res.json());
@@ -139,13 +141,13 @@ export default function WebAnalyticsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [tenantSlug, preset, activeTab]);
+  }, [tenantSlug, preset, activeTab, brandId]);
 
   // 2. Realtime Activity Polling (every 30s)
   useEffect(() => {
     const fetchRealtime = async () => {
       try {
-        const res = await fetch(`/api/tenants/${tenantSlug}/analytics/web/realtime`);
+        const res = await fetch(`/api/tenants/${tenantSlug}/analytics/web/realtime${brandId ? `?brandId=${encodeURIComponent(brandId)}` : ''}`);
         if (res.ok) {
           const data = await res.json();
           setRealtimeVisitors(data.activeVisitorsNow || 0);
@@ -155,7 +157,7 @@ export default function WebAnalyticsPage() {
     fetchRealtime();
     const interval = setInterval(fetchRealtime, 30000);
     return () => clearInterval(interval);
-  }, [tenantSlug]);
+  }, [tenantSlug, brandId]);
 
   // 3. Fetch Journey on Session click
   const handleOpenJourney = async (sessionId: string) => {

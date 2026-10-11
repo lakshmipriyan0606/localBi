@@ -1532,7 +1532,7 @@ export class WebAnalyticsService {
   /**
    * Realtime / Recent Activity Polling (Sessions active within the last 5 minutes).
    */
-  public static async getRealtimeActivity(tenantId: string) {
+  public static async getRealtimeActivity(tenantId: string, brandId?: string) {
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
@@ -1540,12 +1540,14 @@ export class WebAnalyticsService {
         tx.visitorSession.count({
           where: {
             tenantId,
+            ...(brandId ? { brandId } : {}),
             lastSeenAt: { gte: fiveMinutesAgo },
           },
         }),
         tx.attributionEvent.findMany({
           where: {
             tenantId,
+            ...(brandId ? { brandId } : {}),
             eventType: 'PAGE_VIEW',
             occurredAt: { gte: fiveMinutesAgo },
           },
@@ -1556,6 +1558,7 @@ export class WebAnalyticsService {
         tx.attributionEvent.findMany({
           where: {
             tenantId,
+            ...(brandId ? { brandId } : {}),
             eventType: { in: ['FORM_SUBMIT', 'BOOKING_COMPLETE', 'CALL_CLICK', 'WHATSAPP_CLICK'] },
             occurredAt: { gte: fiveMinutesAgo },
           },

@@ -4,11 +4,12 @@ import { VisitorService } from '@/modules/visitors/visitor-service';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { AttributionService } from '@/modules/attribution/attribution-service';
 import { SessionizationService } from '@/modules/analytics/sessionization-service';
+import { SurfaceService } from '@/modules/page-builder/surface-service';
 import { prisma } from '@/shared/database/client';
 import type { AttributionEventType } from '@prisma/client';
 
 const TrackPayloadSchema = z.object({
-  subdomain: z.string().min(1).max(100).optional(),
+  subdomain: z.string().min(1).max(255).optional(),
   tenantSlug: z.string().min(1).max(100).optional(),
   deviceFingerprint: z.string().max(128).optional(),
   visitorId: z.string().max(128).optional(),
@@ -143,7 +144,7 @@ export async function POST(req: NextRequest) {
     const isBot = SessionizationService.classifyBot(userAgent);
 
     // 3. Trusted Server-Side Resolution of Tenant, Brand, and WebSurface
-    // Never trust client-supplied tenantId directly
+    // Resolves robustly across custom domains, WebSurfaces, Brands, Tenants, and legacy Microsites
     let resolvedTenantId: string | null = null;
     let resolvedBrandId: string | null = null;
     let resolvedWebSurfaceId: string | null = null;
@@ -164,45 +165,122 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // B. Resolve via subdomain or tenantSlug
+    // B. Resolve directly via brandId
+    if (!resolvedTenantId && data.brandId) {
+      const brand = await prisma.brand.findUnique({
+        where: { id: data.brandId },
+        include: {
+          tenant: { select: { id: true, slug: true } },
+          webSurfaces: { select: { id: true, type: true } },
+        },
+      });
+      if (brand) {
+        resolvedTenantId = brand.tenantId;
+        resolvedBrandId = brand.id;
+        resolvedTenantSlug = brand.tenant.slug;
+        const localBiSurface = brand.webSurfaces.find((s) => s.type === 'LOCALBI') || brand.webSurfaces[0];
+        resolvedWebSurfaceId = data.webSurfaceId || localBiSurface?.id || null;
+      }
+    }
+
+    // C. Resolve via Domain / Hostname / Subdomain using SurfaceService
     if (!resolvedTenantId) {
-      const siteKey = subdomain || tenantSlug || '';
-      if (!siteKey) {
-        return NextResponse.json(
-          { error: 'A valid website identifier (subdomain or tenantSlug) is required.' },
-          { status: 400 }
-        );
+      const rawHost = req.headers.get('host') || '';
+      const cleanHost = rawHost.split(':')[0] || '';
+      const referer = req.headers.get('referer');
+      let refererHost = '';
+      if (referer) {
+        try {
+          refererHost = new URL(referer).hostname;
+        } catch {}
       }
 
-      const publishedSite = await MicrositeService.resolvePublishedMicrosite(siteKey);
-      if (publishedSite) {
-        resolvedTenantId = publishedSite.tenantId;
-        resolvedTenantSlug = publishedSite.tenantSlug;
-        micrositeId = publishedSite.id;
+      const candidateKeys = [
+        data.subdomain,
+        cleanHost,
+        refererHost,
+        data.tenantSlug,
+      ].filter((k): k is string => Boolean(k && k.length > 0 && k !== 'localhost' && k !== '127.0.0.1' && !k.endsWith('.vercel.app')));
 
-        const defaultSurface = await prisma.webSurface.findFirst({
-          where: { tenantId: resolvedTenantId, type: 'LOCALBI' },
-          select: { id: true, brandId: true },
-        });
+      for (const key of candidateKeys) {
+        try {
+          const surfaceResult = await SurfaceService.resolveHost(key);
+          if (surfaceResult) {
+            resolvedTenantId = surfaceResult.tenant.id;
+            resolvedTenantSlug = surfaceResult.tenant.slug;
+            resolvedBrandId = surfaceResult.brand.id;
+            resolvedWebSurfaceId = surfaceResult.webSurface.id;
+            break;
+          }
+        } catch {}
+      }
+    }
 
-        if (defaultSurface) {
-          resolvedBrandId = defaultSurface.brandId;
-          resolvedWebSurfaceId = defaultSurface.id;
-        } else {
-          const firstBrand = await prisma.brand.findFirst({
-            where: { tenantId: resolvedTenantId },
-            select: { id: true },
+    // D. Direct resolution via tenantSlug
+    if (!resolvedTenantId && data.tenantSlug) {
+      const tenant = await prisma.tenant.findUnique({
+        where: { slug: data.tenantSlug },
+        include: {
+          brands: {
+            take: 1,
+            include: { webSurfaces: true },
+          },
+        },
+      });
+      if (tenant) {
+        resolvedTenantId = tenant.id;
+        resolvedTenantSlug = tenant.slug;
+        const firstBrand = tenant.brands[0];
+        if (firstBrand) {
+          resolvedBrandId = firstBrand.id;
+          resolvedWebSurfaceId = firstBrand.webSurfaces.find((s) => s.type === 'LOCALBI')?.id || firstBrand.webSurfaces[0]?.id || null;
+        }
+      }
+    }
+
+    // E. Resolve via legacy MicrositeService
+    if (!resolvedTenantId) {
+      const siteKey = subdomain || tenantSlug || '';
+      if (siteKey) {
+        const publishedSite = await MicrositeService.resolvePublishedMicrosite(siteKey);
+        if (publishedSite) {
+          resolvedTenantId = publishedSite.tenantId;
+          resolvedTenantSlug = publishedSite.tenantSlug;
+          micrositeId = publishedSite.id;
+
+          const defaultSurface = await prisma.webSurface.findFirst({
+            where: { tenantId: resolvedTenantId, type: 'LOCALBI' },
+            select: { id: true, brandId: true },
           });
-          if (firstBrand) {
-            resolvedBrandId = firstBrand.id;
-            const surface = await prisma.webSurface.findFirst({
-              where: { tenantId: resolvedTenantId, brandId: firstBrand.id },
+
+          if (defaultSurface) {
+            resolvedBrandId = defaultSurface.brandId;
+            resolvedWebSurfaceId = defaultSurface.id;
+          } else {
+            const firstBrand = await prisma.brand.findFirst({
+              where: { tenantId: resolvedTenantId },
               select: { id: true },
             });
-            resolvedWebSurfaceId = surface?.id || null;
+            if (firstBrand) {
+              resolvedBrandId = firstBrand.id;
+              const surface = await prisma.webSurface.findFirst({
+                where: { tenantId: resolvedTenantId, brandId: firstBrand.id },
+                select: { id: true },
+              });
+              resolvedWebSurfaceId = surface?.id || null;
+            }
           }
         }
       }
+    }
+
+    // F. Final fallback: Ensure webSurfaceId exists if brandId and tenantId are known
+    if (resolvedTenantId && resolvedBrandId && !resolvedWebSurfaceId) {
+      const surface = await prisma.webSurface.findFirst({
+        where: { tenantId: resolvedTenantId, brandId: resolvedBrandId },
+        select: { id: true },
+      });
+      resolvedWebSurfaceId = surface?.id || null;
     }
 
     if (!resolvedTenantId) {

@@ -7,7 +7,7 @@ import { WebAnalyticsService } from '@/modules/analytics/web-analytics-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   segmentData: { params: Promise<{ tenantSlug: string }> }
 ) {
   try {
@@ -22,7 +22,10 @@ export async function GET(
 
     AuthorizationService.assertCan(authorizedContext, Action.DASHBOARD_VIEW);
 
-    const realtime = await WebAnalyticsService.getRealtimeActivity(tenant.id);
+    const url = new URL(req.url);
+    const brandId = url.searchParams.get('brandId') || undefined;
+
+    const realtime = await WebAnalyticsService.getRealtimeActivity(tenant.id, brandId);
     return NextResponse.json(realtime);
   } catch (error) {
     return handleRouteError(error, 'Error fetching realtime analytics');
