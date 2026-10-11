@@ -321,20 +321,20 @@ async function main() {
         },
       };
 
+      // Ensure ALL versions (draft and published) of this template have the single-page layout
+      await tx.pageTemplateVersion.updateMany({
+        where: { pageTemplateId: template.id },
+        data: { puckData: singlePagePuckData },
+      });
+
       const publishedVersion = await tx.pageTemplateVersion.findFirst({
         where: {
           pageTemplateId: template.id,
           status: 'PUBLISHED',
         },
-        orderBy: { version: 'desc' },
       });
 
-      if (publishedVersion) {
-        await tx.pageTemplateVersion.update({
-          where: { id: publishedVersion.id },
-          data: { puckData: singlePagePuckData },
-        });
-      } else {
+      if (!publishedVersion) {
         await tx.pageTemplateVersion.create({
           data: {
             tenantId,
