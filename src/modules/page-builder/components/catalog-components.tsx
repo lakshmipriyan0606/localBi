@@ -273,3 +273,176 @@ export function CategoryGrid({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. PRODUCT CARD (Standalone Featured Card)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ProductCardProps {
+  id?: string;
+  title?: string;
+  price?: string;
+  badge?: string;
+  imageUrl?: string;
+  ctaText?: string;
+}
+
+export function ProductCard({
+  title = '',
+  price = '',
+  badge = 'FEATURED',
+  imageUrl = '',
+  ctaText = 'Order Now',
+}: ProductCardProps) {
+  const { products, store } = usePageContext();
+  const fallbackProduct = products?.[0];
+
+  const prodName = title || fallbackProduct?.name || 'Artisanal Reserve Item';
+  const prodPrice = price || (fallbackProduct?.basePrice ? `₹${fallbackProduct.basePrice}` : '₹2,499');
+  const img = imageUrl || (fallbackProduct as any)?.images?.[0]?.url || (fallbackProduct as any)?.imageUrl || 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=600&q=80';
+
+  return (
+    <div className="max-w-xs rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md hover:border-indigo-300 transition-all my-4 group">
+      <div className="relative aspect-square overflow-hidden bg-slate-100">
+        <img src={img} alt={prodName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        {badge && (
+          <span className="absolute top-2.5 left-2.5 text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white px-2 py-0.5 rounded-md shadow-xs">
+            {badge}
+          </span>
+        )}
+      </div>
+      <div className="p-4 space-y-2">
+        <h4 className="font-bold text-sm text-slate-900 truncate">{prodName}</h4>
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-base font-extrabold text-slate-900">{prodPrice}</span>
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-2xs transition-colors"
+          >
+            {ctaText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. FEATURED PRODUCT (Split Showcase Banner)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FeaturedProductProps {
+  id?: string;
+  badge?: string;
+  headline?: string;
+  description?: string;
+  price?: string;
+  ctaText?: string;
+  imageUrl?: string;
+}
+
+export function FeaturedProduct({
+  badge = 'EDITOR’S CHOICE',
+  headline = '',
+  description = '',
+  price = '',
+  ctaText = 'Buy From Store',
+  imageUrl = '',
+}: FeaturedProductProps) {
+  const { products, store } = usePageContext();
+  const prod = products?.[0];
+
+  const name = headline || prod?.name || 'Pure Aged Dehn Al Oudh (12ml)';
+  const desc = description || (prod as any)?.description || 'Authentic batch aged for over 15 years, offering deep woody notes and exceptional persistence.';
+  const cost = price || (prod?.basePrice ? `₹${prod.basePrice}` : '₹3,899');
+  const img = imageUrl || (prod as any)?.images?.[0]?.url || (prod as any)?.imageUrl || 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80';
+
+  return (
+    <div className="rounded-3xl bg-slate-900 text-white border border-slate-800 p-8 sm:p-12 my-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div className="space-y-4">
+          {badge && (
+            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-full">
+              {badge}
+            </span>
+          )}
+          <h3 className="text-2xl sm:text-3xl font-black tracking-tight">{name}</h3>
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{desc}</p>
+          <div className="text-3xl font-black text-white pt-2">{cost}</div>
+          <div className="pt-2">
+            <button
+              type="button"
+              className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all hover:scale-[1.02]"
+            >
+              {ctaText}
+            </button>
+          </div>
+        </div>
+        <div className="rounded-2xl overflow-hidden aspect-[4/3] bg-slate-800 shadow-xl border border-slate-700/50">
+          <img src={img} alt={name} className="w-full h-full object-cover" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. PRODUCT CAROUSEL (Horizontal Scroll)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ProductCarouselProps {
+  id?: string;
+  headline?: string;
+}
+
+export function ProductCarousel({ headline = 'Trending Offerings' }: ProductCarouselProps) {
+  const { products } = usePageContext();
+
+  return (
+    <div className="py-8 space-y-4 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h3 className="text-xl font-bold text-slate-900 tracking-tight">{headline}</h3>
+      <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+        {products.map((p) => (
+          <div
+            key={p.id}
+            className="w-56 shrink-0 rounded-2xl bg-white border border-slate-200 overflow-hidden shadow-2xs hover:shadow-xs transition-all"
+          >
+            <div className="aspect-square bg-slate-100 overflow-hidden">
+              <img
+                src={(p as any)?.images?.[0]?.url || (p as any)?.imageUrl || 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=400&q=80'}
+                alt={p.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-3 space-y-1">
+              <div className="font-bold text-xs text-slate-900 truncate">{p.name}</div>
+              <div className="text-xs font-black text-indigo-600">₹{p.basePrice}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. PRODUCT SEARCH
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ProductSearchProps {
+  id?: string;
+  placeholder?: string;
+}
+
+export function ProductSearch({ placeholder = 'Search our authentic catalog...' }: ProductSearchProps) {
+  return (
+    <div className="max-w-xl mx-auto my-6 px-4">
+      <input
+        type="search"
+        placeholder={placeholder}
+        className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white text-xs text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+      />
+    </div>
+  );
+}
+
+

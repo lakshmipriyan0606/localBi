@@ -333,3 +333,347 @@ export function Spacer({ height = 'medium' }: SpacerProps) {
 
   return <div className={`w-full ${hClass}`} aria-hidden="true" />;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. MULTI-COLUMN GRID
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MultiColumnGridProps {
+  id?: string;
+  columns?: 1 | 2 | 3 | 4 | 5 | 6;
+  gap?: 'none' | 'small' | 'medium' | 'large' | 'xlarge';
+  content?: any;
+  children?: React.ReactNode;
+}
+
+export function MultiColumnGrid({
+  columns = 3,
+  gap = 'medium',
+  content,
+  children,
+}: MultiColumnGridProps) {
+  const colClass = (() => {
+    switch (columns) {
+      case 1:
+        return 'grid-cols-1';
+      case 2:
+        return 'grid-cols-1 sm:grid-cols-2';
+      case 4:
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+      case 5:
+        return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5';
+      case 6:
+        return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6';
+      case 3:
+      default:
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+    }
+  })();
+
+  const gapClass =
+    gap === 'none'
+      ? 'gap-0'
+      : gap === 'small'
+      ? 'gap-3 sm:gap-4'
+      : gap === 'large'
+      ? 'gap-8 sm:gap-10'
+      : gap === 'xlarge'
+      ? 'gap-12 sm:gap-16'
+      : 'gap-6';
+
+  return (
+    <div className={`grid ${colClass} ${gapClass} w-full`}>
+      {children || renderSlotContent(content, 'content')}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. FLEX LAYOUT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FlexLayoutProps {
+  id?: string;
+  direction?: 'row' | 'column';
+  justify?: 'start' | 'center' | 'end' | 'between' | 'around';
+  align?: 'start' | 'center' | 'end' | 'stretch';
+  wrap?: boolean;
+  gap?: 'none' | 'small' | 'medium' | 'large';
+  content?: any;
+  children?: React.ReactNode;
+}
+
+export function FlexLayout({
+  direction = 'row',
+  justify = 'start',
+  align = 'center',
+  wrap = true,
+  gap = 'medium',
+  content,
+  children,
+}: FlexLayoutProps) {
+  const dirClass = direction === 'column' ? 'flex-col' : 'flex-row';
+  const wrapClass = wrap ? 'flex-wrap' : 'flex-nowrap';
+
+  const justifyClass =
+    justify === 'center'
+      ? 'justify-center'
+      : justify === 'end'
+      ? 'justify-end'
+      : justify === 'between'
+      ? 'justify-between'
+      : justify === 'around'
+      ? 'justify-around'
+      : 'justify-start';
+
+  const alignClass =
+    align === 'start'
+      ? 'items-start'
+      : align === 'end'
+      ? 'items-end'
+      : align === 'stretch'
+      ? 'items-stretch'
+      : 'items-center';
+
+  const gapClass =
+    gap === 'none'
+      ? 'gap-0'
+      : gap === 'small'
+      ? 'gap-3'
+      : gap === 'large'
+      ? 'gap-8'
+      : 'gap-5';
+
+  return (
+    <div className={`flex ${dirClass} ${wrapClass} ${justifyClass} ${alignClass} ${gapClass} w-full`}>
+      {children || renderSlotContent(content, 'content')}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. DIVIDER
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface DividerProps {
+  id?: string;
+  style?: 'solid' | 'dashed' | 'gradient';
+  color?: 'subtle' | 'slate' | 'indigo';
+  thickness?: 'thin' | 'medium' | 'thick';
+  badgeText?: string;
+}
+
+export function Divider({
+  style = 'solid',
+  color = 'subtle',
+  thickness = 'thin',
+  badgeText = '',
+}: DividerProps) {
+  const borderHeight = thickness === 'thick' ? 'border-t-4' : thickness === 'medium' ? 'border-t-2' : 'border-t';
+  const borderStyle = style === 'dashed' ? 'border-dashed' : 'border-solid';
+
+  const borderColor =
+    color === 'indigo'
+      ? 'border-indigo-400/50'
+      : color === 'slate'
+      ? 'border-slate-300'
+      : 'border-slate-200/80';
+
+  if (style === 'gradient') {
+    return (
+      <div className="relative my-8 w-full flex items-center justify-center">
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+        {badgeText && (
+          <span className="absolute px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 bg-white border border-indigo-100 rounded-full shadow-2xs">
+            {badgeText}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative my-6 sm:my-8 w-full flex items-center justify-center">
+      <div className={`w-full ${borderHeight} ${borderStyle} ${borderColor}`} />
+      {badgeText && (
+        <span className="absolute px-3 py-0.5 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded-full">
+          {badgeText}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. TWO-COLUMN LAYOUT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TwoColumnLayoutProps {
+  id?: string;
+  ratio?: '50-50' | '60-40' | '40-60' | '70-30' | '30-70';
+  gap?: 'small' | 'medium' | 'large';
+  stackOnMobile?: boolean;
+  column1?: any;
+  column2?: any;
+}
+
+export function TwoColumnLayout({
+  ratio = '50-50',
+  gap = 'medium',
+  stackOnMobile = true,
+  column1,
+  column2,
+}: TwoColumnLayoutProps) {
+  const gridClass = (() => {
+    switch (ratio) {
+      case '60-40':
+        return stackOnMobile ? 'grid-cols-1 md:grid-cols-[3fr_2fr]' : 'grid-cols-[3fr_2fr]';
+      case '40-60':
+        return stackOnMobile ? 'grid-cols-1 md:grid-cols-[2fr_3fr]' : 'grid-cols-[2fr_3fr]';
+      case '70-30':
+        return stackOnMobile ? 'grid-cols-1 md:grid-cols-[7fr_3fr]' : 'grid-cols-[7fr_3fr]';
+      case '30-70':
+        return stackOnMobile ? 'grid-cols-1 md:grid-cols-[3fr_7fr]' : 'grid-cols-[3fr_7fr]';
+      case '50-50':
+      default:
+        return stackOnMobile ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2';
+    }
+  })();
+
+  const gapClass = gap === 'small' ? 'gap-4' : gap === 'large' ? 'gap-10 sm:gap-12' : 'gap-6 sm:gap-8';
+
+  return (
+    <div className={`grid ${gridClass} ${gapClass} w-full items-start`}>
+      <div className="w-full min-h-[50px]">{renderSlotContent(column1, 'column1')}</div>
+      <div className="w-full min-h-[50px]">{renderSlotContent(column2, 'column2')}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. THREE-COLUMN LAYOUT
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ThreeColumnLayoutProps {
+  id?: string;
+  gap?: 'small' | 'medium' | 'large';
+  stackOnMobile?: boolean;
+  column1?: any;
+  column2?: any;
+  column3?: any;
+}
+
+export function ThreeColumnLayout({
+  gap = 'medium',
+  stackOnMobile = true,
+  column1,
+  column2,
+  column3,
+}: ThreeColumnLayoutProps) {
+  const gapClass = gap === 'small' ? 'gap-4' : gap === 'large' ? 'gap-10' : 'gap-6';
+  const gridClass = stackOnMobile ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-3';
+
+  return (
+    <div className={`grid ${gridClass} ${gapClass} w-full items-start`}>
+      <div className="w-full min-h-[50px]">{renderSlotContent(column1, 'column1')}</div>
+      <div className="w-full min-h-[50px]">{renderSlotContent(column2, 'column2')}</div>
+      <div className="w-full min-h-[50px]">{renderSlotContent(column3, 'column3')}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 11. FULL-WIDTH SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface FullWidthSectionProps {
+  id?: string;
+  backgroundGradient?: 'none' | 'indigo' | 'slate-dark' | 'emerald';
+  backgroundImage?: string;
+  overlayOpacity?: number;
+  padding?: 'small' | 'medium' | 'large' | 'xlarge';
+  content?: any;
+  children?: React.ReactNode;
+}
+
+export function FullWidthSection({
+  backgroundGradient = 'none',
+  backgroundImage = '',
+  overlayOpacity = 40,
+  padding = 'medium',
+  content,
+  children,
+}: FullWidthSectionProps) {
+  const paddingClass =
+    padding === 'small'
+      ? 'py-8 sm:py-12'
+      : padding === 'large'
+      ? 'py-20 sm:py-28'
+      : padding === 'xlarge'
+      ? 'py-28 sm:py-36'
+      : 'py-14 sm:py-20';
+
+  const gradientClass =
+    backgroundGradient === 'indigo'
+      ? 'bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 text-white'
+      : backgroundGradient === 'slate-dark'
+      ? 'bg-gradient-to-b from-slate-900 to-slate-950 text-white'
+      : backgroundGradient === 'emerald'
+      ? 'bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-900 text-white'
+      : 'bg-white text-slate-900';
+
+  return (
+    <section className={`relative w-full overflow-hidden ${paddingClass} ${gradientClass}`}>
+      {backgroundImage && (
+        <div
+          className="absolute inset-0 bg-cover bg-center pointer-events-none"
+          style={{
+            backgroundImage: `url("${backgroundImage}")`,
+            opacity: overlayOpacity / 100,
+          }}
+        />
+      )}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {children || renderSlotContent(content, 'content')}
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 12. STICKY SECTION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StickySectionProps {
+  id?: string;
+  topOffset?: number;
+  background?: 'white' | 'blur' | 'transparent';
+  content?: any;
+  children?: React.ReactNode;
+}
+
+export function StickySection({
+  topOffset = 0,
+  background = 'blur',
+  content,
+  children,
+}: StickySectionProps) {
+  const bgClass =
+    background === 'white'
+      ? 'bg-white shadow-xs border-b border-slate-200'
+      : background === 'blur'
+      ? 'bg-white/90 backdrop-blur-md shadow-xs border-b border-slate-200/80'
+      : 'bg-transparent';
+
+  return (
+    <div
+      className={`sticky z-30 w-full transition-all ${bgClass}`}
+      style={{ top: `${topOffset}px` }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        {children || renderSlotContent(content, 'content')}
+      </div>
+    </div>
+  );
+}
+

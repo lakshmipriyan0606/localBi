@@ -16,12 +16,15 @@ import {
   Check,
 } from 'lucide-react';
 import { DomainDto } from '@/modules/page-builder/surface-service';
+import { extractErrorMessage } from '@/lib/notify';
+import { useActiveBrand } from '@/providers/active-brand-context';
 
 export default function SiteStudioDomainsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const tenantSlug = params.tenantSlug as string;
-  const brandId = searchParams.get('brandId');
+  const brandCtx = useActiveBrand();
+  const brandId = searchParams.get('brandId') || brandCtx?.activeBrandId;
 
   const [domains, setDomains] = useState<DomainDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,9 +48,11 @@ export default function SiteStudioDomainsPage() {
           (d: DomainDto) => !d.hostname.endsWith('.localbi.app')
         );
         setDomains(filtered);
+      } else if (!data.success && data.error) {
+        setError(extractErrorMessage(data.error, 'Failed to load domains.'));
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load domains.');
+      setError(extractErrorMessage(err, 'Failed to load domains.'));
     } finally {
       setLoading(false);
     }
@@ -59,9 +64,18 @@ export default function SiteStudioDomainsPage() {
 
   const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHostname.trim()) return;
+    const raw = newHostname.trim();
+    if (!raw) return;
 
-    if (newHostname.trim().toLowerCase().endsWith('.localbi.app')) {
+    // Normalize URL/hostname: strip protocol, trailing slashes, and paths
+    const cleaned = raw.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0].trim();
+
+    if (!cleaned) {
+      setError('Please enter a valid domain (e.g. www.example.com).');
+      return;
+    }
+
+    if (cleaned.endsWith('.localbi.app')) {
       setError(
         'LocalBi customer subdomains (*.localbi.app) are not allowed. Please enter your client-owned domain (e.g. www.abc.com).'
       );
@@ -76,7 +90,7 @@ export default function SiteStudioDomainsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brandId,
-          hostname: newHostname.trim().toLowerCase(),
+          hostname: cleaned,
           isPrimary: domains.length === 0,
         }),
       });
@@ -85,10 +99,10 @@ export default function SiteStudioDomainsPage() {
         setNewHostname('');
         loadDomains();
       } else {
-        setError(data.error || 'Failed to connect domain.');
+        setError(extractErrorMessage(data.error, 'Failed to connect domain.'));
       }
     } catch (err: any) {
-      setError(err.message || 'Error connecting domain.');
+      setError(extractErrorMessage(err, 'Error connecting domain.'));
     } finally {
       setAdding(false);
     }
@@ -111,10 +125,10 @@ export default function SiteStudioDomainsPage() {
       if (data.success) {
         loadDomains();
       } else {
-        setError(data.error || 'DNS records not yet propagated.');
+        setError(extractErrorMessage(data.error, 'DNS records not yet propagated.'));
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to verify DNS.');
+      setError(extractErrorMessage(err, 'Failed to verify DNS.'));
     } finally {
       setVerifyingId(null);
     }
@@ -122,6 +136,7 @@ export default function SiteStudioDomainsPage() {
 
   const handleMakePrimary = async (domainId: string) => {
     try {
+      setError(null);
       const res = await fetch(`/api/tenants/${tenantSlug}/website/domains`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -134,15 +149,18 @@ export default function SiteStudioDomainsPage() {
       const data = await res.json();
       if (data.success) {
         loadDomains();
+      } else {
+        setError(extractErrorMessage(data.error, 'Failed to set primary domain.'));
       }
-    } catch {
-      alert('Failed to set primary domain');
+    } catch (err: any) {
+      setError(extractErrorMessage(err, 'Failed to set primary domain.'));
     }
   };
 
   const handleRemoveDomain = async (domainId: string) => {
     if (!confirm('Are you sure you want to remove this domain mapping?')) return;
     try {
+      setError(null);
       const res = await fetch(
         `/api/tenants/${tenantSlug}/website/domains?domainId=${domainId}&brandId=${brandId || ''}`,
         { method: 'DELETE' }
@@ -150,9 +168,11 @@ export default function SiteStudioDomainsPage() {
       const data = await res.json();
       if (data.success) {
         loadDomains();
+      } else {
+        setError(extractErrorMessage(data.error, 'Failed to remove domain.'));
       }
-    } catch {
-      alert('Failed to remove domain');
+    } catch (err: any) {
+      setError(extractErrorMessage(err, 'Failed to remove domain.'));
     }
   };
 
@@ -178,9 +198,21 @@ export default function SiteStudioDomainsPage() {
       </div>
 
       {error && (
-        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2.5">
-          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-          <div>{error}</div>
+        <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start justify-between gap-2.5 animate-in fade-in duration-150">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="font-medium leading-relaxed">
+              {typeof error === 'string' ? error : extractErrorMessage(error)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-rose-400 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded-md hover:bg-rose-100 transition-colors shrink-0"
+            title="Dismiss error"
+          >
+            ✕
+          </button>
         </div>
       )}
 

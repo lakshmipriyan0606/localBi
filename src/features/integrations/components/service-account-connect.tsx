@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle2, XCircle, Key, LogIn, Save, AlertCircle } from 'lucide-react';
+import { extractErrorMessage } from '@/lib/notify';
 
 export interface GoogleIntegrationConnectProps {
   /** Callback fired when the connection is successfully verified and saved */
@@ -38,7 +39,7 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect }: GoogleIn
       const data = await verifyResponse.json();
 
       if (!data.success) {
-        setErrorMessage('Verification request failed: ' + (data.error || 'Unknown error'));
+        setErrorMessage('Verification request failed: ' + extractErrorMessage(data.error, 'Unknown error'));
         return;
       }
 
@@ -214,7 +215,7 @@ export function GoogleIntegrationConnect({ onSuccess, onOAuthConnect }: GoogleIn
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-bold text-red-800">Validation Failed — Not Saved</p>
-                  <p className="text-sm text-red-700 mt-0.5">{errorMessage}</p>
+                  <p className="text-sm text-red-700 mt-0.5">{typeof errorMessage === 'string' ? errorMessage : extractErrorMessage(errorMessage)}</p>
                 </div>
               </div>
             )}

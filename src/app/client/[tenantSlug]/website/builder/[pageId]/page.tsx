@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -17,30 +17,218 @@ import {
   History,
   ExternalLink,
   Layers,
-  Sparkles,
+  LayoutGrid,
+  Image as ImageIcon,
+  Folder,
+  Plus,
+  Trash2,
+  Copy,
+  MoveUp,
+  MoveDown,
+  X,
   ChevronDown,
+  ChevronRight,
+  Search,
+  Sliders,
+  Palette,
+  Settings,
+  Sparkles,
+  Globe,
+  Undo2,
+  Redo2,
+  Edit3,
+  Save,
+  Check,
+  Upload,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  FileText,
+  ShieldCheck,
+  MapPin,
+  ShoppingBag,
+  HelpCircle,
+  Compass,
+  MessageSquare,
+  PhoneCall,
+  Clock,
+  Star,
+  Users,
+  Award,
+  CreditCard,
+  ListOrdered,
+  Layout,
+  Columns,
+  Maximize,
+  Pin,
+  AlignLeft,
+  Video,
+  Grid,
 } from 'lucide-react';
 import type { Data } from '@measured/puck';
+import { Puck, Drawer, usePuck } from '@measured/puck';
 import '@measured/puck/puck.css';
+import './puck-dark-theme.css';
 import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-config';
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { PageContext } from '@/modules/page-builder/page-context-service';
+import { extractErrorMessage } from '@/lib/notify';
 
-// Dynamically import Puck canvas with SSR disabled so it is code-split
-const Puck = dynamic(() => import('@measured/puck').then((mod) => mod.Puck), {
-  ssr: false,
-  loading: () => (
-    <div className="flex flex-col items-center justify-center h-[70vh] gap-3 text-slate-400">
-      <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
-      <span className="text-xs font-semibold">Loading Site Studio Visual Canvas...</span>
-    </div>
-  ),
-});
+// Component Catalog Metadata for Left Sidebar Explorer
+interface ComponentMeta {
+  type: string;
+  name: string;
+  category: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const COMPONENT_METADATA: ComponentMeta[] = [
+  // Layout & Structure
+  { type: 'SectionContainer', name: 'Section Container', category: 'layout', description: 'Full-width or boxed section with customizable padding', icon: Layout },
+  { type: 'StandardContainer', name: 'Standard Container', category: 'layout', description: 'Centered container with max-width containment', icon: Layout },
+  { type: 'RowAndColumns', name: 'Row & Columns', category: 'layout', description: 'Multi-column responsive grid container', icon: Columns },
+  { type: 'MultiColumnGrid', name: 'Multi-Column Grid', category: 'layout', description: '2 to 4 column responsive flex grid', icon: Grid },
+  { type: 'FlexLayout', name: 'Flex Layout', category: 'layout', description: 'Flexible flexbox with direction, alignment, and gap controls', icon: Columns },
+  { type: 'ContentCard', name: 'Content Card / Box', category: 'layout', description: 'Styled surface with border, shadow, and corner radius', icon: Layout },
+  { type: 'InnerContainer', name: 'Inner Container', category: 'layout', description: 'Nested child container for structured spacing', icon: Layout },
+  { type: 'Spacer', name: 'Spacer / Gap', category: 'layout', description: 'Adjustable vertical whitespace block', icon: Maximize },
+  { type: 'Divider', name: 'Divider', category: 'layout', description: 'Horizontal separator line with custom styling', icon: AlignLeft },
+  { type: 'StackLayout', name: 'Stack Layout', category: 'layout', description: 'Vertical or horizontal element stack', icon: Layout },
+  { type: 'TwoColumnLayout', name: 'Two-Column Layout', category: 'layout', description: 'Side-by-side 50/50, 60/40, or 70/30 layout', icon: Columns },
+  { type: 'ThreeColumnLayout', name: 'Three-Column Layout', category: 'layout', description: 'Three equal column distribution', icon: Columns },
+  { type: 'FourColumnLayout', name: 'Four-Column Layout', category: 'layout', description: 'Four column responsive showcase grid', icon: Columns },
+  { type: 'SidebarLayout', name: 'Sidebar Layout', category: 'layout', description: 'Main content area with sticky sidebar column', icon: Columns },
+  { type: 'FullWidthSection', name: 'Full-Width Section', category: 'layout', description: 'Edge-to-edge section with optional overlay', icon: Maximize },
+  { type: 'StickySection', name: 'Sticky Section', category: 'layout', description: 'Viewport-docked sticky container block', icon: Pin },
+  { type: 'ResponsiveGrid', name: 'Responsive Grid', category: 'layout', description: 'Fluid auto-fitting responsive grid', icon: Grid },
+  { type: 'BackgroundSection', name: 'Background Section', category: 'layout', description: 'Section with image, video, or gradient backdrop', icon: Palette },
+
+  // Brand & Navigation
+  { type: 'BrandHeader', name: 'Brand Header', category: 'brand', description: 'Top navbar with logo, menu links, and CTA button', icon: Compass },
+  { type: 'Logo', name: 'Logo Block', category: 'brand', description: 'Brand emblem image or typographic logo', icon: Sparkles },
+  { type: 'SiteNavigation', name: 'Site Navigation', category: 'brand', description: 'Horizontal or stacked menu navigation bar', icon: Compass },
+  { type: 'AnnouncementBar', name: 'Announcement Bar', category: 'brand', description: 'Top banner for promo alerts and updates', icon: Sparkles },
+  { type: 'Breadcrumbs', name: 'Breadcrumbs', category: 'brand', description: 'SEO-rich navigation pathway indicator', icon: FileText },
+  { type: 'ContactButton', name: 'Contact Button', category: 'brand', description: 'Action button linking to phone, email, or modal', icon: PhoneCall },
+  { type: 'CallButton', name: 'Call Button', category: 'brand', description: 'Click-to-call direct contact button', icon: PhoneCall },
+  { type: 'SearchBar', name: 'Search Bar', category: 'brand', description: 'Storefront and product search input', icon: Search },
+
+  // Hero & Conversion
+  { type: 'HeroBanner', name: 'Hero Banner', category: 'hero', description: 'High-impact hero with headline, badges, and dual CTAs', icon: Sparkles },
+  { type: 'HeroWithImage', name: 'Hero with Image', category: 'hero', description: 'Split headline with featured visual showcase', icon: ImageIcon },
+  { type: 'CenteredHero', name: 'Centered Hero', category: 'hero', description: 'Focused center-aligned hero with trust badges', icon: Sparkles },
+  { type: 'CTABanner', name: 'CTA Banner', category: 'hero', description: 'Conversion-optimized headline banner with action button', icon: Send },
+  { type: 'DualCTASection', name: 'Dual CTA Section', category: 'hero', description: 'Two targeted conversion paths side-by-side', icon: Send },
+  { type: 'PromoBanner', name: 'Promotional Banner', category: 'hero', description: 'Highlight offers, discount codes, or events', icon: Sparkles },
+  { type: 'NewsletterSignup', name: 'Newsletter Signup', category: 'hero', description: 'Email capture input with incentive copy', icon: MessageSquare },
+
+  // Store & Location
+  { type: 'StoreLocator', name: 'Store Locator', category: 'store', description: 'Real business branch info, hours, and direction actions', icon: MapPin },
+  { type: 'LocationCard', name: 'Location Card', category: 'store', description: 'Branch details card with phone, address, and rating', icon: MapPin },
+  { type: 'LocationMap', name: 'Location Map', category: 'store', description: 'Interactive Google Maps embed for branch', icon: MapPin },
+  { type: 'AddressBlock', name: 'Address Block', category: 'store', description: 'Formatted physical business location address', icon: MapPin },
+  { type: 'BusinessHours', name: 'Business Hours', category: 'store', description: 'Weekly operating schedule with Open/Closed badges', icon: Clock },
+
+  // Products & Catalog
+  { type: 'ProductCard', name: 'Product Card', category: 'catalog', description: 'Tenant catalog product card with price and stock badge', icon: ShoppingBag },
+  { type: 'FeaturedProduct', name: 'Featured Product', category: 'catalog', description: 'Hero spotlight for bestseller product', icon: Star },
+  { type: 'ProductGrid', name: 'Product Grid', category: 'catalog', description: 'Live tenant-scoped catalog product grid', icon: ShoppingBag },
+  { type: 'ProductDetail', name: 'Product Detail', category: 'catalog', description: 'Comprehensive product view with SKU and specs', icon: ShoppingBag },
+  { type: 'ProductCarousel', name: 'Product Carousel', category: 'catalog', description: 'Scrollable row of featured catalog items', icon: ShoppingBag },
+  { type: 'ProductSearch', name: 'Product Search', category: 'catalog', description: 'Interactive search filter for store inventory', icon: Search },
+
+  // Content & Media
+  { type: 'Heading', name: 'Heading', category: 'content', description: 'Semantic H1-H6 typography with gradient styles', icon: FileText },
+  { type: 'Paragraph', name: 'Paragraph', category: 'content', description: 'Body text block with size and alignment controls', icon: AlignLeft },
+  { type: 'RichText', name: 'Rich Text', category: 'content', description: 'Formatted HTML content container', icon: FileText },
+  { type: 'Image', name: 'Image', category: 'content', description: 'Optimized responsive image with aspect ratio and alt text', icon: ImageIcon },
+  { type: 'ImageGallery', name: 'Image Gallery', category: 'content', description: 'Responsive multi-image showcase grid', icon: Grid },
+  { type: 'VideoEmbed', name: 'Video Embed', category: 'content', description: 'Responsive YouTube, Vimeo, or MP4 player', icon: Video },
+  { type: 'IconGrid', name: 'Icon Grid', category: 'content', description: 'Value propositions with colorful icons', icon: Grid },
+  { type: 'FAQAccordion', name: 'FAQ Accordion', category: 'content', description: 'Expandable question and answer accordions', icon: HelpCircle },
+  { type: 'Tabs', name: 'Tabs', category: 'content', description: 'Interactive multi-tab content switcher', icon: Layout },
+
+  // Social Proof & Trust
+  { type: 'StatisticsCounter', name: 'Statistics Counter', category: 'trust', description: 'Animated KPI counter metrics showcase', icon: Award },
+  { type: 'PartnerLogos', name: 'Partner / Client Logos', category: 'trust', description: 'Monochrome or full-color brand partner logo strip', icon: Users },
+  { type: 'TestimonialQuote', name: 'Testimonial / Review', category: 'trust', description: 'Customer review quote with star rating and author avatar', icon: Star },
+  { type: 'TrustBadges', name: 'Trust Badges', category: 'trust', description: 'Security, certification, and guarantee badges', icon: ShieldCheck },
+
+  // Services & Business
+  { type: 'ServicesGrid', name: 'Services Grid', category: 'services', description: 'Grid of service offerings with icons and features', icon: LayoutGrid },
+  { type: 'WhyChooseUs', name: 'Why Choose Us', category: 'services', description: 'Key competitive differentiators and highlights', icon: ShieldCheck },
+  { type: 'TeamGrid', name: 'Team Members', category: 'services', description: 'Staff profiles with photos, roles, and bios', icon: Users },
+  { type: 'PricingCards', name: 'Pricing Cards', category: 'services', description: 'Subscription or service tiered pricing table', icon: CreditCard },
+  { type: 'ProcessSteps', name: 'Process Steps', category: 'services', description: 'Numbered 1-2-3-4 step-by-step workflow guide', icon: ListOrdered },
+
+  // Forms & Lead Gen
+  { type: 'CallbackRequest', name: 'Callback Request', category: 'forms', description: 'Quick phone callback request form', icon: PhoneCall },
+  { type: 'ContactForm', name: 'Contact Form', category: 'forms', description: 'Full enquiry form with name, email, message', icon: MessageSquare },
+  { type: 'LeadCaptureForm', name: 'Lead Capture Form', category: 'forms', description: 'High-conversion opt-in form with privacy notice', icon: Send },
+
+  // SEO & Marketing
+  { type: 'SEOLandingSection', name: 'SEO Landing Section', category: 'seo', description: 'Search-optimized content section with local schema keywords', icon: Globe },
+  { type: 'BreadcrumbSection', name: 'Breadcrumb Section', category: 'seo', description: 'Breadcrumbs with JSON-LD schema integration', icon: Globe },
+
+  // Footer & Utility
+  { type: 'MultiColumnFooter', name: 'Multi-Column Footer', category: 'footer', description: 'Comprehensive site footer with columns, social links, copyright', icon: Layout },
+  { type: 'FloatingWhatsApp', name: 'Floating WhatsApp', category: 'footer', description: 'Fixed corner WhatsApp chat trigger button', icon: MessageSquare },
+  { type: 'BackToTop', name: 'Back To Top', category: 'footer', description: 'Smooth scroll floating back-to-top button', icon: MoveUp },
+];
+
+const CATEGORIES = [
+  { id: 'all', label: 'All Components', icon: LayoutGrid },
+  { id: 'layout', label: 'Layout & Structure', icon: Layout },
+  { id: 'brand', label: 'Brand & Navigation', icon: Compass },
+  { id: 'hero', label: 'Hero & Conversion', icon: Sparkles },
+  { id: 'store', label: 'Store & Location', icon: MapPin },
+  { id: 'catalog', label: 'Products & Catalog', icon: ShoppingBag },
+  { id: 'content', label: 'Content & Media', icon: FileText },
+  { id: 'trust', label: 'Social Proof & Trust', icon: Award },
+  { id: 'services', label: 'Services & Business', icon: ShieldCheck },
+  { id: 'forms', label: 'Forms & Leads', icon: MessageSquare },
+  { id: 'seo', label: 'SEO & Marketing', icon: Globe },
+  { id: 'footer', label: 'Footer & Utility', icon: Layout },
+];
+
+// Context to connect Studio UI with page-level state
+interface BuilderUIContextType {
+  tenantSlug: string;
+  brandId: string | null;
+  pageInfo: any;
+  currentVersion: number;
+  publishedVersion: number | null;
+  saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  zoomLevel: number;
+  setZoomLevel: (zoom: number) => void;
+  openPublishModal: () => void;
+  openRollbackModal: () => void;
+  onManualSave: () => void;
+}
+
+const BuilderUIContext = createContext<BuilderUIContextType | null>(null);
+
+function useBuilderUI() {
+  const ctx = useContext(BuilderUIContext);
+  if (!ctx) throw new Error('useBuilderUI must be used within BuilderUIContext.Provider');
+  return ctx;
+}
+
+// Media assets library for tenant
+const SAMPLE_ASSETS = [
+  { id: 'a1', name: 'Brand Hero Wallpaper', url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=1200&auto=format&fit=crop&q=80', type: 'image/jpeg', size: '420 KB', dims: '1920x1080' },
+  { id: 'a2', name: 'Luxury Storefront Facade', url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&auto=format&fit=crop&q=80', type: 'image/jpeg', size: '280 KB', dims: '1200x800' },
+  { id: 'a3', name: 'Royal Oudh Bottle Specimen', url: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=800&auto=format&fit=crop&q=80', type: 'image/jpeg', size: '195 KB', dims: '1000x1000' },
+  { id: 'a4', name: 'Artisan Essence Workshop', url: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&auto=format&fit=crop&q=80', type: 'image/jpeg', size: '310 KB', dims: '1200x800' },
+  { id: 'a5', name: 'Golden Brand Emblem Icon', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80', type: 'image/png', size: '115 KB', dims: '512x512' },
+  { id: 'a6', name: 'Modern Minimalist Interior', url: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80', type: 'image/jpeg', size: '350 KB', dims: '1600x1066' },
+];
 
 function sanitizeBlockItem(item: any, idx: number, prefix = 'block'): any {
   if (!item || typeof item !== 'object') return item;
   const props = { ...(item.props || {}) };
-  const id = props.id || `${item.type || prefix}-${idx}-${Math.random().toString(36).substring(2, 8)}`;
+  const id = props.id || `${item.type || prefix}-${idx}`;
   props.id = id;
 
   for (const [key, val] of Object.entries(props)) {
@@ -73,7 +261,919 @@ function sanitizeClientPuckData(raw: any): Data {
   };
 }
 
-export default function SiteStudioBuilderPage() {
+// ─────────────────────────────────────────────────────────────
+// 1. TOP TOOLBAR OVERRIDE (Webflow / Wix Studio Header)
+// ─────────────────────────────────────────────────────────────
+function StudioTopToolbar({ actions }: { actions?: React.ReactNode }) {
+  const {
+    tenantSlug,
+    brandId,
+    pageInfo,
+    currentVersion,
+    publishedVersion,
+    saveStatus,
+    zoomLevel,
+    setZoomLevel,
+    openPublishModal,
+    openRollbackModal,
+    onManualSave,
+  } = useBuilderUI();
+
+  const { appState, dispatch, history } = usePuck();
+  const currentViewport = appState.ui.viewports?.current?.width || 1280;
+  const isPreviewMode = appState.ui.previewMode === 'interactive';
+
+  const canUndo = Boolean(history.hasPast);
+  const canRedo = Boolean(history.hasFuture);
+
+  const handleSetViewport = (width: number) => {
+    dispatch({
+      type: 'setUi',
+      ui: {
+        viewports: {
+          ...appState.ui.viewports,
+          current: {
+            width,
+            height: 'auto',
+          },
+        },
+      },
+    });
+  };
+
+  const handleTogglePreview = () => {
+    dispatch({
+      type: 'setUi',
+      ui: {
+        previewMode: isPreviewMode ? 'edit' : 'interactive',
+      },
+    });
+  };
+
+  return (
+    <header className="sticky top-0 z-50 bg-slate-900 text-white border-b border-slate-800 px-3.5 py-2 flex items-center justify-between select-none shadow-md">
+      {/* ── Left Group: Back, Breadcrumb & Save Status ── */}
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/client/${tenantSlug}/website/pages${brandId ? `?brandId=${brandId}` : ''}`}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all border border-slate-700/60"
+          title="Back to Pages list"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Pages</span>
+        </Link>
+
+        <div className="h-4 w-[1px] bg-slate-800 hidden sm:block" />
+
+        {/* Page Identity & Version */}
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-white" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-xs text-slate-200">
+              {pageInfo?.pageType || 'Page'}
+            </span>
+            <span className="font-mono text-[11px] bg-slate-800 px-1.5 py-0.5 rounded text-indigo-300 border border-slate-700">
+              {pageInfo?.slug || '/'}
+            </span>
+            <span className="text-[10px] text-slate-400 font-medium">
+              v{currentVersion}
+            </span>
+          </div>
+
+          {/* Status Badge */}
+          {publishedVersion ? (
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live v{publishedVersion}
+            </span>
+          ) : (
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800/60">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              Draft Only
+            </span>
+          )}
+        </div>
+
+        {/* Autosave Status */}
+        <div className="hidden lg:flex items-center text-xs ml-2">
+          {saveStatus === 'saving' && (
+            <span className="text-slate-400 flex items-center gap-1.5 text-[11px]">
+              <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
+              <span>Saving draft...</span>
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span className="text-emerald-400 flex items-center gap-1.5 text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>All changes saved</span>
+            </span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-rose-400 flex items-center gap-1.5 text-[11px]">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>Save failed</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Center Group: Viewport, Zoom & Undo/Redo ── */}
+      <div className="flex items-center gap-2">
+        {/* Undo / Redo */}
+        <div className="flex items-center bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60">
+          <button
+            type="button"
+            onClick={() => history.back()}
+            disabled={!canUndo}
+            className={`p-1.5 rounded-md transition-colors ${
+              canUndo ? 'text-slate-300 hover:text-white hover:bg-slate-700' : 'text-slate-600 cursor-not-allowed'
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => history.forward()}
+            disabled={!canRedo}
+            className={`p-1.5 rounded-md transition-colors ${
+              canRedo ? 'text-slate-300 hover:text-white hover:bg-slate-700' : 'text-slate-600 cursor-not-allowed'
+            }`}
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Viewport Switcher */}
+        <div className="flex items-center bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60">
+          <button
+            type="button"
+            onClick={() => handleSetViewport(1280)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+              currentViewport >= 1024
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+            }`}
+            title="Desktop Viewport (1280px)"
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline text-[11px]">Desktop</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetViewport(768)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+              currentViewport === 768
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+            }`}
+            title="Tablet Viewport (768px)"
+          >
+            <Tablet className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline text-[11px]">Tablet</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSetViewport(390)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+              currentViewport === 390
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+            }`}
+            title="Mobile Viewport (390px)"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline text-[11px]">Mobile</span>
+          </button>
+        </div>
+
+        {/* Zoom Controls */}
+        <div className="hidden md:flex items-center bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/60">
+          <button
+            type="button"
+            onClick={() => setZoomLevel(Math.max(50, zoomLevel - 25))}
+            className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-700 transition-colors"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel(100)}
+            className="px-2 text-[11px] font-mono text-slate-300 hover:text-white"
+            title="Reset Zoom to 100%"
+          >
+            {zoomLevel}%
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel(Math.min(150, zoomLevel + 25))}
+            className="p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-700 transition-colors"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Right Group: Preview Toggle, History, Save & Publish ── */}
+      <div className="flex items-center gap-2">
+        {/* Interactive Preview Mode Toggle */}
+        <button
+          type="button"
+          onClick={handleTogglePreview}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+            isPreviewMode
+              ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700/60'
+          }`}
+          title={isPreviewMode ? 'Exit Interactive Preview' : 'Interactive Preview Mode'}
+        >
+          {isPreviewMode ? <Edit3 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          <span className="hidden sm:inline">{isPreviewMode ? 'Editing' : 'Preview'}</span>
+        </button>
+
+        {/* Version History Modal Trigger */}
+        <button
+          type="button"
+          onClick={openRollbackModal}
+          className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all border border-slate-700/60 flex items-center gap-1.5"
+          title="Version History & Rollbacks"
+        >
+          <History className="w-3.5 h-3.5 text-slate-400" />
+          <span className="hidden sm:inline">History</span>
+        </button>
+
+        {/* Manual Save Draft Trigger */}
+        <button
+          type="button"
+          onClick={onManualSave}
+          disabled={saveStatus === 'saving'}
+          className="p-1.5 sm:px-3 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold transition-all border border-slate-700/60 flex items-center gap-1.5 disabled:opacity-50"
+          title="Save draft immediately"
+        >
+          <Save className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">Save Draft</span>
+        </button>
+
+        {/* Publish Live Button */}
+        <button
+          type="button"
+          onClick={openPublishModal}
+          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold transition-all shadow-md shadow-indigo-600/30 active:scale-95"
+        >
+          <Send className="w-3.5 h-3.5" />
+          <span>Publish</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2. LEFT SIDEBAR OVERRIDE (Components, Layers & Assets)
+// ─────────────────────────────────────────────────────────────
+function StudioLeftSidebar({ children }: { children?: React.ReactNode }) {
+  const [activeTab, setActiveTab] = useState<'components' | 'layers' | 'assets'>('components');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    layout: true,
+    brand: true,
+    hero: true,
+    store: true,
+    catalog: true,
+    content: true,
+    trust: false,
+    services: false,
+    forms: false,
+    seo: false,
+    footer: false,
+  });
+
+  const [assetSearch, setAssetSearch] = useState('');
+  const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
+
+  const { appState, dispatch } = usePuck();
+
+  // Filter components based on query & category
+  const filteredComponents = COMPONENT_METADATA.filter((c) => {
+    const matchesSearch =
+      searchQuery.trim() === '' ||
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || c.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Group filtered components by category
+  const componentsByCategory = CATEGORIES.filter((cat) => cat.id !== 'all').map((cat) => ({
+    ...cat,
+    items: filteredComponents.filter((c) => c.category === cat.id),
+  }));
+
+  const toggleCategoryExpand = (catId: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }));
+  };
+
+  // Click-to-add action
+  const handleInsertComponent = (compType: string) => {
+    const nextIdx = appState.data.content?.length || 0;
+    dispatch({
+      type: 'insert',
+      componentType: compType,
+      destinationIndex: nextIdx,
+      destinationZone: 'root:default-zone',
+    });
+  };
+
+  // Copy asset URL
+  const handleCopyAsset = (url: string, id: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedAssetId(id);
+    setTimeout(() => setCopiedAssetId(null), 2000);
+  };
+
+  // Insert asset as image block
+  const handleInsertAssetAsImage = (url: string) => {
+    const nextIdx = appState.data.content?.length || 0;
+    dispatch({
+      type: 'insert',
+      componentType: 'Image',
+      destinationIndex: nextIdx,
+      destinationZone: 'root:default-zone',
+    });
+  };
+
+  return (
+    <aside className="w-[320px] h-[calc(100vh-49px)] bg-slate-900 border-r border-slate-800 flex flex-col select-none text-slate-300">
+      {/* ── Tab Switcher Header ── */}
+      <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/60 p-1.5 gap-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('components')}
+          className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === 'components'
+              ? 'bg-slate-800 text-white shadow-xs border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <LayoutGrid className="w-3.5 h-3.5" />
+          <span>Add</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('layers')}
+          className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all relative ${
+            activeTab === 'layers'
+              ? 'bg-slate-800 text-white shadow-xs border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Layers</span>
+          {appState.data.content?.length > 0 && (
+            <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[10px] flex items-center justify-center font-bold">
+              {appState.data.content.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('assets')}
+          className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            activeTab === 'assets'
+              ? 'bg-slate-800 text-white shadow-xs border border-slate-700/60'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+          }`}
+        >
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>Assets</span>
+        </button>
+      </div>
+
+      {/* ── TAB 1: COMPONENTS ── */}
+      {activeTab === 'components' && (
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Search Input */}
+          <div className="p-3 border-b border-slate-800 bg-slate-900">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search 45+ components..."
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2 text-slate-500 hover:text-slate-300"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Category Quick Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-0.5 no-scrollbar">
+              {CATEGORIES.slice(0, 6).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-2 py-0.5 rounded-md text-[10px] font-semibold whitespace-nowrap transition-all ${
+                    selectedCategory === cat.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {cat.label.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Component Accordion Categories */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            <Drawer>
+              {componentsByCategory.map((category) => {
+                if (category.items.length === 0) return null;
+                const isExpanded = expandedCategories[category.id] ?? true;
+                const CategoryIcon = category.icon;
+
+                return (
+                  <div key={category.id} className="rounded-xl border border-slate-800/80 bg-slate-950/40 overflow-hidden">
+                    {/* Category Header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCategoryExpand(category.id)}
+                      className="w-full px-3 py-2 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CategoryIcon className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-xs font-bold text-slate-200">{category.label}</span>
+                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.2 rounded-full text-slate-400 font-semibold">
+                          {category.items.length}
+                        </span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+                      ) : (
+                        <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+                      )}
+                    </button>
+
+                    {/* Component Items */}
+                    {isExpanded && (
+                      <div className="p-1.5 space-y-1.5 border-t border-slate-800/60 bg-slate-900/60">
+                        {category.items.map((comp) => {
+                          const CompIcon = comp.icon;
+                          return (
+                            <div
+                              key={comp.type}
+                              className="group relative flex items-center justify-between p-2 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/40 hover:border-indigo-500/50 transition-all cursor-grab active:cursor-grabbing shadow-2xs"
+                            >
+                              {/* Drag handle wrapping native Puck Drawer.Item */}
+                              <Drawer.Item name={comp.type}>
+                                {() => (
+                                  <div className="flex items-start gap-2.5 flex-1 pr-2">
+                                    <div className="w-7 h-7 rounded-md bg-slate-700/60 group-hover:bg-indigo-600/20 group-hover:border-indigo-500/40 border border-slate-600/40 flex items-center justify-center shrink-0 transition-colors">
+                                      <CompIcon className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-slate-200 group-hover:text-white truncate">
+                                        {comp.name}
+                                      </p>
+                                      <p className="text-[10px] text-slate-400 line-clamp-1">
+                                        {comp.description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </Drawer.Item>
+
+                              {/* Quick Click-to-Add Button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInsertComponent(comp.type);
+                                }}
+                                className="w-6 h-6 rounded-md bg-slate-700/60 hover:bg-indigo-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0"
+                                title={`Add ${comp.name} to canvas`}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </Drawer>
+
+            {filteredComponents.length === 0 && (
+              <div className="text-center py-12 px-4 space-y-3">
+                <Search className="w-8 h-8 text-slate-600 mx-auto" />
+                <p className="text-xs font-semibold text-slate-400">No components matched &quot;{searchQuery}&quot;</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('all');
+                  }}
+                  className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-500"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 2: LAYERS TREE ── */}
+      {activeTab === 'layers' && (
+        <div className="flex-1 flex flex-col min-h-0 p-3 space-y-2">
+          <div className="flex items-center justify-between pb-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Page Tree</span>
+            <span className="text-[11px] text-slate-500 font-semibold">
+              {appState.data.content?.length || 0} blocks
+            </span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5">
+            {(!appState.data.content || appState.data.content.length === 0) ? (
+              <div className="text-center py-16 px-4 space-y-3">
+                <Layers className="w-8 h-8 text-slate-600 mx-auto" />
+                <p className="text-xs font-semibold text-slate-400">Page Canvas is Empty</p>
+                <p className="text-[11px] text-slate-500">Switch to the Add tab to drop your first section.</p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('components')}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-500"
+                >
+                  Browse Components
+                </button>
+              </div>
+            ) : (
+              appState.data.content.map((block: any, idx: number) => {
+                const isSelected = appState.ui.itemSelector?.index === idx;
+                const meta = COMPONENT_METADATA.find((m) => m.type === block.type);
+                const BlockIcon = meta?.icon || Layout;
+
+                return (
+                  <div
+                    key={block.props?.id || `${block.type}-${idx}`}
+                    onClick={() => {
+                      dispatch({
+                        type: 'setUi',
+                        ui: { itemSelector: { index: idx, zone: 'root:default-zone' } },
+                      });
+                    }}
+                    className={`group flex items-center justify-between p-2 rounded-xl border text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-indigo-950/70 border-indigo-500 text-white shadow-xs'
+                        : 'bg-slate-800/40 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className="text-[10px] font-mono text-slate-500 font-bold">
+                        {String(idx + 1).padStart(2, '0')}
+                      </span>
+                      <BlockIcon className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`} />
+                      <div className="min-w-0">
+                        <p className="font-semibold truncate leading-tight">
+                          {meta?.name || block.type}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate font-mono">
+                          #{block.props?.id || block.type}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Layer Actions */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {idx > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({
+                              type: 'reorder',
+                              sourceIndex: idx,
+                              destinationIndex: idx - 1,
+                              destinationZone: 'root:default-zone',
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white"
+                          title="Move Up"
+                        >
+                          <MoveUp className="w-3 h-3" />
+                        </button>
+                      )}
+                      {idx < appState.data.content.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch({
+                              type: 'reorder',
+                              sourceIndex: idx,
+                              destinationIndex: idx + 1,
+                              destinationZone: 'root:default-zone',
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white"
+                          title="Move Down"
+                        >
+                          <MoveDown className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dispatch({
+                            type: 'duplicate',
+                            sourceIndex: idx,
+                            sourceZone: 'root:default-zone',
+                          });
+                        }}
+                        className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-white"
+                        title="Duplicate"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dispatch({
+                            type: 'remove',
+                            index: idx,
+                            zone: 'root:default-zone',
+                          });
+                        }}
+                        className="p-1 rounded hover:bg-rose-900/60 text-slate-400 hover:text-rose-400"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: MEDIA ASSETS ── */}
+      {activeTab === 'assets' && (
+        <div className="flex-1 flex flex-col min-h-0 p-3 space-y-3">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+            <input
+              type="text"
+              value={assetSearch}
+              onChange={(e) => setAssetSearch(e.target.value)}
+              placeholder="Search tenant media..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+            {SAMPLE_ASSETS.filter((a) => a.name.toLowerCase().includes(assetSearch.toLowerCase())).map((asset) => (
+              <div
+                key={asset.id}
+                className="group p-2 rounded-xl bg-slate-800/40 border border-slate-800 hover:border-slate-700 space-y-2 transition-all"
+              >
+                <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-950">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyAsset(asset.url, asset.id)}
+                      className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-semibold flex items-center gap-1 shadow-sm"
+                    >
+                      {copiedAssetId === asset.id ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedAssetId === asset.id ? 'Copied' : 'Copy URL'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleInsertAssetAsImage(asset.url)}
+                      className="px-2 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Insert</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-slate-300 truncate">{asset.name}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">{asset.dims}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. RIGHT PROPERTIES PANEL OVERRIDE (Inspector Panel)
+// ─────────────────────────────────────────────────────────────
+function StudioPropertiesPanel({
+  children,
+  isLoading,
+  itemSelector,
+}: {
+  children?: React.ReactNode;
+  isLoading?: boolean;
+  itemSelector?: any;
+}) {
+  const { pageInfo, currentVersion, publishedVersion } = useBuilderUI();
+  const { appState, dispatch, selectedItem } = usePuck();
+
+  // If a block is currently selected on the canvas
+  if (selectedItem) {
+    const meta = COMPONENT_METADATA.find((m) => m.type === selectedItem.type);
+    const CompIcon = meta?.icon || Layout;
+
+    return (
+      <aside className="w-[340px] h-[calc(100vh-49px)] bg-slate-900 border-l border-slate-800 flex flex-col select-none text-slate-300">
+        {/* Component Header Banner */}
+        <div className="p-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+              <CompIcon className="w-3.5 h-3.5 text-indigo-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white truncate">
+                {meta?.name || selectedItem.type}
+              </p>
+              <p className="text-[10px] font-mono text-slate-400 truncate">
+                #{selectedItem.props?.id || selectedItem.type}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {itemSelector && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({
+                      type: 'duplicate',
+                      sourceIndex: itemSelector.index,
+                      sourceZone: itemSelector.zone || 'root:default-zone',
+                    });
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  title="Duplicate Component"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dispatch({
+                      type: 'remove',
+                      index: itemSelector.index,
+                      zone: itemSelector.zone || 'root:default-zone',
+                    });
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 transition-colors"
+                  title="Delete Component"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                dispatch({
+                  type: 'setUi',
+                  ui: { itemSelector: null },
+                });
+              }}
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              title="Deselect"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Component Properties Fields */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="space-y-3">
+            <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+              Component Properties & Content
+            </span>
+            <div className="puck-fields-container text-xs space-y-3">
+              {children}
+            </div>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  // Fallback: Global Page & Theme Inspector when no component is selected
+  return (
+    <aside className="w-[340px] h-[calc(100vh-49px)] bg-slate-900 border-l border-slate-800 flex flex-col select-none text-slate-300">
+      <div className="p-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Settings className="w-4 h-4 text-indigo-400" />
+          <span className="text-xs font-bold text-white">Page Settings & Brand</span>
+        </div>
+        <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 font-mono">
+          v{currentVersion}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+        {/* Page Identity */}
+        <div className="space-y-2 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Page Information</span>
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Route Slug:</span>
+              <span className="font-mono font-semibold text-slate-200">{pageInfo?.slug || '/'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Page Type:</span>
+              <span className="font-semibold text-indigo-400">{pageInfo?.pageType || 'HOME'}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Live Status:</span>
+              <span className={`font-semibold ${publishedVersion ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {publishedVersion ? `Published (v${publishedVersion})` : 'Draft Only'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Brand Theme Tokens */}
+        <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Brand Palette</span>
+          <div className="grid grid-cols-3 gap-2 pt-1">
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+              <div className="w-full h-5 rounded-md bg-indigo-600 mx-auto" />
+              <span className="text-[10px] text-slate-400 block font-medium">Primary</span>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+              <div className="w-full h-5 rounded-md bg-slate-900 mx-auto border border-slate-700" />
+              <span className="text-[10px] text-slate-400 block font-medium">Dark Surface</span>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+              <div className="w-full h-5 rounded-md bg-amber-500 mx-auto" />
+              <span className="text-[10px] text-slate-400 block font-medium">Accent Gold</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Helpful Tip */}
+        <div className="p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-900/50 space-y-1.5">
+          <div className="flex items-center gap-1.5 text-indigo-300 text-xs font-bold">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Interactive Editing</span>
+          </div>
+          <p className="text-[11px] text-indigo-200/80 leading-relaxed">
+            Click any section on the canvas to inspect its properties, typography, alignment, and styling controls here.
+          </p>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN SITE STUDIO BUILDER PAGE COMPONENT
+// ─────────────────────────────────────────────────────────────
+function SiteStudioBuilderContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -90,9 +1190,15 @@ export default function SiteStudioBuilderPage() {
   const [historicalVersions, setHistoricalVersions] = useState<any[]>([]);
 
   // Editor UI State
+  const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishSuccess, setPublishSuccess] = useState(false);
@@ -106,6 +1212,7 @@ export default function SiteStudioBuilderPage() {
   const loadPageData = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const res = await fetch(`/api/tenants/${tenantSlug}/website/pages/${pageId}/puck`);
       const data = await res.json();
       if (data.success && data.puckData) {
@@ -115,9 +1222,12 @@ export default function SiteStudioBuilderPage() {
         setCurrentVersion(data.currentVersion);
         setPublishedVersion(data.publishedVersion);
         setHistoricalVersions(data.historicalVersions || []);
+      } else {
+        setLoadError(extractErrorMessage(data?.error, 'Failed to load page layout template.'));
       }
     } catch (err) {
       console.error('Failed to load page builder data', err);
+      setLoadError('Network error connecting to tenant page service.');
     } finally {
       setLoading(false);
     }
@@ -154,6 +1264,28 @@ export default function SiteStudioBuilderPage() {
         setSaveStatus('error');
       }
     }, 1200); // 1.2s debounce
+  };
+
+  // Immediate manual save
+  const handleManualSave = async () => {
+    if (!puckData) return;
+    setSaveStatus('saving');
+    try {
+      const res = await fetch(`/api/tenants/${tenantSlug}/website/pages/${pageId}/puck`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ puckData }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2500);
+      } else {
+        setSaveStatus('error');
+      }
+    } catch (err) {
+      setSaveStatus('error');
+    }
   };
 
   // Publish latest draft
@@ -305,278 +1437,260 @@ export default function SiteStudioBuilderPage() {
     },
   };
 
-  if (loading || !puckData) {
+  if (loadError) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] gap-3 text-slate-400">
-        <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
-        <span className="text-xs font-semibold">Loading Page & Visual Elements...</span>
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-slate-950 text-slate-400 p-6 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-rose-600/20 border border-rose-500/30 flex items-center justify-center">
+          <AlertCircle className="w-6 h-6 text-rose-400" />
+        </div>
+        <div className="space-y-1 max-w-md">
+          <p className="text-sm font-bold text-white tracking-wide">Unable to Load Page Builder</p>
+          <p className="text-xs text-rose-300">{loadError}</p>
+        </div>
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={loadPageData}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-2"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Try Again</span>
+          </button>
+          <Link
+            href={`/client/${tenantSlug}/website/pages${brandId ? `?brandId=${brandId}` : ''}`}
+            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+          >
+            Back to Pages
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const viewportContainerClass =
-    viewport === 'mobile'
-      ? 'max-w-[390px] mx-auto border-x border-slate-300 shadow-xl min-h-screen bg-white transition-all duration-300'
-      : viewport === 'tablet'
-      ? 'max-w-[768px] mx-auto border-x border-slate-300 shadow-xl min-h-screen bg-white transition-all duration-300'
-      : 'w-full bg-white transition-all duration-300';
+  if (!isMounted || loading || !puckData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-slate-950 text-slate-400">
+        <div className="relative">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center animate-pulse">
+            <Sparkles className="w-6 h-6 text-indigo-400 animate-spin" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-bold text-white tracking-wide">Loading Site Studio Visual Canvas</p>
+          <p className="text-xs text-slate-500">Connecting to tenant database & page templates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const builderUIValue: BuilderUIContextType = {
+    tenantSlug,
+    brandId,
+    pageInfo,
+    currentVersion,
+    publishedVersion,
+    saveStatus,
+    zoomLevel,
+    setZoomLevel,
+    openPublishModal: () => setPublishModalOpen(true),
+    openRollbackModal: () => setRollbackModalOpen(true),
+    onManualSave: handleManualSave,
+  };
 
   return (
     <PageContextProvider value={previewContext}>
-      <div className="min-h-screen flex flex-col bg-slate-100 text-slate-900 -m-4 lg:-m-5">
-        {/* ── Top Editor Header Bar ── */}
-        <header className="sticky top-0 z-50 bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-2xs">
-          {/* Left: Back & Route Info */}
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/client/${tenantSlug}/website/pages${brandId ? `?brandId=${brandId}` : ''}`}
-              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Back to Pages"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
+      <BuilderUIContext.Provider value={builderUIValue}>
+        <div className="site-studio-builder-root fixed inset-0 z-40 bg-slate-950 overflow-hidden flex flex-col" style={{ '--puck-canvas-zoom': zoomLevel / 100 } as React.CSSProperties}>
+          
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-slate-900">
-                  {pageInfo?.pageType} Page
-                </span>
-                <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700">
-                  {pageInfo?.slug}
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  (v{currentVersion})
-                </span>
-              </div>
-            </div>
-          </div>
+          <Puck
+            config={siteStudioPuckConfig}
+            data={puckData}
+            onChange={handlePuckChange}
+            viewports={[
+              { width: 1280, height: 'auto', label: 'Desktop', icon: 'Monitor' },
+              { width: 768, height: 'auto', label: 'Tablet', icon: 'Tablet' },
+              { width: 390, height: 'auto', label: 'Mobile', icon: 'Smartphone' },
+            ]}
+            iframe={{ enabled: false }}
+            overrides={{
+              header: ({ actions }) => <StudioTopToolbar actions={actions} />,
+              drawer: ({ children }) => <StudioLeftSidebar>{children}</StudioLeftSidebar>,
+              outline: () => null,
+              fields: ({ children, isLoading, itemSelector }) => (
+                <StudioPropertiesPanel isLoading={isLoading} itemSelector={itemSelector}>
+                  {children}
+                </StudioPropertiesPanel>
+              ),
+            }}
+          />
 
-          {/* Center: Viewport Switcher */}
-          <div className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setViewport('desktop')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewport === 'desktop' ? 'bg-white shadow-2xs text-indigo-600' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Desktop Viewport"
-            >
-              <Monitor className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewport('tablet')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewport === 'tablet' ? 'bg-white shadow-2xs text-indigo-600' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Tablet (768px)"
-            >
-              <Tablet className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewport('mobile')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewport === 'mobile' ? 'bg-white shadow-2xs text-indigo-600' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Mobile (390px)"
-            >
-              <Smartphone className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Right: Autosave status & Publish actions */}
-          <div className="flex items-center gap-3">
-            {/* Autosave Status */}
-            <div className="hidden md:flex items-center text-xs">
-              {saveStatus === 'saving' && (
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <RefreshCw className="w-3 h-3 animate-spin text-indigo-500" />
-                  <span>Saving draft...</span>
-                </span>
-              )}
-              {saveStatus === 'saved' && (
-                <span className="text-emerald-600 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Saved</span>
-                </span>
-              )}
-              {saveStatus === 'error' && (
-                <span className="text-rose-600 flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Save failed</span>
-                </span>
-              )}
-            </div>
-
-            {/* Rollback Button */}
-            {historicalVersions.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setRollbackModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors"
-                title="View version history"
-              >
-                <History className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden sm:inline">History</span>
-              </button>
-            )}
-
-            {/* Publish Button */}
-            <button
-              type="button"
-              onClick={() => setPublishModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Publish</span>
-            </button>
-          </div>
-        </header>
-
-        {/* ── Main Canvas Viewport Container ── */}
-        <div className="flex-1 overflow-y-auto">
-          <div className={viewportContainerClass}>
-            <Puck
-              config={siteStudioPuckConfig}
-              data={puckData}
-              onChange={handlePuckChange}
-            />
-          </div>
-        </div>
-
-        {/* ── Publish Dialog Modal ── */}
-        {publishModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">Publish Page to Live Website</h3>
-                <p className="text-xs text-slate-500">
-                  This will atomically promote the current draft layout to the live public subdomain.
-                </p>
-              </div>
-
-              {publishSuccess ? (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <div>
-                    <p className="font-bold">Published Successfully!</p>
-                    <p>Live version v{currentVersion} is now active.</p>
+          {/* ── Publish Dialog Modal ── */}
+          {publishModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+              <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-white">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                      <Send className="w-4 h-4 text-indigo-400" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Publish Page to Live Website</h3>
                   </div>
+                  <p className="text-xs text-slate-400">
+                    This will atomically promote your current draft layout (v{currentVersion}) to your live storefront domain.
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Route Slug:</span>
-                      <span className="font-mono font-semibold text-slate-900">{pageInfo?.slug}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">New Published Version:</span>
-                      <span className="font-bold text-indigo-600">v{currentVersion}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Current Live Version:</span>
-                      <span className="text-slate-600">{publishedVersion ? `v${publishedVersion}` : 'None (Draft only)'}</span>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-end gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setPublishModalOpen(false)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={publishing}
-                      onClick={handlePublish}
-                      className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors disabled:opacity-50 shadow-xs flex items-center gap-2"
-                    >
-                      {publishing ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Publishing atomically...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-3.5 h-3.5" />
-                          <span>Confirm & Publish</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ── Rollback History Modal ── */}
-        {rollbackModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">Version History & Rollback</h3>
-                <p className="text-xs text-slate-500">
-                  Select an earlier published version to roll back safely. Creates an immutable new version.
-                </p>
-              </div>
-
-              <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-                {historicalVersions.map((v) => (
-                  <div
-                    key={v.id}
-                    className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs"
-                  >
+                {publishSuccess ? (
+                  <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 text-emerald-300 text-xs flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">Version {v.version}</span>
-                        {v.status === 'PUBLISHED' && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            Current Live
-                          </span>
-                        )}
+                      <p className="font-bold text-sm">Published Successfully!</p>
+                      <p className="text-[11px] text-emerald-400/80">Version v{currentVersion} is now live.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Route Slug:</span>
+                        <span className="font-mono font-semibold text-white">{pageInfo?.slug}</span>
                       </div>
-                      <span className="text-[11px] text-slate-400">
-                        {new Date(v.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">New Published Version:</span>
+                        <span className="font-bold text-indigo-400">v{currentVersion}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Current Live Version:</span>
+                        <span className="text-slate-300">{publishedVersion ? `v${publishedVersion}` : 'None (Draft only)'}</span>
+                      </div>
                     </div>
 
-                    {v.version !== currentVersion && (
+                    <div className="flex items-center justify-end gap-2.5 pt-2">
                       <button
                         type="button"
-                        disabled={rollingBack}
-                        onClick={() => handleRollback(v.version)}
-                        className="px-2.5 py-1 text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg shadow-2xs transition-colors disabled:opacity-50"
+                        onClick={() => setPublishModalOpen(false)}
+                        className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
                       >
-                        Restore
+                        Cancel
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        disabled={publishing}
+                        onClick={handlePublish}
+                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-md flex items-center gap-2"
+                      >
+                        {publishing ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Publishing atomically...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            <span>Confirm & Publish</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => setRollbackModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                >
-                  Close
-                </button>
+                )}
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {/* ── Rollback History Modal ── */}
+          {rollbackModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+              <div className="bg-slate-900 rounded-3xl border border-slate-800 p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-white">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
+                      <History className="w-4 h-4 text-indigo-400" />
+                    </div>
+                    <h3 className="text-base font-bold text-white">Version History & Rollback</h3>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Select any historical version to restore safely. Restoring creates an immutable new draft version.
+                  </p>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {historicalVersions.map((v) => (
+                    <div
+                      key={v.id}
+                      className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">Version {v.version}</span>
+                          {v.status === 'PUBLISHED' && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/60">
+                              Current Live
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-500">
+                          {new Date(v.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+
+                      {v.version !== currentVersion && (
+                        <button
+                          type="button"
+                          disabled={rollingBack}
+                          onClick={() => handleRollback(v.version)}
+                          className="px-2.5 py-1 text-xs font-semibold bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors disabled:opacity-50"
+                        >
+                          Restore
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRollbackModalOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </BuilderUIContext.Provider>
     </PageContextProvider>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// EXPORT DEFAULT WITH SUSPENSE BOUNDARY
+// ─────────────────────────────────────────────────────────────
+export default function SiteStudioBuilderPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center h-screen gap-4 bg-slate-950 text-slate-400">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center animate-pulse">
+            <Sparkles className="w-6 h-6 text-indigo-400 animate-spin" />
+          </div>
+          <div className="text-center space-y-1">
+            <p className="text-sm font-bold text-white tracking-wide">Initializing Site Studio Editor</p>
+            <p className="text-xs text-slate-500">Preparing component registry & styling...</p>
+          </div>
+        </div>
+      }
+    >
+      <SiteStudioBuilderContent />
+    </React.Suspense>
   );
 }

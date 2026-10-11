@@ -165,12 +165,60 @@ export async function DELETE(
       );
     }
 
-    await prisma.page.delete({
+    // 1. Look up the page first within the tenant context
+    const existingPage = await prisma.page.findFirst({
       where: {
         id: pageId,
         tenantId: authorizedContext.tenantId,
       },
     });
+
+    // 2. If already deleted, return success idempotently
+    if (!existingPage) {
+      return NextResponse.json({
+        success: true,
+        message: 'Page already removed or does not exist.',
+      });
+    }
+
+    // 3. Protect Root Home Page from deletion
+    if (existingPage.slug === '/' || existingPage.pageType === 'HOME') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'The Home page (/) is required for the storefront and cannot be deleted.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // 4. Safely delete the page
+    const templateId = existingPage.templateId;
+    await prisma.page.delete({
+      where: {
+        id: existingPage.id,
+      },
+    });
+
+    // 5. Clean up associated template if no other pages share it
+    if (templateId) {
+      const remainingPagesWithTemplate = await prisma.page.count({
+        where: {
+          templateId,
+        },
+      });
+
+      if (remainingPagesWithTemplate === 0) {
+        try {
+          await prisma.pageTemplate.delete({
+            where: { id: templateId },
+          });
+        } catch (templateErr) {
+          // Non-blocking cleanup: page is already deleted
+          console.warn('Orphaned template cleanup skipped:', templateErr);
+        }
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

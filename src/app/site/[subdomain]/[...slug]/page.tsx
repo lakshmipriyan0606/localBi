@@ -10,11 +10,11 @@ import {
   ExternalLink,
   ShoppingBag,
 } from 'lucide-react';
-import { Render } from '@measured/puck';
-import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-config';
+import { SitePageRenderer } from '@/components/site-studio/site-page-renderer';
 import { PageContextService } from '@/modules/page-builder/page-context-service';
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 export async function generateMetadata({
   params,
@@ -56,46 +56,71 @@ export default async function DynamicSubdomainPage({
     notFound();
   }
 
-  // Find published template version for this specific page or pageType
-  const pageRecord = await prisma.page.findFirst({
-    where: {
-      tenantId: pageContext.tenant.id,
-      webSurfaceId: pageContext.webSurface.id,
-      slug: pageContext.path,
-      status: 'PUBLISHED',
-    },
-    include: {
-      template: {
+  // Find published template version for this specific page or pageType within tenant RLS boundary
+  const puckData = await TenantContextService.withTenantContext(
+    prisma,
+    pageContext.tenant.id,
+    async (tx) => {
+      const pageRecord = await tx.page.findFirst({
+        where: {
+          tenantId: pageContext.tenant.id,
+          webSurfaceId: pageContext.webSurface.id,
+          slug: pageContext.path,
+          status: 'PUBLISHED',
+        },
         include: {
-          versions: {
-            where: { status: 'PUBLISHED' },
-            orderBy: { version: 'desc' },
-            take: 1,
+          template: {
+            include: {
+              versions: {
+                where: { status: 'PUBLISHED' },
+                orderBy: { version: 'desc' },
+                take: 1,
+              },
+            },
           },
         },
-      },
-    },
-  });
+      });
 
-  let puckData = pageRecord?.template?.versions[0]?.puckData as any;
+      let data = pageRecord?.template?.versions[0]?.puckData as any;
 
-  if (!puckData || !Array.isArray(puckData.content) || puckData.content.length === 0) {
-    // Check archetype template for this pageType
-    const archetypeTemplate = await prisma.pageTemplate.findFirst({
-      where: {
-        tenantId: pageContext.tenant.id,
-        webSurfaceId: pageContext.webSurface.id,
-        type: pageContext.pageType,
-      },
-      include: {
-        versions: {
-          where: { status: 'PUBLISHED' },
-          orderBy: { version: 'desc' },
-          take: 1,
-        },
-      },
-    });
-    puckData = archetypeTemplate?.versions[0]?.puckData as any;
+      if (!data || !Array.isArray(data.content) || data.content.length === 0) {
+        // Check archetype template for this pageType
+        const archetypeTemplate = await tx.pageTemplate.findFirst({
+          where: {
+            tenantId: pageContext.tenant.id,
+            webSurfaceId: pageContext.webSurface.id,
+            type: pageContext.pageType,
+          },
+          include: {
+            versions: {
+              where: { status: 'PUBLISHED' },
+              orderBy: { version: 'desc' },
+              take: 1,
+            },
+          },
+        });
+        data = archetypeTemplate?.versions[0]?.puckData as any;
+      }
+
+      return data;
+    }
+  );
+
+  if (puckData && Array.isArray(puckData.content) && puckData.content.length > 0) {
+    return (
+      <>
+        {/* Structured Data JSON-LD */}
+        {pageContext.structuredData && pageContext.structuredData.length > 0 && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(pageContext.structuredData),
+            }}
+          />
+        )}
+        <SitePageRenderer pageContext={pageContext} puckData={puckData} />
+      </>
+    );
   }
 
   return (
@@ -118,11 +143,8 @@ export default async function DynamicSubdomainPage({
         data-localbi-context={JSON.stringify(pageContext.trackingContext)}
         className="space-y-8 animate-in fade-in duration-300"
       >
-        {puckData && Array.isArray(puckData.content) && puckData.content.length > 0 ? (
-          <Render config={siteStudioPuckConfig} data={puckData} />
-        ) : (
-          /* Default Archetype Fallback Layout */
-          <div className="space-y-8">
+        {/* Default Archetype Fallback Layout */}
+        <div className="space-y-8">
             <section className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 shadow-sm space-y-4">
               <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {pageContext.pageType}
@@ -164,8 +186,7 @@ export default async function DynamicSubdomainPage({
               )}
             </section>
           </div>
-        )}
-      </div>
-    </PageContextProvider>
-  );
+        </div>
+      </PageContextProvider>
+    );
 }

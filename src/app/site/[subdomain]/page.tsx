@@ -12,11 +12,11 @@ import {
   ShieldCheck,
   ShoppingBag,
 } from 'lucide-react';
-import { Render } from '@measured/puck';
-import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-config';
+import { SitePageRenderer } from '@/components/site-studio/site-page-renderer';
 import { PageContextService } from '@/modules/page-builder/page-context-service';
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { PuckService } from '@/modules/microsites/puck-service';
 import { puckConfig as legacyPuckConfig } from '@/modules/microsites/puck-config';
@@ -70,23 +70,45 @@ export default async function MicrositeHomePage({
   const pageContext = await PageContextService.resolveByHostnameOrSubdomain(subdomain, []);
 
   if (pageContext) {
-    // Find published template version for HOME
-    const homeTemplate = await prisma.pageTemplate.findFirst({
-      where: {
-        tenantId: pageContext.tenant.id,
-        webSurfaceId: pageContext.webSurface.id,
-        type: 'HOME',
-      },
-      include: {
-        versions: {
-          where: { status: 'PUBLISHED' },
-          orderBy: { version: 'desc' },
-          take: 1,
-        },
-      },
-    });
+    // Find published template version for HOME within tenant RLS boundary
+    const homeTemplate = await TenantContextService.withTenantContext(
+      prisma,
+      pageContext.tenant.id,
+      (tx) =>
+        tx.pageTemplate.findFirst({
+          where: {
+            tenantId: pageContext.tenant.id,
+            webSurfaceId: pageContext.webSurface.id,
+            type: 'HOME',
+          },
+          include: {
+            versions: {
+              where: { status: 'PUBLISHED' },
+              orderBy: { version: 'desc' },
+              take: 1,
+            },
+          },
+        })
+    );
 
     const puckData = homeTemplate?.versions[0]?.puckData as any;
+
+    if (puckData && Array.isArray(puckData.content) && puckData.content.length > 0) {
+      return (
+        <>
+          {/* Structured Data JSON-LD */}
+          {pageContext.structuredData && pageContext.structuredData.length > 0 && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{
+                __html: JSON.stringify(pageContext.structuredData),
+              }}
+            />
+          )}
+          <SitePageRenderer pageContext={pageContext} puckData={puckData} />
+        </>
+      );
+    }
 
     return (
       <PageContextProvider value={pageContext}>
@@ -108,11 +130,8 @@ export default async function MicrositeHomePage({
           data-localbi-context={JSON.stringify(pageContext.trackingContext)}
           className="space-y-8 animate-in fade-in duration-300"
         >
-          {puckData && Array.isArray(puckData.content) && puckData.content.length > 0 ? (
-            <Render config={siteStudioPuckConfig} data={puckData} />
-          ) : (
-            /* Fallback SSR Layout when Puck data is empty */
-            <div className="space-y-8">
+          {/* Fallback SSR Layout when Puck data is empty */}
+          <div className="space-y-8">
               <section className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm text-slate-900 space-y-6">
                 <div className="max-w-2xl space-y-4">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">
@@ -165,7 +184,6 @@ export default async function MicrositeHomePage({
                 </section>
               )}
             </div>
-          )}
         </div>
       </PageContextProvider>
     );

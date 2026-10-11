@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { usePageContext } from '../page-context-react';
 import {
   MapPin,
@@ -21,6 +22,7 @@ export interface StoreHeroProps {
 }
 
 export function StoreHero({
+  id = 'home',
   badgeText = 'Verified Official Storefront',
   headline,
   subheading,
@@ -45,7 +47,7 @@ export function StoreHero({
         )}`);
 
   return (
-    <section className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm text-slate-900 space-y-6">
+    <section id={id || 'home'} className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm text-slate-900 space-y-6 scroll-mt-20">
       <div className="max-w-3xl space-y-4">
         {/* Rating or Verified Badge */}
         {store?.rating && store.reviewCount && store.rating > 0 ? (
@@ -113,6 +115,7 @@ export interface StoreInfoProps {
 }
 
 export function StoreInfo({
+  id = 'contact',
   headline = 'Store Information',
   subheading = 'Visit us in person or get in touch directly.',
   showHours = true,
@@ -121,7 +124,7 @@ export function StoreInfo({
   const { store } = usePageContext();
 
   return (
-    <div className="space-y-6">
+    <div id={id || 'contact'} className="space-y-6 scroll-mt-20">
       <div className="space-y-1">
         <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
           {headline}
@@ -177,6 +180,7 @@ export function StoreInfo({
 
 export interface StoreMapProps {
   id?: string;
+  headline?: string;
   zoomLevel?: number;
   showDirectionsButton?: boolean;
 }
@@ -238,6 +242,7 @@ export function StoreMap({
 export interface NearbyStoresProps {
   id?: string;
   headline?: string;
+  limit?: number;
 }
 
 export function NearbyStores({
@@ -310,3 +315,139 @@ export function OpeningHours({
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. STORE LOCATOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StoreLocatorProps {
+  id?: string;
+  headline?: string;
+  subheading?: string;
+  searchPlaceholder?: string;
+}
+
+export function StoreLocator({
+  headline = 'Find a Nearby Store Location',
+  subheading = 'Search our verified storefront branches across your city or region.',
+  searchPlaceholder = 'Enter city or neighborhood...',
+}: StoreLocatorProps) {
+  const { store, nearbyStores } = usePageContext();
+  const [query, setQuery] = React.useState('');
+
+  const allStores = store ? [store, ...(nearbyStores || [])] : nearbyStores || [];
+  const filtered = query
+    ? allStores.filter(
+        (s) =>
+          s.name?.toLowerCase().includes(query.toLowerCase()) ||
+          s.city?.toLowerCase().includes(query.toLowerCase())
+      )
+    : allStores;
+
+  return (
+    <div className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-6">
+      <div className="text-center space-y-2">
+        <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">{headline}</h3>
+        <p className="text-xs sm:text-sm text-slate-500">{subheading}</p>
+      </div>
+
+      <div className="max-w-md mx-auto">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 shadow-2xs"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-2">
+        {filtered.map((s, idx) => (
+          <div key={s.id || idx} className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
+            <div className="font-bold text-sm text-slate-900">{s.name}</div>
+            <p className="text-xs text-slate-500">{s.addressLine1 || s.city}</p>
+            {s.phone && (
+              <a href={`tel:${s.phone}`} className="inline-flex items-center gap-1 text-xs text-indigo-600 font-medium">
+                <Phone className="w-3 h-3" />
+                <span>{s.phone}</span>
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. LOCATION CARD (Standalone Rich Card)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface LocationCardProps {
+  id?: string;
+  storeName?: string;
+  address?: string;
+  phone?: string;
+  showHours?: boolean;
+}
+
+export function LocationCard({
+  storeName = '',
+  address = '',
+  phone = '',
+  showHours = true,
+}: LocationCardProps) {
+  const { store } = usePageContext();
+
+  const name = storeName || store?.name || 'Main Branch Storefront';
+  const addr = address || (store?.addressLine1 ? `${store.addressLine1}, ${store.city}` : '123 Main Street');
+  const ph = phone || store?.phone || '+91 98400 12345';
+
+  return (
+    <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-4 max-w-md my-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            Open Today
+          </span>
+          <h4 className="font-bold text-base text-slate-900 mt-2">{name}</h4>
+          <p className="text-xs text-slate-500 mt-0.5">{addr}</p>
+        </div>
+        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <MapPin className="w-5 h-5" />
+        </div>
+      </div>
+
+      {showHours && (
+        <div className="py-2.5 px-3 rounded-xl bg-slate-50 border border-slate-100 text-xs text-slate-600 space-y-1">
+          <div className="flex justify-between">
+            <span className="font-medium">Mon - Sat:</span>
+            <span>10:00 AM - 9:30 PM</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-medium">Sunday:</span>
+            <span>11:00 AM - 8:00 PM</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 pt-1">
+        <a
+          href={`tel:${ph}`}
+          className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs text-center transition-colors shadow-2xs"
+        >
+          Call Store
+        </a>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${addr}`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs text-center transition-colors"
+        >
+          Directions
+        </a>
+      </div>
+    </div>
+  );
+}
+

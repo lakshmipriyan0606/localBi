@@ -14,6 +14,7 @@ import {
   Compass,
   Search,
 } from 'lucide-react';
+import { extractErrorMessage } from '@/lib/notify';
 
 interface PublishModalProps {
   isOpen: boolean;
@@ -99,7 +100,7 @@ export function PublishModal({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to publish website changes.');
+        throw new Error(extractErrorMessage(data.error, 'Failed to publish website changes.'));
       }
 
       setProgress(100);
@@ -108,7 +109,7 @@ export function PublishModal({
       onPublishSuccess?.();
     } catch (err: any) {
       console.error('Publishing failed:', err);
-      setErrorMessage(err.message || 'An error occurred while publishing.');
+      setErrorMessage(extractErrorMessage(err, 'An error occurred while publishing.'));
     } finally {
       setIsPublishing(false);
     }
@@ -149,7 +150,7 @@ export function PublishModal({
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold">Publishing blocked: </span>
-                {errorMessage}
+                {typeof errorMessage === 'string' ? errorMessage : extractErrorMessage(errorMessage)}
               </div>
             </div>
           )}

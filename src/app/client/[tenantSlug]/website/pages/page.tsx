@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { TemplatePickerModal } from '@/components/site-studio/pages/template-picker-modal';
 import { SitePageDto } from '@/modules/page-builder/site-studio-service';
+import { extractErrorMessage } from '@/lib/notify';
 
 // Curated thumbnail images for templates to match reference Screen 3
 const PAGE_THUMBNAILS: Record<string, string> = {
@@ -93,7 +94,7 @@ export default function SiteStudioPagesPage() {
         const queryBrand = brandId ? `?brandId=${brandId}` : '';
         router.push(`/client/${tenantSlug}/website/builder/${data.page.id}${queryBrand}`);
       } else {
-        alert(data.error || 'Failed to create page');
+        alert(extractErrorMessage(data.error, 'Failed to create page'));
       }
     } catch (err) {
       console.error('Error creating page:', err);
@@ -118,10 +119,10 @@ export default function SiteStudioPagesPage() {
         setNotification({ message: 'Page duplicated successfully!', type: 'success' });
         loadPages();
       } else {
-        setNotification({ message: data.error || 'Failed to duplicate page.', type: 'error' });
+        setNotification({ message: extractErrorMessage(data.error, 'Failed to duplicate page.'), type: 'error' });
       }
     } catch (err: any) {
-      setNotification({ message: err.message || 'Error duplicating page.', type: 'error' });
+      setNotification({ message: extractErrorMessage(err, 'Error duplicating page.'), type: 'error' });
     } finally {
       setActionLoadingId(null);
     }
@@ -142,10 +143,10 @@ export default function SiteStudioPagesPage() {
         setNotification({ message: 'Page deleted successfully.', type: 'success' });
         loadPages();
       } else {
-        setNotification({ message: data.error || 'Failed to delete page.', type: 'error' });
+        setNotification({ message: extractErrorMessage(data.error, 'Failed to delete page.'), type: 'error' });
       }
     } catch (err: any) {
-      setNotification({ message: err.message || 'Error deleting page.', type: 'error' });
+      setNotification({ message: extractErrorMessage(err, 'Error deleting page.'), type: 'error' });
     } finally {
       setActionLoadingId(null);
     }
@@ -176,7 +177,7 @@ export default function SiteStudioPagesPage() {
               : 'bg-rose-50 text-rose-800 border border-rose-200'
           }`}
         >
-          <span>{notification.message}</span>
+          <span>{typeof notification.message === 'string' ? notification.message : extractErrorMessage(notification.message)}</span>
           <button
             type="button"
             onClick={() => setNotification(null)}
@@ -339,15 +340,17 @@ export default function SiteStudioPagesPage() {
                               <Copy className="w-3.5 h-3.5 text-indigo-600" />
                               <span>Duplicate</span>
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePage(page.id)}
-                              disabled={isBusy}
-                              className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                              <span>Delete</span>
-                            </button>
+                            {page.slug !== '/' && page.pageType !== 'HOME' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePage(page.id)}
+                                disabled={isBusy}
+                                className="w-full px-3 py-1.5 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                <span>Delete</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

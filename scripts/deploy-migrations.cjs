@@ -81,3 +81,11 @@ try {
     console.warn('[deploy-migrations] Notice: prisma db push notice:', pushErr.message);
   }
 }
+
+try {
+  console.log('[deploy-migrations] Running ensure-production-seeds to verify tenant domains and templates...');
+  execSync('node scripts/ensure-production-seeds.cjs', { stdio: 'inherit', env: process.env });
+  console.log('[deploy-migrations] Seed verification complete.');
+} catch (seedErr) {
+  console.warn('[deploy-migrations] Notice: ensure-production-seeds notice:', seedErr.message);
+}

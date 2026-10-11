@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { extractErrorMessage } from '@/lib/notify';
 
 interface JobProgressProps {
   tenantSlug: string;
@@ -29,18 +30,19 @@ export function JobProgress({ tenantSlug, jobId, onCompleted, onFailed }: JobPro
           if (data.job.status === 'COMPLETED' || data.job.status === 'PARTIAL') {
             onCompleted(jobId);
           } else if (data.job.status === 'FAILED') {
-            setError(data.job.errorMessage || 'Analysis failed');
-            if (onFailed) onFailed(data.job.errorMessage || 'Analysis failed');
+            const failMsg = extractErrorMessage(data.job.errorMessage, 'Analysis failed');
+            setError(failMsg);
+            if (onFailed) onFailed(failMsg);
           } else {
             // Poll again in 1.5s
             timer = setTimeout(checkStatus, 1500);
           }
         } else {
-          setError(data.error || 'Job not found');
+          setError(extractErrorMessage(data.error, 'Job not found'));
         }
       } catch (err: any) {
         if (!isMounted) return;
-        setError(err.message || 'Error checking job status');
+        setError(extractErrorMessage(err, 'Error checking job status'));
       }
     }
 
@@ -58,7 +60,7 @@ export function JobProgress({ tenantSlug, jobId, onCompleted, onFailed }: JobPro
         <AlertCircle className="w-5 h-5 shrink-0" />
         <div>
           <p className="font-semibold">Analysis Encountered an Issue</p>
-          <p className="text-[11px] mt-0.5">{error}</p>
+          <p className="text-[11px] mt-0.5">{typeof error === 'string' ? error : extractErrorMessage(error)}</p>
         </div>
       </div>
     );

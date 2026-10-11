@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { BrandThemeDto } from '@/modules/page-builder/theme-service';
+import { extractErrorMessage } from '@/lib/notify';
 
 export default function SiteStudioDesignPage() {
   const params = useParams();
@@ -96,7 +97,7 @@ export default function SiteStudioDesignPage() {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        alert(data.error || 'Failed to save theme.');
+        alert(extractErrorMessage(data.error, 'Failed to save theme.'));
       }
     } catch (err) {
       alert('Error saving theme.');
@@ -126,10 +127,10 @@ export default function SiteStudioDesignPage() {
       if (data.success) {
         setExtractedReview(data.draftDesign);
       } else {
-        setImportError(data.error || 'We could not import this site’s visual style.');
+        setImportError(extractErrorMessage(data.error, 'We could not import this site’s visual style.'));
       }
     } catch (err: any) {
-      setImportError(err.message || 'Error importing design.');
+      setImportError(extractErrorMessage(err, 'Error importing design.'));
     } finally {
       setImporting(false);
     }
@@ -545,7 +546,7 @@ export default function SiteStudioDesignPage() {
             {importError && (
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>{importError}</span>
+                <span>{typeof importError === 'string' ? importError : extractErrorMessage(importError)}</span>
               </div>
             )}
 

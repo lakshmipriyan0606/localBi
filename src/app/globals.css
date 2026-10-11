@@ -253,6 +253,10 @@ button, input, select, textarea {
   animation: shimmer 2.2s infinite ease-in-out;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* =============================================================================
    Motion preference — respect prefers-reduced-motion globally
    ============================================================================= */

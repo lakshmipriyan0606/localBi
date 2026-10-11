@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react';
+import { extractErrorMessage } from '@/lib/notify';
 
 interface AnalysisFormProps {
   tenantSlug: string;
@@ -142,10 +143,10 @@ export function AnalysisForm({ tenantSlug, brandId, onAnalysisStarted }: Analysi
       if (data.success && data.analysisId) {
         onAnalysisStarted(data.analysisId);
       } else {
-        setError(data.error || 'Failed to start analysis.');
+        setError(extractErrorMessage(data.error, 'Failed to start analysis.'));
       }
     } catch (err: any) {
-      setError(err.message || 'Network error initiating analysis');
+      setError(extractErrorMessage(err, 'Network error initiating analysis'));
     } finally {
       setLoading(false);
     }
@@ -166,7 +167,7 @@ export function AnalysisForm({ tenantSlug, brandId, onAnalysisStarted }: Analysi
       {error && (
         <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+          <span>{typeof error === 'string' ? error : extractErrorMessage(error)}</span>
         </div>
       )}
 

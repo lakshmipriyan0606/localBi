@@ -3,6 +3,7 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { createValidationError } from '@/shared/errors';
 
 export * from './navigation-types';
+import { NavItem, NavItemType, SiteNavigationDto, DEFAULT_SITE_NAVIGATION } from './navigation-types';
 
 const DISALLOWED_SCHEMES = ['javascript:', 'data:', 'vbscript:'];
 
@@ -111,10 +112,10 @@ export class NavigationService {
     webSurfaceId: string,
     navigation: SiteNavigationDto
   ): Promise<SiteNavigationDto> {
-    const validatedHeader = (navigation.headerItems || []).map((item, idx) =>
+    const validatedHeader = (navigation.headerItems || []).map((item: Partial<NavItem>, idx: number) =>
       this.validateNavItem({ ...item, order: idx })
     );
-    const validatedFooter = (navigation.footerItems || []).map((item, idx) =>
+    const validatedFooter = (navigation.footerItems || []).map((item: Partial<NavItem>, idx: number) =>
       this.validateNavItem({ ...item, order: idx })
     );
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowRight, ArrowLeft, CheckCircle2, Loader2, Globe } from 'lucide-react';
 import { PasswordStrengthMeter } from './password-strength-meter';
 import { SlugAvailabilityInput } from './slug-availability-input';
+import { extractErrorMessage } from '@/lib/notify';
 
 
 
@@ -174,7 +175,7 @@ export function RegistrationWizard() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setServerError(data.error || 'Registration failed. Please try again.');
+        setServerError(extractErrorMessage(data.error, 'Registration failed. Please try again.'));
         return;
       }
 
@@ -404,7 +405,7 @@ export function RegistrationWizard() {
 
             {serverError && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
-                <p className="text-sm text-red-600">{serverError}</p>
+                <p className="text-sm text-red-600">{typeof serverError === 'string' ? serverError : extractErrorMessage(serverError)}</p>
               </div>
             )}
 

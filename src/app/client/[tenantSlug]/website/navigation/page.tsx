@@ -16,6 +16,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { NavItem, SiteNavigationDto, NavItemType } from '@/modules/page-builder/navigation-service';
+import { extractErrorMessage } from '@/lib/notify';
 
 export default function SiteStudioNavigationPage() {
   const params = useParams();
@@ -53,7 +54,7 @@ export default function SiteStudioNavigationPage() {
           }
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to load navigation');
+        setError(extractErrorMessage(err, 'Failed to load navigation'));
       } finally {
         setLoading(false);
       }
@@ -85,10 +86,10 @@ export default function SiteStudioNavigationPage() {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       } else {
-        setError(data.error || 'Failed to save navigation.');
+        setError(extractErrorMessage(data.error, 'Failed to save navigation.'));
       }
     } catch (err: any) {
-      setError(err.message || 'Error saving navigation.');
+      setError(extractErrorMessage(err, 'Error saving navigation.'));
     } finally {
       setSaving(false);
     }
@@ -178,6 +179,23 @@ export default function SiteStudioNavigationPage() {
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           <span>Navigation menus saved and published to live website.</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{typeof error === 'string' ? error : extractErrorMessage(error)}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-rose-400 hover:text-rose-700 font-bold px-1.5 py-0.5 rounded-md hover:bg-rose-100 transition-colors"
+            title="Dismiss error"
+          >
+            ✕
+          </button>
         </div>
       )}
 
