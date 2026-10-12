@@ -81,15 +81,54 @@ export class AnalyticsFormatters {
   }
 
   /**
-   * Formats short date (e.g. "Oct 4")
+   * Formats date with style ('short' | 'full' | 'month') and optional timezone
+   * e.g. AnalyticsFormatters.date("2026-10-12", "short") -> "Oct 12"
+   * e.g. AnalyticsFormatters.date("2026-10-12", "full") -> "Oct 12, 2026"
    */
-  public static shortDate(dateStrOrObj: string | Date): string {
+  public static date(
+    dateStrOrObj: string | Date | null | undefined,
+    style: 'short' | 'full' | 'month' | string = 'short',
+    timezone?: string
+  ): string {
+    if (!dateStrOrObj) return '—';
     try {
-      const d = typeof dateStrOrObj === 'string' ? new Date(dateStrOrObj + 'T00:00:00Z') : dateStrOrObj;
+      let d: Date;
+      if (typeof dateStrOrObj === 'string') {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStrOrObj)) {
+          d = new Date(dateStrOrObj + 'T00:00:00Z');
+        } else {
+          d = new Date(dateStrOrObj);
+        }
+      } else {
+        d = dateStrOrObj;
+      }
+
+      if (isNaN(d.getTime())) return String(dateStrOrObj);
+
+      const tz = timezone || 'UTC';
+
+      if (style === 'full') {
+        return new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          timeZone: tz,
+        }).format(d);
+      }
+
+      if (style === 'month') {
+        return new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          year: 'numeric',
+          timeZone: tz,
+        }).format(d);
+      }
+
+      // Default 'short' (e.g. "Oct 12")
       return new Intl.DateTimeFormat('en-US', {
         month: 'short',
         day: 'numeric',
-        timeZone: 'UTC',
+        timeZone: tz,
       }).format(d);
     } catch {
       return String(dateStrOrObj);
@@ -97,20 +136,17 @@ export class AnalyticsFormatters {
   }
 
   /**
+   * Formats short date (e.g. "Oct 4")
+   */
+  public static shortDate(dateStrOrObj: string | Date | null | undefined): string {
+    return this.date(dateStrOrObj, 'short');
+  }
+
+  /**
    * Formats full readable date (e.g. "Oct 4, 2026")
    */
-  public static fullDate(dateStrOrObj: string | Date): string {
-    try {
-      const d = typeof dateStrOrObj === 'string' ? new Date(dateStrOrObj + 'T00:00:00Z') : dateStrOrObj;
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'UTC',
-      }).format(d);
-    } catch {
-      return String(dateStrOrObj);
-    }
+  public static fullDate(dateStrOrObj: string | Date | null | undefined): string {
+    return this.date(dateStrOrObj, 'full');
   }
 
   /**

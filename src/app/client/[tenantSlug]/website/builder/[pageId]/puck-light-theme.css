@@ -1,0 +1,283 @@
+/* =========================================================================
+   Puck Visual Builder — Pure Light Theme (Modern SaaS Studio)
+   Clean gray/white palette, refined contrast, elegant typography & borders
+   ========================================================================= */
+
+.Puck {
+  --puck-user-left-side-bar-width: 320px;
+  --puck-user-right-side-bar-width: 340px;
+  --puck-side-bar-width: 320px;
+
+  /* Modern Light Neutral Palette */
+  --puck-color-white: #ffffff !important;
+  --puck-color-black: #0f172a !important;
+  --puck-color-grey-01: #ffffff !important;
+  --puck-color-grey-02: #f8fafc !important;
+  --puck-color-grey-03: #f1f5f9 !important;
+  --puck-color-grey-04: #e2e8f0 !important;
+  --puck-color-grey-05: #cbd5e1 !important;
+  --puck-color-grey-06: #94a3b8 !important;
+  --puck-color-grey-07: #64748b !important;
+  --puck-color-grey-08: #475569 !important;
+  --puck-color-grey-09: #334155 !important;
+  --puck-color-grey-10: #1e293b !important;
+  --puck-color-grey-11: #0f172a !important;
+  --puck-color-grey-12: #020617 !important;
+
+  /* Indigo / Brand Accents */
+  --puck-color-azure-01: #eef2ff !important;
+  --puck-color-azure-02: #e0e7ff !important;
+  --puck-color-azure-03: #c7d2fe !important;
+  --puck-color-azure-04: #a5b4fc !important;
+  --puck-color-azure-05: #6366f1 !important;
+  --puck-color-azure-06: #4f46e5 !important;
+  --puck-color-azure-07: #4338ca !important;
+  --puck-color-azure-08: #3730a3 !important;
+  --puck-color-azure-09: #312e81 !important;
+  --puck-color-azure-10: #1e1b4b !important;
+  --puck-color-azure-11: #0f172a !important;
+  --puck-color-azure-12: #020617 !important;
+
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Puck Layout & Sidebars */
+.Puck [class*="PuckLayout"],
+.Puck [class*="puckLayout"] {
+  background-color: #f1f5f9 !important;
+}
+
+.Puck [class*="Sidebar"],
+.Puck [class*="sidebar"],
+.Puck [data-puck-sidebar] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.Puck [class*="Sidebar--left"],
+.Puck [class*="sidebar--left"] {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.Puck [class*="Sidebar--right"],
+.Puck [class*="sidebar--right"] {
+  border-left: 1px solid #e2e8f0 !important;
+}
+
+/* Hide redundant white Puck sidebar headers ("Components", "Page", "Outline") */
+.Puck [class*="SidebarSection-title"],
+.Puck [class*="sidebarSection-title"],
+.Puck [class*="SidebarSection_"] > [class*="title"],
+.Puck ._SidebarSection-title_8boj8_12 {
+  display: none !important;
+}
+
+/* Hide Puck native outline section at bottom of left sidebar */
+.Puck [class*="Sidebar--left"] > [class*="SidebarSection"]:nth-child(2),
+.Puck [class*="sidebar--left"] > [class*="sidebarSection"]:nth-child(2),
+.Puck ._Sidebar--left_1xksb_8 > ._SidebarSection_8boj8_1:nth-child(2) {
+  display: none !important;
+}
+
+/* Fill sidebar sections full height with zero padding */
+.Puck [class*="SidebarSection"],
+.Puck [class*="sidebarSection"] {
+  height: 100% !important;
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.Puck [class*="SidebarSection-content"],
+.Puck [class*="sidebarSection-content"] {
+  padding: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background-color: transparent !important;
+}
+
+/* Hide default Puck Header (replaced by StudioTopToolbar) */
+.Puck [data-puck-header],
+.Puck [class*="PuckHeader"],
+.Puck [class*="puckHeader"] {
+  display: none !important;
+}
+
+/* Canvas Workspace Surround (Clean subtle light studio dot pattern) */
+.Puck [class*="PuckCanvas"],
+.Puck [class*="puckCanvas"],
+.Puck [data-puck-canvas] {
+  background-color: #f1f5f9 !important;
+  background-image: radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.22) 1px, transparent 0) !important;
+  background-size: 20px 20px !important;
+}
+
+/* Canvas Viewport Artboard Card */
+.Puck [class*="PuckCanvas-root"],
+.Puck [class*="puckCanvas-root"] {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 45px -15px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(15, 23, 42, 0.05) !important;
+  transform: scale(var(--puck-canvas-zoom, 1)) !important;
+  transform-origin: top center !important;
+  transition: transform 0.15s ease-out !important;
+}
+
+/* Floating Action Bar (hovering/selecting components) */
+.Puck [class*="ActionBar"],
+.Puck [class*="actionBar"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05) !important;
+  border-radius: 10px !important;
+}
+
+.Puck [class*="ActionBar-label"],
+.Puck [class*="actionBar-label"] {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+.Puck [class*="ActionBar-action"],
+.Puck [class*="actionBar-action"] {
+  color: #334155 !important;
+}
+
+.Puck [class*="ActionBar-action"]:hover,
+.Puck [class*="actionBar-action"]:hover {
+  background-color: #f1f5f9 !important;
+  color: #4338ca !important;
+}
+
+/* Component Drag Items */
+.Puck [class*="DrawerItem-draggable"],
+.Puck [class*="drawerItem-draggable"] {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+/* Resize Handles */
+.Puck [class*="ResizeHandle"],
+.Puck [class*="resizeHandle"] {
+  background-color: transparent !important;
+}
+
+.Puck [class*="ResizeHandle"]:hover,
+.Puck [class*="resizeHandle"]:hover {
+  background-color: #4f46e5 !important;
+}
+
+/* AutoField Inputs & Controls */
+.Puck input, 
+.Puck select, 
+.Puck textarea,
+.Puck [class*="Input-input"],
+.Puck [class*="input-input"] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+.Puck input:focus, 
+.Puck select:focus, 
+.Puck textarea:focus,
+.Puck [class*="Input-input"]:focus {
+  border-color: #6366f1 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+
+.Puck label,
+.Puck [class*="Input-label"],
+.Puck [class*="input-label"] {
+  color: #475569 !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* ArrayField & ObjectField Light Theme */
+.Puck [class*="ArrayField"],
+.Puck [class*="arrayField"],
+.Puck [class*="ObjectField"],
+.Puck [class*="objectField"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.Puck [class*="ArrayField-addButton"],
+.Puck [class*="arrayField-addButton"] {
+  background-color: #ffffff !important;
+  color: #4338ca !important;
+  border-top: 1px solid #e2e8f0 !important;
+  font-weight: 600 !important;
+}
+
+.Puck [class*="ArrayField-addButton"]:hover,
+.Puck [class*="arrayField-addButton"]:hover {
+  background-color: #f1f5f9 !important;
+  color: #3730a3 !important;
+}
+
+.Puck [class*="ArrayFieldItem"],
+.Puck [class*="arrayFieldItem"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+.Puck [class*="IconButton"],
+.Puck [class*="iconButton"] {
+  color: #64748b !important;
+  background-color: transparent !important;
+}
+
+.Puck [class*="IconButton"]:hover,
+.Puck [class*="iconButton"]:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* DropZone indicators in Light Mode */
+.Puck [class*="DropZone"],
+.Puck [class*="dropZone"] {
+  transition: all 0.15s ease-in-out;
+}
+
+.Puck [class*="DropZone--isRoot"],
+.Puck [class*="dropZone--isRoot"] {
+  min-height: 480px;
+}
+
+/* Empty DropZone placeholders: soft subtle dashed card instead of purple blocks */
+.Puck [class*="DropZone"]:empty,
+.Puck [class*="dropZone"]:empty,
+.Puck [class*="DropZone"]:has(> [class*="DropZone-zone"]:empty) {
+  background-color: #f8fafc !important;
+  border: 2px dashed #cbd5e1 !important;
+  border-radius: 12px !important;
+  min-height: 80px;
+}
+
+.Puck [class*="DropZone"]:hover {
+  border-color: #6366f1 !important;
+}
+
+/* Make DropZone dragging hover look bright and clean */
+.Puck [class*="DropZone--isDragOver"],
+.Puck [class*="dropZone--isDragOver"] {
+  background-color: #eef2ff !important;
+  border-color: #4f46e5 !important;
+}

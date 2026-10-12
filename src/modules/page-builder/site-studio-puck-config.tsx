@@ -261,7 +261,13 @@ export type SiteStudioProps = {
   BackToTop: BackToTopProps;
 };
 
-export const siteStudioPuckConfig: Config<SiteStudioProps> = {
+export const siteStudioPuckConfig: Config<any> = {
+  root: {
+    render: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    defaultProps: {
+      title: 'Storefront',
+    },
+  },
   categories: {
     layout: {
       title: 'Layout & Structure',
@@ -1835,6 +1841,187 @@ export const siteStudioPuckConfig: Config<SiteStudioProps> = {
         label: { type: 'text', label: 'Button Label' },
       },
       render: (props) => <BackToTop {...props} />,
+    },
+
+    // ── COMPONENT ALIASES (Guarantees every type has valid defaultProps) ──
+    SectionContainer: {
+      label: 'Section Container',
+      defaultProps: { padding: 'medium', background: 'transparent', maxWidth: 'xl' },
+      fields: {
+        padding: { type: 'select', label: 'Vertical Padding', options: [{ label: 'None', value: 'none' }, { label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }] },
+        background: { type: 'select', label: 'Background', options: [{ label: 'Transparent', value: 'transparent' }, { label: 'White', value: 'white' }, { label: 'Soft Slate', value: 'slate-50' }] },
+        maxWidth: { type: 'select', label: 'Max Width', options: [{ label: 'Narrow (3xl)', value: 'sm' }, { label: 'Standard (5xl)', value: 'md' }, { label: 'Wide (7xl)', value: 'xl' }, { label: 'Full Width', value: 'full' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Section {...props} />,
+    },
+
+    StandardContainer: {
+      label: 'Standard Container',
+      defaultProps: { maxWidth: 'xl' },
+      fields: {
+        maxWidth: { type: 'select', label: 'Container Width', options: [{ label: 'Standard', value: 'md' }, { label: 'Wide', value: 'xl' }, { label: 'Full', value: 'full' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Container {...props} />,
+    },
+
+    RowAndColumns: {
+      label: 'Row & Columns',
+      defaultProps: { layout: '2-equal', gap: 'medium', align: 'top', stackOnMobile: true, background: 'transparent', padding: 'none', borderRadius: 'none' },
+      fields: {
+        layout: { type: 'select', label: 'Column Distribution', options: [{ label: '2 Columns (50% / 50%)', value: '2-equal' }, { label: '3 Columns (Equal 33% each)', value: '3-equal' }, { label: '4 Columns (Equal 25% each)', value: '4-equal' }] },
+        gap: { type: 'select', label: 'Spacing Gap', options: [{ label: 'Small (16px)', value: 'small' }, { label: 'Medium (24px)', value: 'medium' }, { label: 'Large (36px)', value: 'large' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Columns {...props} />,
+    },
+
+    ContentCard: {
+      label: 'Content Card / Box',
+      defaultProps: { background: 'white', border: 'subtle', shadow: 'sm', padding: 'medium', radius: 'medium' },
+      fields: {
+        background: { type: 'select', label: 'Surface Background', options: [{ label: 'White', value: 'white' }, { label: 'Soft Slate', value: 'slate-50' }, { label: 'Transparent', value: 'transparent' }] },
+        border: { type: 'select', label: 'Border Style', options: [{ label: 'None', value: 'none' }, { label: 'Subtle', value: 'subtle' }] },
+        shadow: { type: 'select', label: 'Shadow Elevation', options: [{ label: 'None', value: 'none' }, { label: 'Subtle (sm)', value: 'sm' }, { label: 'Medium (md)', value: 'md' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <CardBox {...props} />,
+    },
+
+    InnerContainer: {
+      label: 'Inner Container',
+      defaultProps: { maxWidth: 'xl' },
+      fields: {
+        maxWidth: { type: 'select', label: 'Container Width', options: [{ label: 'Standard', value: 'md' }, { label: 'Wide', value: 'xl' }, { label: 'Full', value: 'full' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Container {...props} />,
+    },
+
+    StackLayout: {
+      label: 'Stack Layout',
+      defaultProps: { direction: 'column', justify: 'start', align: 'stretch', wrap: false, gap: 'medium' },
+      fields: {
+        direction: { type: 'select', label: 'Direction', options: [{ label: 'Vertical Stack', value: 'column' }, { label: 'Horizontal Row', value: 'row' }] },
+        gap: { type: 'select', label: 'Spacing Gap', options: [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <FlexLayout {...props} />,
+    },
+
+    FourColumnLayout: {
+      label: 'Four-Column Layout',
+      defaultProps: { layout: '4-equal', gap: 'medium', align: 'top', stackOnMobile: true },
+      fields: {
+        gap: { type: 'select', label: 'Spacing Gap', options: [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Columns {...props} layout="4-equal" />,
+    },
+
+    SidebarLayout: {
+      label: 'Sidebar Layout',
+      defaultProps: { layout: '2-wide-left', gap: 'medium', align: 'top', stackOnMobile: true },
+      fields: {
+        gap: { type: 'select', label: 'Spacing Gap', options: [{ label: 'Small', value: 'small' }, { label: 'Medium', value: 'medium' }, { label: 'Large', value: 'large' }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <Columns {...props} layout="2-wide-left" />,
+    },
+
+    ResponsiveGrid: {
+      label: 'Responsive Grid',
+      defaultProps: { columns: 3, gap: 'medium' },
+      fields: {
+        columns: { type: 'select', label: 'Columns', options: [{ label: '2 Columns', value: 2 }, { label: '3 Columns', value: 3 }, { label: '4 Columns', value: 4 }] },
+        content: { type: 'slot' },
+      },
+      render: (props) => <MultiColumnGrid {...props} />,
+    },
+
+    BackgroundSection: {
+      label: 'Background Section',
+      defaultProps: { backgroundGradient: 'none', backgroundImage: '', overlayOpacity: 40, padding: 'medium' },
+      fields: {
+        backgroundImage: { type: 'text', label: 'Image URL' },
+        content: { type: 'slot' },
+      },
+      render: (props) => <FullWidthSection {...props} />,
+    },
+
+    Logo: {
+      label: 'Logo Block',
+      defaultProps: { sticky: false, showSearch: false, showPhone: false },
+      fields: {},
+      render: (props) => <BrandHeader {...props} />,
+    },
+
+    Image: {
+      label: 'Image',
+      defaultProps: { imageUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=1200&q=80', altText: 'Storefront presentation image', aspectRatio: '16:9' },
+      fields: {
+        imageUrl: { type: 'text', label: 'Image URL' },
+        altText: { type: 'text', label: 'Alt Description' },
+        aspectRatio: { type: 'select', label: 'Aspect Ratio', options: [{ label: 'Wide (16:9)', value: '16:9' }, { label: 'Standard (4:3)', value: '4:3' }, { label: 'Square (1:1)', value: '1:1' }] },
+      },
+      render: (props) => <ImageBlock {...props} />,
+    },
+
+    LocationMap: {
+      label: 'Location Map',
+      defaultProps: { headline: 'Find Us on the Map', zoomLevel: 15 },
+      fields: {
+        headline: { type: 'text', label: 'Headline' },
+        zoomLevel: { type: 'number', label: 'Zoom Level' },
+      },
+      render: (props) => <StoreMap {...props} />,
+    },
+
+    AddressBlock: {
+      label: 'Address Block',
+      defaultProps: { headline: 'Store Details', showAddress: true, showHours: true },
+      fields: {
+        headline: { type: 'text', label: 'Headline' },
+      },
+      render: (props) => <StoreInfo {...props} />,
+    },
+
+    BusinessHours: {
+      label: 'Business Hours',
+      defaultProps: { headline: 'Business Hours', showTodayHighlight: true },
+      fields: {
+        headline: { type: 'text', label: 'Headline' },
+      },
+      render: (props) => <OpeningHours {...props} />,
+    },
+
+    ProductDetail: {
+      label: 'Product Detail',
+      defaultProps: { showSku: true },
+      fields: {
+        showSku: { type: 'radio', options: [{ label: 'Show', value: true }, { label: 'Hide', value: false }] },
+      },
+      render: (props) => <ProductDetails {...props} />,
+    },
+
+    TrustBadges: {
+      label: 'Trust Badges',
+      defaultProps: { headline: 'Why Trust Us' },
+      fields: {
+        headline: { type: 'text', label: 'Headline' },
+      },
+      render: (props) => <TrustSignals {...props} />,
+    },
+
+    LeadCaptureForm: {
+      label: 'Lead Capture Form',
+      defaultProps: { title: 'Contact Us', subtitle: 'Send a message' },
+      fields: {
+        title: { type: 'text', label: 'Form Title' },
+        subtitle: { type: 'text', label: 'Form Subtitle' },
+      },
+      render: (props) => <LeadForm {...props} />,
     },
   },
 };
