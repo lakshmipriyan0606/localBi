@@ -371,7 +371,7 @@ export class OverviewService {
 
       const queryRows: OverviewGscQueryItem[] = [...queryAggregate.values()]
         .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
-        .slice(0, 5)
+        .slice(0, 50)
         .map((q) => ({
           query: q.query,
           clicks: q.clicks,
