@@ -20,6 +20,7 @@ interface TenantLayoutShellProps {
 }
 
 import { ActiveBrandProvider } from '@/providers/active-brand-context';
+import { TenantContextProvider } from '@/providers/tenant-context';
 
 export function TenantLayoutShell({
   tenant,
@@ -33,36 +34,44 @@ export function TenantLayoutShell({
   const isWebsite = pathname?.includes('/website');
 
   return (
-    <ActiveBrandProvider brands={brands} tenantSlug={tenant.slug}>
-      <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
-        {/* ── Sidebar ── */}
-        <TenantSidebar
-          tenant={tenant}
-          user={user}
-          tenants={tenants}
-          mobileOpen={mobileOpen}
-          onCloseMobile={() => setMobileOpen(false)}
-        />
+    <TenantContextProvider tenant={tenant} user={user} tenants={tenants}>
+      <ActiveBrandProvider brands={brands} tenantSlug={tenant.slug}>
+        {isWebsite ? (
+          <div className="min-h-screen bg-[#F8FAFC] text-slate-900">
+            {children}
+          </div>
+        ) : (
+          <div className="flex min-h-screen bg-[#F5F7FB] text-slate-900">
+            {/* ── Sidebar ── */}
+            <TenantSidebar
+              tenant={tenant}
+              user={user}
+              tenants={tenants}
+              mobileOpen={mobileOpen}
+              onCloseMobile={() => setMobileOpen(false)}
+            />
 
-        {/* ── Main content area with Top Navigation Bar ── */}
-        <div className="flex flex-1 flex-col min-w-0 min-h-screen">
-          {/* Top Navbar */}
-          <TenantTopNav
-            tenant={tenant}
-            user={user}
-            brands={brands}
-            tenants={tenants}
-            onToggleMobileSidebar={() => setMobileOpen((v) => !v)}
-          />
+            {/* ── Main content area with Top Navigation Bar ── */}
+            <div className="flex flex-1 flex-col min-w-0 min-h-screen">
+              {/* Top Navbar */}
+              <TenantTopNav
+                tenant={tenant}
+                user={user}
+                brands={brands}
+                tenants={tenants}
+                onToggleMobileSidebar={() => setMobileOpen((v) => !v)}
+              />
 
-          {/* Page Content */}
-          <main className="flex-1 w-full">
-            <div className={cn('w-full', isWebsite ? 'p-0' : 'px-4 py-4 lg:px-5')}>
-              {children}
+              {/* Page Content */}
+              <main className="flex-1 w-full">
+                <div className="w-full px-4 py-4 lg:px-5">
+                  {children}
+                </div>
+              </main>
             </div>
-          </main>
-        </div>
-      </div>
-    </ActiveBrandProvider>
+          </div>
+        )}
+      </ActiveBrandProvider>
+    </TenantContextProvider>
   );
 }

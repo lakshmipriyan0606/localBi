@@ -49,7 +49,7 @@ export function SiteStudioShell({ children }: SiteStudioShellProps) {
 
           const queryBrandId = searchParams.get('brandId');
           const activeBrandId =
-            queryBrandId && brandData.brands.some((b: any) => b.id === queryBrandId)
+            queryBrandId && brandData.brands.some((b: BrandOption) => b.id === queryBrandId)
               ? queryBrandId
               : brandData.brands[0].id;
 
@@ -93,22 +93,26 @@ export function SiteStudioShell({ children }: SiteStudioShellProps) {
   const getPageTitle = () => {
     if (pathname.endsWith('/pages')) return 'Pages';
     if (pathname.includes('/pages/')) return 'Page Details';
+    if (pathname.endsWith('/builder')) return 'Visual Editor';
+    if (pathname.endsWith('/templates')) return 'Templates';
+    if (pathname.endsWith('/publishing')) return 'Publishing & Deployments';
+    if (pathname.endsWith('/settings')) return 'Website Settings';
     if (pathname.endsWith('/design')) return 'Design & Theme';
-    if (pathname.endsWith('/navigation')) return 'Navigation';
-    if (pathname.endsWith('/stores')) return 'Locations';
-    if (pathname.endsWith('/products')) return 'Products';
+    if (pathname.endsWith('/navigation')) return 'Navigation Menus';
+    if (pathname.endsWith('/stores')) return 'Stores & Locations';
+    if (pathname.endsWith('/products')) return 'Products & Catalog';
     if (pathname.endsWith('/seo')) return 'SEO Settings';
     if (pathname.endsWith('/seo/intelligence')) return 'SEO Intelligence';
-    if (pathname.endsWith('/domains')) return 'Domains';
+    if (pathname.endsWith('/domains')) return 'Domains & DNS';
     if (pathname.endsWith('/preview')) return 'Preview Site';
-    if (pathname.endsWith('/analytics')) return 'Analytics';
-    return 'Overview';
+    if (pathname.endsWith('/analytics')) return 'Website Analytics';
+    return 'Website Studio Overview';
   };
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] text-slate-900 selection:bg-indigo-600 selection:text-white">
-      {/* Desktop Left Sidebar
-      <div className="hidden lg:block">
+      {/* Desktop Left Sidebar */}
+      <div className="hidden lg:flex shrink-0">
         <SiteStudioSidebar
           tenantSlug={tenantSlug}
           brandId={selectedBrandId}
@@ -116,16 +120,16 @@ export function SiteStudioShell({ children }: SiteStudioShellProps) {
           isLive={isLive}
           onOpenPublishModal={() => setPublishModalOpen(true)}
         />
-      </div> */}
+      </div>
 
-      {/* Mobile Drawer Sidebar
+      {/* Mobile Drawer Sidebar */}
       {mobileSidebarOpen && (
         <>
           <div
             className="lg:hidden fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileSidebarOpen(false)}
           />
-          <div className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-64 shadow-2xl animate-in slide-in-from-left duration-200">
+          <div className="lg:hidden fixed top-0 left-0 bottom-0 z-50 w-72 shadow-2xl animate-in slide-in-from-left duration-200">
             <SiteStudioSidebar
               tenantSlug={tenantSlug}
               brandId={selectedBrandId}
@@ -133,10 +137,11 @@ export function SiteStudioShell({ children }: SiteStudioShellProps) {
               isLive={isLive}
               onOpenPublishModal={() => setPublishModalOpen(true)}
               onCloseMobile={() => setMobileSidebarOpen(false)}
+              isMobile={true}
             />
           </div>
         </>
-      )} */}
+      )}
 
       {/* Main Content Workspace */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen">

@@ -21,7 +21,19 @@ export default function SiteStudioSeoPage() {
   const tenantSlug = params.tenantSlug as string;
   const brandId = searchParams.get('brandId');
 
-  const [activeTab, setActiveTab] = useState<'global' | 'indexing' | 'structured' | 'social'>('global');
+  const queryTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'global' | 'indexing' | 'structured' | 'social'>(() => {
+    if (queryTab === 'indexing' || queryTab === 'structured' || queryTab === 'social') {
+      return queryTab;
+    }
+    return 'global';
+  });
+
+  React.useEffect(() => {
+    if (queryTab === 'indexing' || queryTab === 'structured' || queryTab === 'social' || queryTab === 'global') {
+      setActiveTab(queryTab as any);
+    }
+  }, [queryTab]);
 
   // Form Fields (Screen 9 Reference)
   const [siteTitle, setSiteTitle] = useState(

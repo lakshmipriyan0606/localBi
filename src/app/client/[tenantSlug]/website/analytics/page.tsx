@@ -63,10 +63,22 @@ export default function WebAnalyticsPage() {
   const tenantSlug = (routeParams?.tenantSlug as string) || '';
   const brandId = searchParams?.get('brandId') || undefined;
 
+  const queryTab = searchParams?.get('tab');
   // Active Tab
   const [activeTab, setActiveTab] = useState<
     'overview' | 'audience' | 'acquisition' | 'pages' | 'stores' | 'products' | 'conversions' | 'visitors' | 'sessions'
-  >('overview');
+  >(() => {
+    if (queryTab && ['overview', 'audience', 'acquisition', 'pages', 'stores', 'products', 'conversions', 'visitors', 'sessions'].includes(queryTab)) {
+      return queryTab as any;
+    }
+    return 'overview';
+  });
+
+  useEffect(() => {
+    if (queryTab && ['overview', 'audience', 'acquisition', 'pages', 'stores', 'products', 'conversions', 'visitors', 'sessions'].includes(queryTab)) {
+      setActiveTab(queryTab as any);
+    }
+  }, [queryTab]);
 
   // Date Range State
   const [preset, setPreset] = useState<DateRangePreset>('LAST_30_DAYS');
