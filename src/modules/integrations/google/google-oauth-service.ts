@@ -4,6 +4,8 @@ import { CryptoEnvelopeService } from '@/shared/crypto/envelope';
 import { createValidationError } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
 import { getRedisClient } from '@/shared/database/redis-client';
+import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 
 export interface OAuthStatePayload {
   tenantId: string;
@@ -36,6 +38,42 @@ export class GoogleOAuthService {
   ];
 
   public static readonly GA4_READONLY_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+
+  /**
+   * Retrieves the current Google integration status for the tenant.
+   */
+  public static async getConnectionStatus(tenantId: string): Promise<{
+    isConnected: boolean;
+    accountEmail: string | null;
+    scopes: string[];
+    connectionId?: string | null;
+  }> {
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const conn = await tx.integrationConnection.findFirst({
+        where: { tenantId, provider: 'GOOGLE', status: 'ACTIVE' },
+        select: {
+          id: true,
+          externalEmail: true,
+          grantedScopes: true,
+        },
+      });
+
+      if (!conn) {
+        return {
+          isConnected: false,
+          accountEmail: null,
+          scopes: [],
+        };
+      }
+
+      return {
+        isConnected: true,
+        accountEmail: conn.externalEmail,
+        scopes: (conn.grantedScopes as string[]) || [],
+        connectionId: conn.id,
+      };
+    });
+  }
 
   /**
    * Checks whether granted scopes include Google Analytics read access.

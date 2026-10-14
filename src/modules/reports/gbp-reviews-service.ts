@@ -84,7 +84,7 @@ export class GbpReviewsService {
       AuthorizationService.assertCan(context, Action.GBP_WRITE);
     }
 
-    const scheduledJobs: any[] = [];
+    const scheduledJobs: Array<Record<string, unknown>> = [];
     await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       const locationWhere: Prisma.LocationWhereInput = { tenantId, brandId, isArchived: false };
       if (locationId) {

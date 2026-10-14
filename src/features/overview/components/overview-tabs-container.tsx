@@ -61,15 +61,27 @@ export function OverviewTabsContainer({
     window.history.replaceState({}, '', url.toString());
   };
 
-  const gbpKpi = overviewData
+  const gbpKpi = !isConnected
+    ? 'Not connected'
+    : overviewData?.gbp?.isMapped === false
+    ? 'Not configured'
+    : overviewData
     ? `${overviewData.gbp.profileViews.toLocaleString()} views • ${overviewData.gbp.calls.toLocaleString()} calls`
     : '0 views • 0 calls';
 
-  const gscKpi = overviewData
+  const gscKpi = !isConnected
+    ? 'Not connected'
+    : overviewData?.gsc?.isMapped === false
+    ? 'Not configured'
+    : overviewData
     ? `${overviewData.gsc.clicks.toLocaleString()} clicks • ${overviewData.gsc.impressions.toLocaleString()} impr`
     : '0 clicks • 0 impr';
 
-  const webKpi = overviewData
+  const webKpi = !isConnected
+    ? 'Not connected'
+    : overviewData?.web?.isMapped === false
+    ? 'Not configured'
+    : overviewData
     ? `${overviewData.web.users.toLocaleString()} users • ${overviewData.web.conversions.toLocaleString()} conv`
     : '0 users • 0 conv';
 

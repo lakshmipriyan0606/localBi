@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Radar,
   MapPin,
@@ -16,9 +17,20 @@ import {
   ShieldCheck,
   Building2,
   BarChart3,
+  Layers,
+  Table,
 } from 'lucide-react';
 import { notify } from '@/lib/notify';
 import { ScopedBrandDto, ScopedLocationDto } from '@/modules/reports/report-context-service';
+import { useActiveBrand } from '@/providers/active-brand-context';
+import {
+  KeywordPerformanceItemDto,
+  SeoPerformanceSummaryDto,
+} from '@/modules/rank/keyword-service';
+import { SeoPerformanceSummary } from './seo-performance-summary';
+import { KeywordPerformanceTable } from './keyword-performance-table';
+import { KeywordDetailsDrawer } from './keyword-details-drawer';
+import { KeywordManagementModal } from './keyword-management-modal';
 
 interface RankRunSummary {
   totalPoints: number;
@@ -62,15 +74,6 @@ interface RankRun {
   observations?: PointObservation[];
 }
 
-interface KeywordItem {
-  id: string;
-  term: string;
-  normalizedTerm: string;
-  source: 'MANUAL' | 'GSC_IMPORT' | 'GBP_IMPORT';
-  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
-  tags: string[];
-}
-
 interface CompetitorItem {
   id: string;
   name: string;
@@ -89,8 +92,6 @@ interface RankExplorerProps {
   initialBrandId: string;
 }
 
-import { useActiveBrand } from '@/providers/active-brand-context';
-
 export function RankExplorer({
   tenantSlug,
   tenantName,
@@ -98,83 +99,132 @@ export function RankExplorer({
   locations,
   initialBrandId,
 }: RankExplorerProps) {
+  const searchParams = useSearchParams();
   const brandCtx = useActiveBrand();
   const effectiveBrandId = brandCtx?.activeBrandId || initialBrandId || brands[0]?.id || '';
   const [selectedBrandId, setSelectedBrandId] = useState<string>(effectiveBrandId);
 
+  // Sync with global active brand context
   useEffect(() => {
     if (brandCtx?.activeBrandId && brandCtx.activeBrandId !== selectedBrandId) {
       setSelectedBrandId(brandCtx.activeBrandId);
     }
   }, [brandCtx?.activeBrandId, selectedBrandId]);
 
-  const brandLocations = locations.filter((loc) => !selectedBrandId || loc.brandId === selectedBrandId);
+  const brandLocations = locations.filter(
+    (loc) => !selectedBrandId || loc.brandId === selectedBrandId
+  );
   const [selectedStoreId, setSelectedStoreId] = useState<string>(brandLocations[0]?.id || '');
 
   // Reset store if it doesn't belong to newly selected brand
   useEffect(() => {
-    if (selectedStoreId && !brandLocations.some(l => l.id === selectedStoreId)) {
+    if (selectedStoreId && !brandLocations.some((l) => l.id === selectedStoreId)) {
       setSelectedStoreId(brandLocations[0]?.id || '');
     }
   }, [selectedBrandId, brandLocations, selectedStoreId]);
 
-  // State
-  const [keywords, setKeywords] = useState<KeywordItem[]>([]);
+  // Tab View State
+  const [activeTab, setActiveTab] = useState<'KEYWORDS' | 'GEOGRID' | 'COMPETITORS'>('KEYWORDS');
+
+  // Days from URL or default 30
+  const days = searchParams?.get('days') ? parseInt(searchParams.get('days')!, 10) : 30;
+
+  // Keyword Performance Overview State
+  const [performanceSummary, setPerformanceSummary] = useState<SeoPerformanceSummaryDto | null>(
+    null
+  );
+  const [keywordItems, setKeywordItems] = useState<KeywordPerformanceItemDto[]>([]);
+  const [keywordTotal, setKeywordTotal] = useState(0);
+  const [keywordPage, setKeywordPage] = useState(1);
+  const [keywordLimit] = useState(25);
+  const [keywordTotalPages, setKeywordTotalPages] = useState(1);
+  const [keywordSortBy, setKeywordSortBy] = useState('term');
+  const [keywordSortDir, setKeywordSortDir] = useState<'asc' | 'desc'>('asc');
+  const [keywordSearchQuery, setKeywordSearchQuery] = useState('');
+  const [keywordSource, setKeywordSource] = useState('ALL');
+  const [keywordMovement, setKeywordMovement] = useState('ALL');
+  const [keywordStatus, setKeywordStatus] = useState('ALL');
+  const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
+
+  // Details Drawer & Management Modal
+  const [selectedKeywordForDetails, setSelectedKeywordForDetails] =
+    useState<KeywordPerformanceItemDto | null>(null);
+  const [isAddKeywordOpen, setIsAddKeywordOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Geo-Grid State
   const [selectedKeywordId, setSelectedKeywordId] = useState<string>('');
   const [latestRun, setLatestRun] = useState<RankRun | null>(null);
   const [competitors, setCompetitors] = useState<CompetitorItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoadingRun, setIsLoadingRun] = useState<boolean>(false);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [selectedPoint, setSelectedPoint] = useState<PointObservation | null>(null);
-
-  // Dialogs
-  const [isAddKeywordOpen, setIsAddKeywordOpen] = useState(false);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-  const [newKeywordTerm, setNewKeywordTerm] = useState('');
   const [gridSize, setGridSize] = useState<number>(5);
   const [radiusKm, setRadiusKm] = useState<number>(5);
 
-  // When selectedBrandId changes, update store
-  useEffect(() => {
-    const validLocs = locations.filter((loc) => !selectedBrandId || loc.brandId === selectedBrandId);
-    if (validLocs.length > 0 && !validLocs.some((l) => l.id === selectedStoreId)) {
-      setSelectedStoreId(validLocs[0]!.id);
-    }
-  }, [selectedBrandId, locations]);
-
-  // Load keywords when brand changes
-  useEffect(() => {
+  // 1. Fetch Performance Overview
+  const loadPerformanceOverview = useCallback(async () => {
     if (!selectedBrandId) return;
-    loadKeywords();
-  }, [selectedBrandId, tenantSlug]);
+    setIsLoadingKeywords(true);
 
-  // Load latest run when store or keyword changes
-  useEffect(() => {
-    if (selectedStoreId && selectedKeywordId) {
-      loadLatestRun(selectedStoreId, selectedKeywordId);
-      loadCompetitors(selectedStoreId);
-    } else {
-      setLatestRun(null);
-    }
-  }, [selectedStoreId, selectedKeywordId, tenantSlug]);
-
-  const loadKeywords = async () => {
     try {
-      const res = await fetch(`/api/tenants/${tenantSlug}/rank/keywords?brandId=${selectedBrandId}`);
+      const params = new URLSearchParams({
+        brandId: selectedBrandId,
+        view: 'overview',
+        days: days.toString(),
+        page: keywordPage.toString(),
+        limit: keywordLimit.toString(),
+        sortBy: keywordSortBy,
+        sortDir: keywordSortDir,
+      });
+
+      if (keywordSearchQuery.trim()) params.set('search', keywordSearchQuery.trim());
+      if (keywordSource !== 'ALL') params.set('source', keywordSource);
+      if (keywordMovement !== 'ALL') params.set('movement', keywordMovement);
+      if (keywordStatus !== 'ALL') params.set('status', keywordStatus);
+
+      const res = await fetch(`/api/tenants/${tenantSlug}/rank/keywords?${params.toString()}`);
       const data = await res.json();
-      if (data.success && Array.isArray(data.items)) {
-        setKeywords(data.items);
-        if (data.items.length > 0 && (!selectedKeywordId || !data.items.some((k: any) => k.id === selectedKeywordId))) {
+
+      if (data.success) {
+        setPerformanceSummary(data.summary || null);
+        setKeywordItems(data.items || []);
+        setKeywordTotal(data.total || 0);
+        setKeywordTotalPages(data.totalPages || 1);
+
+        // Keep selectedKeywordId aligned for GeoGrid tab if none selected
+        if (data.items?.length > 0 && !selectedKeywordId) {
           setSelectedKeywordId(data.items[0].id);
         }
       }
     } catch (err) {
-      console.error('Failed to load keywords:', err);
+      console.error('Failed to load keyword performance overview:', err);
+    } finally {
+      setIsLoadingKeywords(false);
     }
-  };
+  }, [
+    tenantSlug,
+    selectedBrandId,
+    days,
+    keywordPage,
+    keywordLimit,
+    keywordSortBy,
+    keywordSortDir,
+    keywordSearchQuery,
+    keywordSource,
+    keywordMovement,
+    keywordStatus,
+    selectedKeywordId,
+  ]);
 
+  // Load performance overview on dependencies change
+  useEffect(() => {
+    loadPerformanceOverview();
+  }, [loadPerformanceOverview]);
+
+  // 2. Fetch Latest Run for Geo-Grid
   const loadLatestRun = async (storeId: string, keywordId: string) => {
-    setIsLoading(true);
+    setIsLoadingRun(true);
     try {
       const res = await fetch(
         `/api/tenants/${tenantSlug}/rank/runs?storeId=${storeId}&keywordId=${keywordId}&latest=true`
@@ -186,13 +236,16 @@ export function RankExplorer({
     } catch (err) {
       console.error('Failed to load latest rank run:', err);
     } finally {
-      setIsLoading(false);
+      setIsLoadingRun(false);
     }
   };
 
+  // 3. Fetch Competitors for Store
   const loadCompetitors = async (storeId: string) => {
     try {
-      const res = await fetch(`/api/tenants/${tenantSlug}/rank/stores/${storeId}/competitors?limit=15`);
+      const res = await fetch(
+        `/api/tenants/${tenantSlug}/rank/stores/${storeId}/competitors?limit=25`
+      );
       const data = await res.json();
       if (data.success && Array.isArray(data.competitors)) {
         setCompetitors(data.competitors);
@@ -202,8 +255,19 @@ export function RankExplorer({
     }
   };
 
-  const handleTriggerRun = async () => {
-    if (!selectedStoreId || !selectedKeywordId) {
+  useEffect(() => {
+    if (selectedStoreId && selectedKeywordId) {
+      loadLatestRun(selectedStoreId, selectedKeywordId);
+      loadCompetitors(selectedStoreId);
+    } else {
+      setLatestRun(null);
+    }
+  }, [selectedStoreId, selectedKeywordId, tenantSlug]);
+
+  // 4. Trigger Instant Rank Scan
+  const handleTriggerRun = async (overrideKeywordId?: string) => {
+    const kwId = overrideKeywordId || selectedKeywordId;
+    if (!selectedStoreId || !kwId) {
       notify.error('Please select both a store location and a keyword to check rank.');
       return;
     }
@@ -215,7 +279,7 @@ export function RankExplorer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeId: selectedStoreId,
-          keywordId: selectedKeywordId,
+          keywordId: kwId,
           gridSize,
           radiusKm,
           force: true,
@@ -227,72 +291,76 @@ export function RankExplorer({
         setLatestRun(data.run);
         notify.success('Rank scan completed successfully with verified coordinates.');
         loadCompetitors(selectedStoreId);
+        await loadPerformanceOverview();
+        if (overrideKeywordId) {
+          setSelectedKeywordId(overrideKeywordId);
+          setActiveTab('GEOGRID');
+        }
       } else {
         notify.error(data.error || 'Failed to complete rank scan.');
       }
-    } catch (err: any) {
-      notify.error(err.message || 'An error occurred during rank scan.');
+    } catch (err: unknown) {
+      notify.error(err instanceof Error ? err.message : 'An error occurred during rank scan.');
     } finally {
       setIsScanning(false);
     }
   };
 
-  const handleCreateKeyword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newKeywordTerm.trim()) return;
-
+  // 5. Keyword Mutations
+  const handleToggleStatus = async (keywordId: string, newStatus: 'ACTIVE' | 'PAUSED') => {
     try {
       const res = await fetch(`/api/tenants/${tenantSlug}/rank/keywords`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'create',
-          brandId: selectedBrandId,
-          term: newKeywordTerm.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.keyword) {
-        notify.success(`Keyword "${data.keyword.term}" registered.`);
-        setNewKeywordTerm('');
-        setIsAddKeywordOpen(false);
-        await loadKeywords();
-        setSelectedKeywordId(data.keyword.id);
-      } else {
-        notify.error(data.error || 'Failed to add keyword.');
-      }
-    } catch (err: any) {
-      notify.error(err.message || 'Error creating keyword.');
-    }
-  };
-
-  const handleImportFromGbp = async () => {
-    if (!selectedStoreId) {
-      notify.error('Select a store location first.');
-      return;
-    }
-    try {
-      const res = await fetch(`/api/tenants/${tenantSlug}/rank/keywords`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'import_gbp',
-          brandId: selectedBrandId,
-          locationId: selectedStoreId,
-          minSearches: 1,
+          action: 'update_status',
+          keywordId,
+          status: newStatus,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        notify.success(`Imported ${data.importedCount} search keywords from Google Business Profile!`);
-        setIsAddKeywordOpen(false);
-        await loadKeywords();
+        notify.success(`Keyword status updated to ${newStatus}.`);
+        await loadPerformanceOverview();
       } else {
-        notify.error(data.error || 'No customer search keywords eligible for import.');
+        notify.error(data.error || 'Failed to update status.');
       }
-    } catch (err: any) {
-      notify.error(err.message || 'Import failed.');
+    } catch (err: unknown) {
+      notify.error(err instanceof Error ? err.message : 'Error updating status.');
     }
+  };
+
+  const handleDeleteKeyword = async (keywordId: string, term: string) => {
+    try {
+      const res = await fetch(
+        `/api/tenants/${tenantSlug}/rank/keywords?keywordId=${keywordId}`,
+        {
+          method: 'DELETE',
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        notify.success(`Keyword "${term}" deleted successfully.`);
+        if (selectedKeywordId === keywordId) {
+          setSelectedKeywordId('');
+        }
+        await loadPerformanceOverview();
+      } else {
+        notify.error(data.error || 'Failed to delete keyword.');
+      }
+    } catch (err: unknown) {
+      notify.error(err instanceof Error ? err.message : 'Error deleting keyword.');
+    }
+  };
+
+  const handleSortChange = (column: string) => {
+    if (keywordSortBy === column) {
+      setKeywordSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setKeywordSortBy(column);
+      setKeywordSortDir('asc');
+    }
+    setKeywordPage(1);
   };
 
   // Geo-Grid rendering calculations
@@ -317,7 +385,7 @@ export function RankExplorer({
   };
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-6 pb-16">
       {/* Top Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
@@ -328,14 +396,14 @@ export function RankExplorer({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  Hyper Rank Intelligence
+                  SEO & Search Rankings
                 </h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Geo-Grid Engine
+                  Section 4
                 </span>
               </div>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Deterministic coordinate-accurate local search rank heatmaps and competitor intelligence for {tenantName}
+                Deterministic local geo-grid rank telemetry, verified SERP positions, and Google Search Console performance for {tenantName}
               </p>
             </div>
           </div>
@@ -360,7 +428,7 @@ export function RankExplorer({
           </button>
 
           <button
-            onClick={handleTriggerRun}
+            onClick={() => handleTriggerRun()}
             disabled={isScanning || !selectedStoreId || !selectedKeywordId}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-lg shadow-sm shadow-emerald-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -370,8 +438,8 @@ export function RankExplorer({
         </div>
       </div>
 
-      {/* Selectors Bar: Brand, Store, Keyword Tabs */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm space-y-4">
+      {/* Brand & Store Selectors Bar */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Brand Picker */}
           <div>
@@ -409,480 +477,551 @@ export function RankExplorer({
             </select>
           </div>
         </div>
-
-        {/* Keyword Quick Selection Pills */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Tracked Keywords ({keywords.length})
-            </span>
-            <button
-              onClick={() => setIsAddKeywordOpen(true)}
-              className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
-            >
-              <Plus className="h-3 w-3" /> Add Keyword
-            </button>
-          </div>
-
-          {keywords.length === 0 ? (
-            <div className="py-6 text-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
-              <Search className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                No keywords tracked yet for this brand. Add your first keyword or import customer search terms from Google Business Profile.
-              </p>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-              {keywords.map((kw) => {
-                const isSelected = kw.id === selectedKeywordId;
-                return (
-                  <button
-                    key={kw.id}
-                    onClick={() => setSelectedKeywordId(kw.id)}
-                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>{kw.term}</span>
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded uppercase ${
-                        isSelected
-                          ? 'bg-emerald-700/60 text-emerald-100'
-                          : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-                      }`}
-                    >
-                      {kw.source.replace('_IMPORT', '')}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-medium">Avg Found Rank</span>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">
-            {summary?.averageFoundRank !== null && summary?.averageFoundRank !== undefined
-              ? `#${summary.averageFoundRank}`
-              : '—'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Average position across found grid nodes</p>
-        </div>
+      {/* Section 4A: SEO Performance Summary KPI Cards */}
+      <SeoPerformanceSummary
+        summary={performanceSummary}
+        isLoading={isLoadingKeywords}
+      />
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-medium">Top 3 Coverage</span>
-            <Award className="h-4 w-4 text-teal-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">
-            {summary ? `${summary.top3Coverage}%` : '—'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {summary ? `${summary.top3Count} of ${summary.validCheckedPoints} in Local 3-Pack` : 'Local 3-Pack'}
-          </p>
-        </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+        <button
+          onClick={() => setActiveTab('KEYWORDS')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition border-b-2 ${
+            activeTab === 'KEYWORDS'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/40'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Table className="h-4 w-4" />
+          Keyword Intelligence & Rankings
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 font-mono">
+            {keywordTotal}
+          </span>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-medium">Top 10 Coverage</span>
-            <BarChart3 className="h-4 w-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">
-            {summary ? `${summary.top10Coverage}%` : '—'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">First Page SERP prominence</p>
-        </div>
+        <button
+          onClick={() => setActiveTab('GEOGRID')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition border-b-2 ${
+            activeTab === 'GEOGRID'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/40'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Radar className="h-4 w-4" />
+          Geo-Grid Rank Heatmap
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-semibold uppercase">
+            Live
+          </span>
+        </button>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-medium">Share of Voice</span>
-            <Sparkles className="h-4 w-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">
-            {summary ? `${summary.shareOfVoice}%` : '—'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Position-weighted SERP power</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-            <span className="text-xs font-medium">Grid Points</span>
-            <ShieldCheck className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 dark:text-white">
-            {summary ? `${summary.foundPoints}/${summary.validCheckedPoints}` : '0/0'}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            {summary ? `${currentGridSize}x${currentGridSize} Verified Nodes` : 'No run selected'}
-          </p>
-        </div>
+        <button
+          onClick={() => setActiveTab('COMPETITORS')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition border-b-2 ${
+            activeTab === 'COMPETITORS'
+              ? 'border-emerald-600 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/40'
+              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          Observed Competitors
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 font-mono">
+            {competitors.length}
+          </span>
+        </button>
       </div>
 
-      {/* Main Visualizer Area: Heatmap Grid & Inspector Drawer */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Heatmap Card (2 Cols) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Compass className="h-4 w-4 text-emerald-500" />
-                Geo-Grid Rank Heatmap
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Click any coordinate node to inspect SERP details and competing businesses
-              </p>
-            </div>
+      {/* Tab 1: Keyword Performance Table */}
+      {activeTab === 'KEYWORDS' && (
+        <KeywordPerformanceTable
+          items={keywordItems}
+          total={keywordTotal}
+          page={keywordPage}
+          limit={keywordLimit}
+          totalPages={keywordTotalPages}
+          isLoading={isLoadingKeywords}
+          onPageChange={(p) => setKeywordPage(p)}
+          onSearchChange={(q) => {
+            setKeywordSearchQuery(q);
+            setKeywordPage(1);
+          }}
+          onSourceChange={(s) => {
+            setKeywordSource(s);
+            setKeywordPage(1);
+          }}
+          onMovementChange={(m) => {
+            setKeywordMovement(m);
+            setKeywordPage(1);
+          }}
+          onStatusChange={(st) => {
+            setKeywordStatus(st);
+            setKeywordPage(1);
+          }}
+          onSortChange={handleSortChange}
+          sortBy={keywordSortBy}
+          sortDir={keywordSortDir}
+          searchQuery={keywordSearchQuery}
+          selectedSource={keywordSource}
+          selectedMovement={keywordMovement}
+          selectedStatus={keywordStatus}
+          onInspectKeyword={(kw) => setSelectedKeywordForDetails(kw)}
+          onToggleStatus={handleToggleStatus}
+          onDeleteKeyword={handleDeleteKeyword}
+          onTriggerScan={(kwId) => handleTriggerRun(kwId)}
+        />
+      )}
 
-            {/* Color Legend */}
-            <div className="hidden sm:flex items-center gap-2 text-[11px]">
-              <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> 1-3
+      {/* Tab 2: Geo-Grid Heatmap Visualizer */}
+      {activeTab === 'GEOGRID' && (
+        <div className="space-y-6">
+          {/* Keyword Quick Selection Pills */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Select Keyword for Geo-Grid Heatmap ({keywordItems.length})
               </span>
-              <span className="inline-flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
-                <span className="h-2 w-2 rounded-full bg-blue-500" /> 4-10
-              </span>
-              <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500" /> 11-20
-              </span>
-              <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
-                <span className="h-2 w-2 rounded-full bg-rose-500" /> &gt;20
-              </span>
-              <span className="inline-flex items-center gap-1 font-medium text-slate-400">
-                <span className="h-2 w-2 rounded-full bg-slate-300" /> None
-              </span>
-            </div>
-          </div>
-
-          {/* Grid Render Container */}
-          {isLoading ? (
-            <div className="h-96 flex flex-col items-center justify-center gap-3">
-              <RefreshCw className="h-8 w-8 text-emerald-500 animate-spin" />
-              <p className="text-xs text-slate-500">Loading geo-grid observations...</p>
-            </div>
-          ) : !latestRun || observations.length === 0 ? (
-            <div className="h-96 flex flex-col items-center justify-center text-center p-8 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-              <div className="h-12 w-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
-                <Radar className="h-6 w-6" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
-                No Rank Scan Performed Yet
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
-                Click &quot;Run Rank Check&quot; above to calculate deterministic coordinates and scan Google Maps local rankings for this store and keyword.
-              </p>
               <button
-                onClick={handleTriggerRun}
-                disabled={isScanning || !selectedStoreId || !selectedKeywordId}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm"
+                onClick={() => setIsAddKeywordOpen(true)}
+                className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
               >
-                <RefreshCw className="h-3.5 w-3.5" /> Start Scan Now
+                <Plus className="h-3 w-3" /> Add Keyword
               </button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-4">
-              <div
-                className="grid gap-2.5 sm:gap-3.5"
-                style={{
-                  gridTemplateColumns: `repeat(${currentGridSize}, minmax(0, 1fr))`,
-                  width: '100%',
-                  maxWidth: '520px',
-                }}
-              >
-                {observations.map((obs) => {
-                  const isCenter =
-                    obs.row === Math.floor(currentGridSize / 2) &&
-                    obs.col === Math.floor(currentGridSize / 2);
-                  const isSelected = selectedPoint?.pointIndex === obs.pointIndex;
 
+            {keywordItems.length === 0 ? (
+              <div className="py-6 text-center bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+                <Search className="h-6 w-6 text-slate-400 mx-auto mb-2" />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  No keywords tracked yet for this brand. Add your first keyword or import customer search terms from Google Business Profile.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                {keywordItems.map((kw) => {
+                  const isSelected = kw.id === selectedKeywordId;
                   return (
                     <button
-                      key={obs.pointIndex}
-                      onClick={() => setSelectedPoint(obs)}
-                      className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95 ${getRankBadgeClass(
-                        obs.rank,
-                        obs.found
-                      )} ${
+                      key={kw.id}
+                      onClick={() => setSelectedKeywordId(kw.id)}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition whitespace-nowrap ${
                         isSelected
-                          ? 'ring-4 ring-emerald-400 dark:ring-emerald-300 scale-105 z-10'
-                          : ''
+                          ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                       }`}
                     >
-                      <span className="text-sm sm:text-base font-extrabold tracking-tight">
-                        {obs.found && obs.rank !== null ? obs.rank : '—'}
-                      </span>
-                      <span className="text-[9px] opacity-80 leading-none mt-0.5">
-                        {obs.distanceKm}km
-                      </span>
-
-                      {/* Store Center Location Indicator */}
-                      {isCenter && (
-                        <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shadow-md">
-                          <MapPin className="h-2.5 w-2.5" />
+                      <span>{kw.term}</span>
+                      {kw.latestRank !== null && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                            isSelected
+                              ? 'bg-emerald-700/80 text-white'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          #{kw.latestRank}
                         </span>
                       )}
                     </button>
                   );
                 })}
               </div>
-
-              <div className="flex items-center gap-4 mt-6 text-xs text-slate-500 dark:text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-slate-900 dark:text-white" /> Store Location (Center)
-                </span>
-                <span>•</span>
-                <span>Scan Radius: {radiusKm} km</span>
-                <span>•</span>
-                <span>Status: {latestRun.status}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Coordinate Point Inspector & Detail (1 Col) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col">
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-emerald-500" />
-              Coordinate Inspector
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Details for selected geo-grid scan node
-            </p>
+            )}
           </div>
 
-          {selectedPoint ? (
-            <div className="space-y-4 flex-1">
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    Observed Position
-                  </span>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                      selectedPoint.found && selectedPoint.rank
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                        : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                    }`}
-                  >
-                    {selectedPoint.found && selectedPoint.rank ? `Rank #${selectedPoint.rank}` : 'Not Found (20+)'}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Node Coordinate:</span>
-                    <span className="font-mono">
-                      {selectedPoint.latitude.toFixed(5)}, {selectedPoint.longitude.toFixed(5)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Distance from Store:</span>
-                    <span>{selectedPoint.distanceKm} km</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Grid Position:</span>
-                    <span>
-                      Row {selectedPoint.row + 1}, Col {selectedPoint.col + 1}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Checked Depth:</span>
-                    <span>Top {selectedPoint.checkedDepth} results</span>
-                  </div>
-                </div>
+          {/* Local Geo-Grid KPI Metric Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+                <span className="text-xs font-medium">Avg Found Rank</span>
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
               </div>
-
-              {/* Observed Competitors at this Point */}
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                  Observed Competitors at this Node
-                </h4>
-                {selectedPoint.topCompetitors && selectedPoint.topCompetitors.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedPoint.topCompetitors.map((comp, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
-                            #{comp.position}
-                          </span>
-                          <span className="text-xs font-medium text-slate-900 dark:text-white truncate max-w-[150px]">
-                            {comp.name}
-                          </span>
-                        </div>
-                        {comp.externalPlaceId && (
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {comp.externalPlaceId.slice(0, 8)}...
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">No competitors recorded for this point.</p>
-                )}
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {summary?.averageFoundRank !== null && summary?.averageFoundRank !== undefined
+                  ? `#${summary.averageFoundRank}`
+                  : '—'}
               </div>
+              <p className="text-[11px] text-slate-400 mt-1">Average position across found grid nodes</p>
             </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-              <MapPin className="h-6 w-6 text-slate-400 mb-2" />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Select any node on the heatmap to view its geographical coordinates and competitors.
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+                <span className="text-xs font-medium">Top 3 Coverage</span>
+                <Award className="h-4 w-4 text-teal-500" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {summary ? `${summary.top3Coverage}%` : '—'}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {summary ? `${summary.top3Count} of ${summary.validCheckedPoints} in Local 3-Pack` : 'Local 3-Pack'}
               </p>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Competitor Intelligence Leaderboard */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-emerald-500" />
-              Observed Competitor Leaderboard
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Businesses most frequently appearing in local map pack results within your scan perimeter
-            </p>
-          </div>
-          <span className="text-xs font-medium text-slate-500">
-            {competitors.length} Unique Competitors Observed
-          </span>
-        </div>
-
-        {competitors.length === 0 ? (
-          <div className="py-8 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
-            <Building2 className="h-6 w-6 text-slate-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              No competitor intelligence recorded yet. Scan a keyword to automatically discover competing businesses.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="py-3 px-4 font-semibold">Rank</th>
-                  <th className="py-3 px-4 font-semibold">Business Name</th>
-                  <th className="py-3 px-4 font-semibold">Place ID</th>
-                  <th className="py-3 px-4 font-semibold">Website</th>
-                  <th className="py-3 px-4 font-semibold text-right">Observation Count</th>
-                  <th className="py-3 px-4 font-semibold text-right">Last Seen</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {competitors.map((comp, idx) => (
-                  <tr key={comp.id} className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition">
-                    <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300">
-                      #{idx + 1}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
-                      {comp.name}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                      {comp.externalPlaceId || '—'}
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
-                      {comp.domain ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                          {comp.domain}
-                          <ArrowUpRight className="h-3 w-3" />
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right font-semibold text-slate-900 dark:text-white">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px]">
-                        {comp.observedFrequency} points
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right text-slate-500 dark:text-slate-400">
-                      {new Date(comp.lastObservedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Add / Import Keyword Modal */}
-      {isAddKeywordOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-              Add Tracked Keyword
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Add target local search keywords to track across physical geo-grid coordinates.
-            </p>
-
-            <form onSubmit={handleCreateKeyword} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Keyword Term
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. coffee shop near me, best orthodontist"
-                  value={newKeywordTerm}
-                  onChange={(e) => setNewKeywordTerm(e.target.value)}
-                  className="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+                <span className="text-xs font-medium">Top 10 Coverage</span>
+                <BarChart3 className="h-4 w-4 text-blue-500" />
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddKeywordOpen(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newKeywordTerm.trim()}
-                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm disabled:opacity-50"
-                >
-                  Save Keyword
-                </button>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {summary ? `${summary.top10Coverage}%` : '—'}
               </div>
-            </form>
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200 dark:border-slate-800" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Or import</span>
-              </div>
+              <p className="text-[11px] text-slate-400 mt-1">First Page SERP prominence</p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleImportFromGbp}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 rounded-lg transition"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
-              Import Customer Keywords from GBP
-            </button>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+                <span className="text-xs font-medium">Share of Voice</span>
+                <Sparkles className="h-4 w-4 text-amber-500" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {summary ? `${summary.shareOfVoice}%` : '—'}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Position-weighted SERP power</p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm col-span-2 md:col-span-1">
+              <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
+                <span className="text-xs font-medium">Grid Points</span>
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                {summary ? `${summary.foundPoints}/${summary.validCheckedPoints}` : '0/0'}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {summary ? `${currentGridSize}x${currentGridSize} Verified Nodes` : 'No run selected'}
+              </p>
+            </div>
+          </div>
+
+          {/* Main Heatmap Visualizer Grid & Coordinate Inspector */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Heatmap Card (2 Cols) */}
+            <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Compass className="h-4 w-4 text-emerald-500" />
+                    Geo-Grid Rank Heatmap
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Click any coordinate node to inspect SERP details and competing businesses
+                  </p>
+                </div>
+
+                {/* Color Legend */}
+                <div className="hidden sm:flex items-center gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> 1-3
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
+                    <span className="h-2 w-2 rounded-full bg-blue-500" /> 4-10
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" /> 11-20
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" /> &gt;20
+                  </span>
+                  <span className="inline-flex items-center gap-1 font-medium text-slate-400">
+                    <span className="h-2 w-2 rounded-full bg-slate-300" /> None
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid Render Container */}
+              {isLoadingRun ? (
+                <div className="h-96 flex flex-col items-center justify-center gap-3">
+                  <RefreshCw className="h-8 w-8 text-emerald-500 animate-spin" />
+                  <p className="text-xs text-slate-500">Loading geo-grid observations...</p>
+                </div>
+              ) : !latestRun || observations.length === 0 ? (
+                <div className="h-96 flex flex-col items-center justify-center text-center p-8 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <div className="h-12 w-12 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
+                    <Radar className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+                    No Rank Scan Performed Yet
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
+                    Click &quot;Run Rank Check&quot; above to calculate deterministic coordinates and scan Google Maps local rankings for this store and keyword.
+                  </p>
+                  <button
+                    onClick={() => handleTriggerRun()}
+                    disabled={isScanning || !selectedStoreId || !selectedKeywordId}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-sm"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Start Scan Now
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-4">
+                  <div
+                    className="grid gap-2.5 sm:gap-3.5"
+                    style={{
+                      gridTemplateColumns: `repeat(${currentGridSize}, minmax(0, 1fr))`,
+                      width: '100%',
+                      maxWidth: '520px',
+                    }}
+                  >
+                    {observations.map((obs) => {
+                      const isCenter =
+                        obs.row === Math.floor(currentGridSize / 2) &&
+                        obs.col === Math.floor(currentGridSize / 2);
+                      const isSelected = selectedPoint?.pointIndex === obs.pointIndex;
+
+                      return (
+                        <button
+                          key={obs.pointIndex}
+                          onClick={() => setSelectedPoint(obs)}
+                          className={`relative aspect-square rounded-xl flex flex-col items-center justify-center transition-all transform hover:scale-105 active:scale-95 ${getRankBadgeClass(
+                            obs.rank,
+                            obs.found
+                          )} ${
+                            isSelected
+                              ? 'ring-4 ring-emerald-400 dark:ring-emerald-300 scale-105 z-10'
+                              : ''
+                          }`}
+                        >
+                          <span className="text-sm sm:text-base font-extrabold tracking-tight">
+                            {obs.found && obs.rank !== null ? obs.rank : '—'}
+                          </span>
+                          <span className="text-[9px] opacity-80 leading-none mt-0.5">
+                            {obs.distanceKm}km
+                          </span>
+
+                          {/* Store Center Location Indicator */}
+                          {isCenter && (
+                            <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center shadow-md">
+                              <MapPin className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-4 mt-6 text-xs text-slate-500 dark:text-slate-400">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-slate-900 dark:text-white" /> Store Location (Center)
+                    </span>
+                    <span>•</span>
+                    <span>Scan Radius: {radiusKm} km</span>
+                    <span>•</span>
+                    <span>Status: {latestRun.status}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Coordinate Point Inspector & Detail (1 Col) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm flex flex-col">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 mb-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-emerald-500" />
+                  Coordinate Inspector
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Details for selected geo-grid scan node
+                </p>
+              </div>
+
+              {selectedPoint ? (
+                <div className="space-y-4 flex-1">
+                  <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Observed Position
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                          selectedPoint.found && selectedPoint.rank
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        {selectedPoint.found && selectedPoint.rank
+                          ? `Rank #${selectedPoint.rank}`
+                          : 'Not Found (20+)'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Node Coordinate:</span>
+                        <span className="font-mono">
+                          {selectedPoint.latitude.toFixed(5)}, {selectedPoint.longitude.toFixed(5)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Distance from Store:</span>
+                        <span>{selectedPoint.distanceKm} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Grid Position:</span>
+                        <span>
+                          Row {selectedPoint.row + 1}, Col {selectedPoint.col + 1}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Checked Depth:</span>
+                        <span>Top {selectedPoint.checkedDepth} results</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Observed Competitors at this Point */}
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                      Observed Competitors at this Node
+                    </h4>
+                    {selectedPoint.topCompetitors && selectedPoint.topCompetitors.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedPoint.topCompetitors.map((comp, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700/60"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center text-xs font-bold">
+                                #{comp.position}
+                              </span>
+                              <span className="text-xs font-medium text-slate-900 dark:text-white truncate max-w-[150px]">
+                                {comp.name}
+                              </span>
+                            </div>
+                            {comp.externalPlaceId && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {comp.externalPlaceId.slice(0, 8)}...
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">
+                        No competitors recorded for this point.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <MapPin className="h-6 w-6 text-slate-400 mb-2" />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Select any node on the heatmap to view its geographical coordinates and competitors.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
+
+      {/* Tab 3: Competitor Intelligence Leaderboard */}
+      {activeTab === 'COMPETITORS' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-emerald-500" />
+                Observed Competitor Leaderboard
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Businesses most frequently appearing in local map pack results within your scan perimeter
+              </p>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              {competitors.length} Unique Competitors Observed
+            </span>
+          </div>
+
+          {competitors.length === 0 ? (
+            <div className="py-12 text-center bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+              <Building2 className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                No Competitor Intelligence Recorded Yet
+              </h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                Perform local geo-grid rank checks on your keywords to automatically discover competing businesses across coordinate nodes.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="py-3 px-4 font-semibold">Rank</th>
+                    <th className="py-3 px-4 font-semibold">Business Name</th>
+                    <th className="py-3 px-4 font-semibold">Google Place ID</th>
+                    <th className="py-3 px-4 font-semibold">Website</th>
+                    <th className="py-3 px-4 font-semibold text-right">Observation Count</th>
+                    <th className="py-3 px-4 font-semibold text-right">Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {competitors.map((comp, idx) => (
+                    <tr
+                      key={comp.id}
+                      className="hover:bg-slate-50 dark:hover:bg-slate-850/50 transition"
+                    >
+                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300">
+                        #{idx + 1}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-900 dark:text-white">
+                        {comp.name}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                        {comp.externalPlaceId || '—'}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
+                        {comp.domain ? (
+                          <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                            {comp.domain}
+                            <ArrowUpRight className="h-3 w-3" />
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-900 dark:text-white">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold">
+                          {comp.observedFrequency} points
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-slate-500 dark:text-slate-400">
+                        {new Date(comp.lastObservedAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Keyword Details & History Drawer */}
+      {selectedKeywordForDetails && (
+        <KeywordDetailsDrawer
+          keyword={selectedKeywordForDetails}
+          tenantSlug={tenantSlug}
+          locations={locations}
+          onClose={() => setSelectedKeywordForDetails(null)}
+          onRefreshData={loadPerformanceOverview}
+        />
+      )}
+
+      {/* Add / Import Keyword Management Modal */}
+      <KeywordManagementModal
+        isOpen={isAddKeywordOpen}
+        onClose={() => setIsAddKeywordOpen(false)}
+        tenantSlug={tenantSlug}
+        brandId={selectedBrandId}
+        brands={brands}
+        locations={brandLocations}
+        onKeywordAdded={loadPerformanceOverview}
+      />
 
       {/* Grid Configuration Modal */}
       {isConfigOpen && (

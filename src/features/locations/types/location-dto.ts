@@ -14,6 +14,9 @@ export interface LocationDto {
   timezone: string;
   status?: 'ACTIVE' | 'ARCHIVED';
   isArchived?: boolean;
+  gbpSyncStatus?: string | null | undefined;
+  gbpSyncedAt?: Date | string | null | undefined;
+  gbpSyncError?: string | null | undefined;
   version: number;
   createdAt: string;
 }

@@ -33,9 +33,12 @@ export function LocationRankingsTable({ rankings = [] }: LocationRankingsTablePr
       {/* Table */}
       <div className="overflow-x-auto -mx-1 flex-1">
         {rankings.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 text-xs">
-            <MapPin className="w-6 h-6 stroke-1 text-slate-300 mb-1" />
-            <span>No location rankings available yet</span>
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-500 text-xs px-4">
+            <MapPin className="w-7 h-7 stroke-1 text-slate-300 mb-2" />
+            <span className="font-semibold text-slate-700">Location Rankings Unavailable</span>
+            <span className="text-[11px] text-slate-400 mt-1 max-w-xs">
+              No location ranking data source is configured or recorded for this period. Rankings will appear once location conversions are tracked.
+            </span>
           </div>
         ) : (
           <table className="w-full text-[11.5px] text-left">

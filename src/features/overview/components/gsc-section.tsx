@@ -119,6 +119,25 @@ export function GscSection({ tenantSlug, data, isConnected = false }: GscSection
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
+      ) : !data?.isMapped ? (
+        <div className="bg-white/60 border border-dashed border-indigo-300 rounded-xl p-6 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3 shadow-sm">
+            <GoogleGIcon />
+          </div>
+          <h3 className="text-[14px] font-bold text-slate-900 mb-1">
+            Search Console Property Not Configured
+          </h3>
+          <p className="text-[12px] text-slate-500 max-w-md mb-4">
+            Google connection is active, but no Search Console domain or URL property is mapped to this brand. Configure your property mapping under Integrations to display clicks, impressions, and query rankings.
+          </p>
+          <Link
+            href={`/client/${tenantSlug}/integrations`}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-semibold shadow-sm transition-colors"
+          >
+            <span>Map Search Console Property</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       ) : (
         <>
           {/* Top Row: 4 KPI Cards */}

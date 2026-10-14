@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { MapPin, Phone, Navigation, Globe, Eye, ArrowRight } from 'lucide-react';
+import { MapPin, Phone, Navigation, Globe, Eye, ArrowRight, AlertCircle } from 'lucide-react';
 import { MetricCard } from '@/components/analytics/metric-card';
 import { MetricCardSkeleton } from '@/components/analytics/analytics-skeletons';
 import { AnalyticsComparisonEngine } from '@/shared/analytics/comparison';
@@ -78,6 +78,14 @@ export function ReportsGbpSection({
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               Local Presence & Reach
             </span>
+            {gbp?.averageRating != null && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+                <span>★ {gbp.averageRating.toFixed(1)}</span>
+                <span className="text-amber-600 font-normal">
+                  ({AnalyticsFormatters.compact(gbp.totalReviewCount ?? 0)} reviews)
+                </span>
+              </span>
+            )}
             {gbpStatus === 'partial' && (
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                 {mappedCount} of {totalCount} Locations Mapped
@@ -99,6 +107,24 @@ export function ReportsGbpSection({
           </Link>
         </div>
       </div>
+
+      {/* Unconfigured Notice */}
+      {gbpStatus === 'not_configured' && (
+        <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <p className="text-xs text-amber-900">
+              No Google Business Profile locations are currently mapped to this brand. Connect and map your locations to populate verified reach and customer interaction metrics.
+            </p>
+          </div>
+          <Link
+            href={`/client/${tenantSlug}/integrations`}
+            className="text-xs font-semibold text-amber-800 bg-white px-3 py-1.5 rounded-lg border border-amber-300 hover:bg-amber-50 transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto"
+          >
+            Configure Mappings →
+          </Link>
+        </div>
+      )}
 
       {/* KPI Cards Grid */}
       {isLoading && !summary ? (

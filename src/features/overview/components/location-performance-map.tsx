@@ -25,8 +25,21 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
   const [scope, setScope] = useState<MapScope>('us');
   const [currentZoom, setCurrentZoom] = useState<number>(10);
   const [isReady, setIsReady] = useState<boolean>(false);
-  const [activeLocationId, setActiveLocationId] = useState<string>(locations[0]?.id || '');
-  const activeLocation = locations.find((l) => l.id === activeLocationId) || locations[0];
+  const validLocations = locations.filter(
+    (l) =>
+      typeof l.lat === 'number' &&
+      !isNaN(l.lat) &&
+      l.lat >= -90 &&
+      l.lat <= 90 &&
+      typeof l.lng === 'number' &&
+      !isNaN(l.lng) &&
+      l.lng >= -180 &&
+      l.lng <= 180 &&
+      !(l.lat === 0 && l.lng === 0)
+  );
+
+  const [activeLocationId, setActiveLocationId] = useState<string>(validLocations[0]?.id || locations[0]?.id || '');
+  const activeLocation = validLocations.find((l) => l.id === activeLocationId) || locations.find((l) => l.id === activeLocationId) || validLocations[0];
 
   // Country counts & aggregates
   const usLocations = locations.filter((l) => l.region === 'us');
@@ -48,8 +61,8 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
       let initialCenter = SCOPE_CONFIG['us'].center;
       let initialZoom = SCOPE_CONFIG['us'].zoom;
 
-      if (locations.length > 0) {
-        const first = locations[0]!;
+      if (validLocations.length > 0) {
+        const first = validLocations[0]!;
         initialCenter = [first.lat, first.lng];
         initialZoom = first.region === 'us' ? 10 : first.region === 'india' ? 7 : 6;
       }
@@ -91,10 +104,10 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
         }
       });
 
-      // Add custom styled markers for each location
+      // Add custom styled markers only for locations with valid coordinates
       const markers: LeafletMarker[] = [];
 
-      locations.forEach((loc) => {
+      validLocations.forEach((loc) => {
         const isHq = loc.isHq;
 
         const markerHtml = `
@@ -426,19 +439,19 @@ export function LocationPerformanceMap({ locations = [] }: LocationPerformanceMa
         {/* Leaflet Mount Element */}
         <div ref={containerRef} className="w-full h-full z-10" />
 
-        {/* Empty state overlay when client has 0 locations */}
-        {locations.length === 0 && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/90 backdrop-blur-2xs text-slate-600 text-xs p-4 text-center">
+        {/* Empty state overlay when client has 0 locations with valid coordinates */}
+        {validLocations.length === 0 && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-50/95 backdrop-blur-2xs text-slate-600 text-xs p-5 text-center">
             <Globe2 className="w-8 h-8 stroke-1 text-slate-400 mb-2" />
-            <span className="font-bold text-slate-800 text-[13px]">No Store Locations Added Yet</span>
-            <span className="text-slate-500 mt-1 max-w-sm">
-              Add your store locations in Manage Store Locations to view your customer reach and local store activity on the map.
+            <span className="font-bold text-slate-800 text-[13.5px]">No Geographic Coordinates Available</span>
+            <span className="text-slate-500 mt-1 max-w-sm text-[11.5px]">
+              No valid latitude and longitude coordinates are configured for this brand's locations. Add coordinates under Locations to display markers on the map.
             </span>
           </div>
         )}
 
         {/* Loading / Ready placeholder */}
-        {!isReady && locations.length > 0 && (
+        {!isReady && validLocations.length > 0 && (
           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center bg-slate-100/90 text-slate-400 text-xs font-medium">
             <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2" />
             <span>Loading World Performance Map...</span>

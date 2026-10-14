@@ -107,22 +107,48 @@ export function WebAnalyticsSection({ tenantSlug, data, isConnected = false }: W
         </div>
       ) : (
         <>
-          {/* Top Row: 5 KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
-            {webCards.map((card) => (
-              <DashboardMetricCard
-                key={card.key}
-                label={card.label}
-                value={card.value}
-                delta={card.delta}
-                icon={card.icon}
-                color={card.color}
-                sparkColor={card.sparkColor}
-                suffix={card.suffix}
-                seed={card.seed}
-              />
-            ))}
-          </div>
+          {/* Unconfigured GA4 Notice if property is not mapped */}
+          {!data?.isMapped ? (
+            <div className="bg-white/80 border border-dashed border-sky-300 rounded-xl p-5 mb-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 flex-shrink-0 shadow-xs">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-[13.5px] font-bold text-slate-900">
+                    Google Analytics 4 Property Not Configured
+                  </h4>
+                  <p className="text-[11.5px] text-slate-500 max-w-xl">
+                    No GA4 property is mapped to this brand yet. Map your Google Analytics property under Integrations to track live website users, sessions, and conversions.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/client/${tenantSlug}/integrations`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[11.5px] font-semibold shadow-xs transition-colors whitespace-nowrap flex-shrink-0"
+              >
+                <span>Map GA4 Property</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
+          ) : (
+            /* Top Row: 5 KPI Cards (Only when GA4 is mapped) */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
+              {webCards.map((card) => (
+                <DashboardMetricCard
+                  key={card.key}
+                  label={card.label}
+                  value={card.value}
+                  delta={card.delta}
+                  icon={card.icon}
+                  color={card.color}
+                  sparkColor={card.sparkColor}
+                  suffix={card.suffix}
+                  seed={card.seed}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Bottom Row: Location Map (7 cols) + Location Rankings (5 cols) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">

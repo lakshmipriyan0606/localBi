@@ -1,4 +1,5 @@
 import { prisma } from '@/shared/database/client';
+import { Prisma } from '@prisma/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import {
   AuthorizedContext,
@@ -34,6 +35,9 @@ export interface PerformanceSummaryDto {
     endDate: string;
   };
   gsc: {
+    propertyUrl?: string | undefined;
+    propertyType?: 'DOMAIN' | 'URL_PREFIX' | undefined;
+    lastSyncedAt?: string | null | undefined;
     totalClicks: number;
     totalImpressions: number;
     ctr: number; // calculated as clicks / impressions
@@ -49,6 +53,8 @@ export interface PerformanceSummaryDto {
     websiteClicks: number;
     callClicks: number;
     directionRequests: number;
+    averageRating?: number | null | undefined;
+    totalReviewCount?: number | undefined;
   };
   previousPeriod?: {
     clicksGrowthPercent?: number | undefined;
@@ -57,6 +63,14 @@ export interface PerformanceSummaryDto {
     callsGrowthPercent?: number | undefined;
     directionsGrowthPercent?: number | undefined;
     websiteClicksGrowthPercent?: number | undefined;
+    views?: number | undefined;
+    calls?: number | undefined;
+    directions?: number | undefined;
+    websiteClicks?: number | undefined;
+    clicks?: number | undefined;
+    impressions?: number | undefined;
+    ctr?: number | undefined;
+    position?: number | undefined;
   } | undefined;
 }
 
@@ -78,6 +92,10 @@ export interface QueryDimensionRow {
   impressions: number;
   ctr: number;
   position: number;
+  previousClicks?: number | null | undefined;
+  previousImpressions?: number | null | undefined;
+  clicksChange?: number | null | undefined;
+  positionChange?: number | null | undefined;
 }
 
 export interface PageDimensionRow {
@@ -86,6 +104,10 @@ export interface PageDimensionRow {
   impressions: number;
   ctr: number;
   position: number;
+  previousClicks?: number | null | undefined;
+  previousImpressions?: number | null | undefined;
+  clicksChange?: number | null | undefined;
+  positionChange?: number | null | undefined;
 }
 
 export interface DeviceDimensionRow {
@@ -118,7 +140,14 @@ export interface GbpLocationBreakdownRow {
   locationId: string;
   locationName: string;
   storeCode: string | null;
+  addressLine1?: string | undefined;
   city: string;
+  state?: string | undefined;
+  isMapped?: boolean | undefined;
+  googleResourceName?: string | null | undefined;
+  gbpSyncStatus?: string | null | undefined;
+  lastSyncedAt?: string | null | undefined;
+  syncError?: string | null | undefined;
   searchViews: number;
   mapsViews: number;
   totalViews: number;
@@ -157,7 +186,7 @@ export class ReportingService {
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // Resolve brand, GSC property IDs, and permitted location IDs with surface awareness
-      const { propertyIds, allowedLocationIds, targetSurface, isDomainProperty, urlPrefixFilter } =
+      const { propertyIds, gscProp, allowedLocationIds, targetSurface, isDomainProperty, urlPrefixFilter } =
         await this.resolveReportingContext(tx, {
           tenantId,
           brandId,
@@ -180,8 +209,9 @@ export class ReportingService {
       let sumPositionImpressions = 0;
       let prevGscClicks = 0;
       let prevGscImpressions = 0;
+      let prevSumPositionImpressions = 0;
 
-      const [currentGbpMetrics, prevGbpMetrics, gbpLocationMappings] = await Promise.all([
+      const [currentGbpMetrics, prevGbpMetrics, gbpLocationMappings, gbpAggregates] = await Promise.all([
         allowedLocationIds.length > 0
           ? tx.gbpDailyMetric.findMany({
               where: { tenantId, locationId: { in: allowedLocationIds }, date: { gte: start, lte: end } },
@@ -200,6 +230,11 @@ export class ReportingService {
                 internalId: { in: allowedLocationIds },
                 resource: { provider: 'GOOGLE_BUSINESS_PROFILE' },
               },
+            })
+          : Promise.resolve([]),
+        allowedLocationIds.length > 0
+          ? tx.gbpLocationAggregate.findMany({
+              where: { tenantId, locationId: { in: allowedLocationIds } },
             })
           : Promise.resolve([]),
       ]);
@@ -224,7 +259,7 @@ export class ReportingService {
                 date: { gte: prevStart, lte: prevEnd },
                 page: { fullUrl: { startsWith: urlPrefixFilter } },
               },
-              select: { clicks: true, impressions: true },
+              select: { clicks: true, impressions: true, sumPositionImpressions: true },
             }),
           ]);
 
@@ -236,6 +271,7 @@ export class ReportingService {
           for (const row of prevPageMetrics) {
             prevGscClicks += row.clicks;
             prevGscImpressions += row.impressions;
+            prevSumPositionImpressions += row.sumPositionImpressions;
           }
         } else {
           // Direct URL-prefix property (or no filter) — use property daily totals directly
@@ -256,9 +292,21 @@ export class ReportingService {
           for (const row of prevGscTotals) {
             prevGscClicks += row.clicks;
             prevGscImpressions += row.impressions;
+            prevSumPositionImpressions += row.sumPositionImpressions;
           }
         }
       }
+
+      // Query latest successful sync run for property attribution
+      const lastSync = await tx.syncRun.findFirst({
+        where: {
+          tenantId,
+          provider: 'GSC',
+          ...(propertyIds.length > 0 ? { resourceId: { in: propertyIds } } : {}),
+          status: 'SUCCESS',
+        },
+        orderBy: { completedAt: 'desc' },
+      });
 
       const ctr = totalImpressions > 0 ? totalClicks / totalImpressions : 0;
       const averagePosition = totalImpressions > 0 ? sumPositionImpressions / totalImpressions : 0;
@@ -341,6 +389,21 @@ export class ReportingService {
         gbpStatus = 'empty';
       }
 
+      let totalReviewCount = 0;
+      let weightedRatingSum = 0;
+      let weightedCount = 0;
+      for (const agg of gbpAggregates) {
+        totalReviewCount += agg.totalReviewCount;
+        if (agg.averageRating != null && agg.averageRating > 0) {
+          weightedRatingSum += agg.averageRating * agg.totalReviewCount;
+          weightedCount += agg.totalReviewCount;
+        }
+      }
+      const averageRating = weightedCount > 0 ? Math.round((weightedRatingSum / weightedCount) * 10) / 10 : null;
+
+      const prevCtr = prevGscImpressions > 0 ? prevGscClicks / prevGscImpressions : 0;
+      const prevAveragePosition = prevGscImpressions > 0 ? prevSumPositionImpressions / prevGscImpressions : 0;
+
       return {
         source: 'GOOGLE_SEARCH_CONSOLE',
         webSurfaceId: targetSurface?.id,
@@ -349,10 +412,13 @@ export class ReportingService {
         urlPrefixFilter,
         period: { startDate, endDate },
         gsc: {
+          propertyUrl: gscProp?.propertyUrl || undefined,
+          propertyType: (gscProp?.propertyType as 'DOMAIN' | 'URL_PREFIX') || (isDomainProperty ? 'DOMAIN' : 'URL_PREFIX'),
+          lastSyncedAt: lastSync?.completedAt?.toISOString() || null,
           totalClicks,
           totalImpressions,
           ctr: Math.round(ctr * 10000) / 10000,
-          averagePosition: Math.round(averagePosition * 10) / 10,
+          averagePosition: averagePosition > 0 ? Math.round(averagePosition * 10) / 10 : 0,
         },
         gbp: {
           status: gbpStatus,
@@ -364,6 +430,8 @@ export class ReportingService {
           websiteClicks,
           callClicks,
           directionRequests,
+          averageRating,
+          totalReviewCount,
         },
         previousPeriod: {
           clicksGrowthPercent: calcGrowth(totalClicks, prevGscClicks),
@@ -372,6 +440,14 @@ export class ReportingService {
           callsGrowthPercent: calcGrowth(callClicks, prevCallClicks),
           directionsGrowthPercent: calcGrowth(directionRequests, prevDirectionRequests),
           websiteClicksGrowthPercent: calcGrowth(websiteClicks, prevWebsiteClicks),
+          views: prevTotalViews,
+          calls: prevCallClicks,
+          directions: prevDirectionRequests,
+          websiteClicks: prevWebsiteClicks,
+          clicks: prevGscClicks,
+          impressions: prevGscImpressions,
+          ctr: prevCtr,
+          position: prevAveragePosition > 0 ? Math.round(prevAveragePosition * 10) / 10 : 0,
         },
       };
     });
@@ -664,15 +740,41 @@ export class ReportingService {
       // Handle each dimension
       if (dimension === 'query') {
         if (propertyIds.length === 0) return { items: [], totalCount: 0, page, pageSize };
-        const queryMetrics = await tx.gscDailyQueryMetric.findMany({
-          where: {
-            tenantId,
-            propertyId: { in: propertyIds },
-            date: { gte: start, lte: end },
-            ...(search ? { query: { queryText: { contains: search, mode: 'insensitive' } } } : {}),
-          },
-          include: { query: true },
-        });
+
+        const durationMs = end.getTime() - start.getTime();
+        const prevStart = new Date(start.getTime() - durationMs);
+        const prevEnd = new Date(start.getTime());
+
+        const [queryMetrics, prevQueryMetrics] = await Promise.all([
+          tx.gscDailyQueryMetric.findMany({
+            where: {
+              tenantId,
+              propertyId: { in: propertyIds },
+              date: { gte: start, lte: end },
+              ...(search ? { query: { queryText: { contains: search, mode: 'insensitive' } } } : {}),
+            },
+            include: { query: true },
+          }),
+          tx.gscDailyQueryMetric.findMany({
+            where: {
+              tenantId,
+              propertyId: { in: propertyIds },
+              date: { gte: prevStart, lte: prevEnd },
+              ...(search ? { query: { queryText: { contains: search, mode: 'insensitive' } } } : {}),
+            },
+            include: { query: true },
+          }),
+        ]);
+
+        const prevMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+        for (const q of prevQueryMetrics) {
+          const txt = q.query.queryText;
+          const curr = prevMap.get(txt) || { clicks: 0, impressions: 0, sumPos: 0 };
+          curr.clicks += q.clicks;
+          curr.impressions += q.impressions;
+          curr.sumPos += q.sumPositionImpressions;
+          prevMap.set(txt, curr);
+        }
 
         const queryMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
         for (const q of queryMetrics) {
@@ -684,13 +786,25 @@ export class ReportingService {
           queryMap.set(txt, curr);
         }
 
-        const items: QueryDimensionRow[] = Array.from(queryMap.entries()).map(([queryText, stats]) => ({
-          queryText,
-          clicks: stats.clicks,
-          impressions: stats.impressions,
-          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
-          position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
-        }));
+        const items: QueryDimensionRow[] = Array.from(queryMap.entries()).map(([queryText, stats]) => {
+          const prev = prevMap.get(queryText);
+          const prevClicks = prev ? prev.clicks : null;
+          const prevImpressions = prev ? prev.impressions : null;
+          const prevPos = prev && prev.impressions > 0 ? Math.round((prev.sumPos / prev.impressions) * 10) / 10 : null;
+          const currPos = stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0;
+
+          return {
+            queryText,
+            clicks: stats.clicks,
+            impressions: stats.impressions,
+            ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+            position: currPos,
+            previousClicks: prevClicks,
+            previousImpressions: prevImpressions,
+            clicksChange: prevClicks !== null ? stats.clicks - prevClicks : null,
+            positionChange: prevPos !== null && currPos > 0 ? Math.round((prevPos - currPos) * 10) / 10 : null,
+          };
+        });
 
         items.sort((a, b) => {
           const fieldA = a[sortBy as keyof QueryDimensionRow] ?? a.clicks;
@@ -709,13 +823,23 @@ export class ReportingService {
       if (dimension === 'page') {
         if (propertyIds.length === 0) return { items: [], totalCount: 0, page, pageSize };
 
-        const pageWhere: any = {
+        const durationMs = end.getTime() - start.getTime();
+        const prevStart = new Date(start.getTime() - durationMs);
+        const prevEnd = new Date(start.getTime());
+
+        const pageWhere: Prisma.GscDailyPageMetricWhereInput = {
           tenantId,
           propertyId: { in: propertyIds },
           date: { gte: start, lte: end },
         };
 
-        const fullUrlFilter: any = {};
+        const prevPageWhere: Prisma.GscDailyPageMetricWhereInput = {
+          tenantId,
+          propertyId: { in: propertyIds },
+          date: { gte: prevStart, lte: prevEnd },
+        };
+
+        const fullUrlFilter: Prisma.StringFilter = {};
         if (isDomainProperty && urlPrefixFilter) {
           fullUrlFilter.startsWith = urlPrefixFilter;
         }
@@ -725,12 +849,29 @@ export class ReportingService {
         }
         if (Object.keys(fullUrlFilter).length > 0) {
           pageWhere.page = { fullUrl: fullUrlFilter };
+          prevPageWhere.page = { fullUrl: fullUrlFilter };
         }
 
-        const pageMetrics = await tx.gscDailyPageMetric.findMany({
-          where: pageWhere,
-          include: { page: true },
-        });
+        const [pageMetrics, prevPageMetrics] = await Promise.all([
+          tx.gscDailyPageMetric.findMany({
+            where: pageWhere,
+            include: { page: true },
+          }),
+          tx.gscDailyPageMetric.findMany({
+            where: prevPageWhere,
+            include: { page: true },
+          }),
+        ]);
+
+        const prevMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
+        for (const p of prevPageMetrics) {
+          const url = p.page.fullUrl;
+          const curr = prevMap.get(url) || { clicks: 0, impressions: 0, sumPos: 0 };
+          curr.clicks += p.clicks;
+          curr.impressions += p.impressions;
+          curr.sumPos += p.sumPositionImpressions;
+          prevMap.set(url, curr);
+        }
 
         const pageMap = new Map<string, { clicks: number; impressions: number; sumPos: number }>();
         for (const p of pageMetrics) {
@@ -742,13 +883,25 @@ export class ReportingService {
           pageMap.set(url, curr);
         }
 
-        const items: PageDimensionRow[] = Array.from(pageMap.entries()).map(([fullUrl, stats]) => ({
-          fullUrl,
-          clicks: stats.clicks,
-          impressions: stats.impressions,
-          ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
-          position: stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0,
-        }));
+        const items: PageDimensionRow[] = Array.from(pageMap.entries()).map(([fullUrl, stats]) => {
+          const prev = prevMap.get(fullUrl);
+          const prevClicks = prev ? prev.clicks : null;
+          const prevImpressions = prev ? prev.impressions : null;
+          const prevPos = prev && prev.impressions > 0 ? Math.round((prev.sumPos / prev.impressions) * 10) / 10 : null;
+          const currPos = stats.impressions > 0 ? Math.round((stats.sumPos / stats.impressions) * 10) / 10 : 0;
+
+          return {
+            fullUrl,
+            clicks: stats.clicks,
+            impressions: stats.impressions,
+            ctr: stats.impressions > 0 ? Math.round((stats.clicks / stats.impressions) * 10000) / 10000 : 0,
+            position: currPos,
+            previousClicks: prevClicks,
+            previousImpressions: prevImpressions,
+            clicksChange: prevClicks !== null ? stats.clicks - prevClicks : null,
+            positionChange: prevPos !== null && currPos > 0 ? Math.round((prevPos - currPos) * 10) / 10 : null,
+          };
+        });
 
         items.sort((a, b) => {
           const fieldA = a[sortBy as keyof PageDimensionRow] ?? a.clicks;
@@ -919,14 +1072,36 @@ export class ReportingService {
         let items: GbpLocationBreakdownRow[] = [];
 
         if (allowedLocs.length > 0) {
-          // Single batched query for all allowed locations (replaces N+1 per-location loop)
-          const allMetrics = await tx.gbpDailyMetric.findMany({
-            where: {
-              tenantId,
-              locationId: { in: allowedLocs.map((l) => l.id) },
-              date: { gte: start, lte: end },
-            },
-          });
+          const locIds = allowedLocs.map((l) => l.id);
+
+          // Batched metrics and resource mappings queries
+          const [allMetrics, mappings] = await Promise.all([
+            tx.gbpDailyMetric.findMany({
+              where: {
+                tenantId,
+                locationId: { in: locIds },
+                date: { gte: start, lte: end },
+              },
+            }),
+            tx.internalResourceMapping.findMany({
+              where: {
+                tenantId,
+                internalType: 'LOCATION',
+                internalId: { in: locIds },
+              },
+              include: {
+                resource: {
+                  select: {
+                    id: true,
+                    externalResourceId: true,
+                    resourceName: true,
+                  },
+                },
+              },
+            }),
+          ]);
+
+          const mappingByLocationId = new Map(mappings.map((m) => [m.internalId, m]));
 
           // Group metrics by locationId in memory
           const metricsByLocation = new Map<string, typeof allMetrics>();
@@ -939,6 +1114,8 @@ export class ReportingService {
 
           items = allowedLocs.map((loc) => {
             const locMetrics = metricsByLocation.get(loc.id) ?? [];
+            const mapping = mappingByLocationId.get(loc.id);
+
             let searchViews = 0;
             let mapsViews = 0;
             let websiteClicks = 0;
@@ -958,7 +1135,14 @@ export class ReportingService {
               locationId: loc.id,
               locationName: loc.name,
               storeCode: loc.storeCode,
+              addressLine1: loc.addressLine1,
               city: loc.city,
+              state: loc.state,
+              isMapped: !!mapping,
+              googleResourceName: mapping?.resource?.resourceName ?? null,
+              gbpSyncStatus: loc.gbpSyncStatus,
+              lastSyncedAt: loc.gbpSyncedAt ? loc.gbpSyncedAt.toISOString() : null,
+              syncError: loc.gbpSyncError,
               searchViews,
               mapsViews,
               totalViews: searchViews + mapsViews,
@@ -970,10 +1154,13 @@ export class ReportingService {
         }
 
         if (search) {
+          const s = search.toLowerCase();
           items = items.filter(
             (i) =>
-              i.locationName.toLowerCase().includes(search.toLowerCase()) ||
-              i.city.toLowerCase().includes(search.toLowerCase())
+              i.locationName.toLowerCase().includes(s) ||
+              i.city.toLowerCase().includes(s) ||
+              (i.storeCode && i.storeCode.toLowerCase().includes(s)) ||
+              (i.addressLine1 && i.addressLine1.toLowerCase().includes(s))
           );
         }
 
@@ -984,11 +1171,14 @@ export class ReportingService {
             return sortOrder === 'asc' ? fieldA - fieldB : fieldB - fieldA;
           }
           return sortOrder === 'asc'
-            ? String(fieldA).localeCompare(String(fieldB))
-            : String(fieldB).localeCompare(String(fieldA));
+            ? String(fieldA ?? '').localeCompare(String(fieldB ?? ''))
+            : String(fieldB ?? '').localeCompare(String(fieldA ?? ''));
         });
 
-        return { items, totalCount: items.length, page, pageSize };
+        const totalCount = items.length;
+        const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize);
+
+        return { items: paginatedItems, totalCount, page, pageSize };
       }
 
 
@@ -1206,8 +1396,9 @@ export class ReportingService {
     }
   ): Promise<{
     propertyIds: string[];
+    gscProp: import('@prisma/client').GscProperty | null;
     allowedLocationIds: string[];
-    targetSurface: any | null;
+    targetSurface: { id: string; type: string; [key: string]: unknown } | null;
     isDomainProperty: boolean;
     urlPrefixFilter: string | null;
   }> {
@@ -1272,6 +1463,7 @@ export class ReportingService {
     if (!gscMapping || !gscMapping.resource) {
       return {
         propertyIds: [],
+        gscProp: null,
         allowedLocationIds,
         targetSurface,
         isDomainProperty: false,
@@ -1284,22 +1476,30 @@ export class ReportingService {
 
     // Fetch matching GscProperty
     const gscProp = await tx.gscProperty.findFirst({
-      where: { tenantId, propertyUrl: gscPropertyUrl },
+      where: {
+        tenantId,
+        OR: [
+          { propertyUrl: gscPropertyUrl },
+          { resourceId: gscMapping.resourceId },
+        ],
+      },
     });
 
     // Derive urlPrefixFilter
     let urlPrefixFilter: string | null = gscMapping.urlPrefixFilter || null;
-    if (!urlPrefixFilter && targetSurface) {
-      const primDomain = targetSurface.domains?.find((d: any) => d.isPrimary) || targetSurface.domains?.[0];
+    if (!urlPrefixFilter && targetSurface && typeof targetSurface === 'object' && 'domains' in targetSurface) {
+      const surfaceWithDomains = targetSurface as { domains?: Array<{ isPrimary?: boolean; hostname: string }>; type?: string };
+      const primDomain = surfaceWithDomains.domains?.find((d) => d.isPrimary) || surfaceWithDomains.domains?.[0];
       if (primDomain) {
         urlPrefixFilter = AnalyticsUrlNormalizer.toCanonicalUrlPrefix(primDomain.hostname);
-      } else if (targetSurface.type === 'LOCALBI') {
+      } else if (surfaceWithDomains.type === 'LOCALBI') {
         urlPrefixFilter = AnalyticsUrlNormalizer.toCanonicalUrlPrefix(`locate.${brand.slug}.com`);
       }
     }
 
     return {
       propertyIds: gscProp ? [gscProp.id] : [],
+      gscProp: gscProp || null,
       allowedLocationIds,
       targetSurface,
       isDomainProperty,

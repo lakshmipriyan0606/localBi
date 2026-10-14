@@ -16,10 +16,17 @@ export const metadata: Metadata = {
 
 export default async function WorkspaceOverviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tenantSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { tenantSlug } = await params;
+  const sParams = await searchParams;
+  const daysParam = typeof sParams.days === 'string' ? parseInt(sParams.days, 10) : 30;
+  const selectedDays = !isNaN(daysParam) && daysParam > 0 ? daysParam : 30;
+  const activeBrandId = typeof sParams.brandId === 'string' ? sParams.brandId : undefined;
+
   const cookieStore = await cookies();
   const token = SessionCookieManager.getSessionToken(cookieStore);
   if (!token) redirect('/login');
@@ -55,17 +62,28 @@ export default async function WorkspaceOverviewPage({
 
   const { tenant, authorizedContext } = resolved;
 
-  // Backend single source of truth for overview data (showcase dental for abc-dental, real database metrics for all other clients)
+  // Single source of truth for overview data scoped to tenant, brand, and date range
   let overviewData: any = null;
   try {
     overviewData = await OverviewService.getOverviewData(
       tenant.id,
       tenant.slug,
-      authorizedContext
+      authorizedContext,
+      {
+        brandId: activeBrandId,
+        days: selectedDays,
+      }
     );
   } catch (err) {
     console.error('[WorkspaceOverviewPage] Error getting overview data:', err);
-    overviewData = OverviewService.getFallbackOverviewData(tenant.name || tenant.slug, tenant.slug);
+    overviewData = OverviewService.getFallbackOverviewData(
+      tenant.name || tenant.slug,
+      tenant.slug,
+      {
+        brandId: activeBrandId,
+        days: selectedDays,
+      }
+    );
   }
 
   return (
@@ -74,7 +92,9 @@ export default async function WorkspaceOverviewPage({
       <ClientHero
         tenantName={overviewData.tenantName}
         tenantSlug={overviewData.tenantSlug}
+        activeBrandName={overviewData.activeBrandName}
         locationsCount={overviewData.locationsCount}
+        gbpLocationsCount={overviewData.gbpLocationsCount}
         categoriesCount={overviewData.categoriesCount}
         brandTagline={overviewData.brandTagline}
         storeBadgeName={overviewData.storeBadgeName}
@@ -82,6 +102,10 @@ export default async function WorkspaceOverviewPage({
         marketingQuote={overviewData.marketingQuote}
         isConnected={overviewData.isConnected}
         isDataReady={overviewData.isDataReady}
+        dataReadiness={overviewData.dataReadiness}
+        syncStatus={overviewData.syncStatus}
+        selectedDays={overviewData.selectedDays}
+        overviewData={overviewData}
       />
 
       {/* 2. Setup Reminders (Only shown if setup is pending/missing) */}

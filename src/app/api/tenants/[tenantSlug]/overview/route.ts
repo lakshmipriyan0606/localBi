@@ -7,7 +7,7 @@ import { OverviewService } from '@/modules/overview/overview-service';
 import { handleRouteError } from '@/shared/errors';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string }> }
 ) {
   try {
@@ -26,10 +26,19 @@ export async function GET(
 
     AuthorizationService.assertCan(authorizedContext, Action.DASHBOARD_VIEW);
 
+    const searchParams = request.nextUrl.searchParams;
+    const daysParam = searchParams.get('days');
+    const brandId = searchParams.get('brandId') || undefined;
+    const days = daysParam ? parseInt(daysParam, 10) : undefined;
+
     const overviewData = await OverviewService.getOverviewData(
       tenant.id,
       tenant.slug,
-      authorizedContext
+      authorizedContext,
+      {
+        brandId,
+        days: days && !isNaN(days) ? days : 30,
+      }
     );
 
     return NextResponse.json({ success: true, data: overviewData });

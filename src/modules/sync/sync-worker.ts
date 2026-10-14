@@ -805,6 +805,7 @@ export class SyncWorkerService {
     let gscRows = 0;
     if (shouldSyncGsc) {
       for (const prop of properties) {
+        const businessKey = `${tenantId}:gsc:${prop.id}:${startDate}:${endDate}:direct`;
         try {
           const rows = await this.processGscJob({
             type: 'GSC_SYNC',
@@ -814,11 +815,58 @@ export class SyncWorkerService {
             startDate,
             endDate,
             searchType: 'WEB',
-            businessKey: `${tenantId}:gsc:${prop.id}:${startDate}:${endDate}:WEB`,
+            businessKey,
           }, accessToken);
           gscRows += rows;
-        } catch (err) {
+
+          await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+            await tx.syncRun.upsert({
+              where: { uq_sync_run_business_key: { tenantId, businessKey } },
+              create: {
+                tenantId,
+                provider: 'GSC',
+                resourceId: prop.id,
+                businessKey,
+                startedAt: new Date(),
+                completedAt: new Date(),
+                status: 'SUCCESS',
+                rowsIngested: rows,
+              },
+              update: {
+                completedAt: new Date(),
+                status: 'SUCCESS',
+                rowsIngested: rows,
+                errorCode: null,
+                errorDetails: Prisma.DbNull,
+              },
+            });
+          });
+        } catch (err: unknown) {
+          const errorMsg = (err as Error)?.message || 'Direct sync failed';
           logger.error({ err, propertyUrl: prop.propertyUrl }, 'Direct GSC sync error');
+          await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+            await tx.syncRun.upsert({
+              where: { uq_sync_run_business_key: { tenantId, businessKey } },
+              create: {
+                tenantId,
+                provider: 'GSC',
+                resourceId: prop.id,
+                businessKey,
+                startedAt: new Date(),
+                completedAt: new Date(),
+                status: 'FAILED',
+                rowsIngested: 0,
+                errorCode: 'DIRECT_SYNC_FAILED',
+                errorDetails: { message: errorMsg },
+              },
+              update: {
+                completedAt: new Date(),
+                status: 'FAILED',
+                errorCode: 'DIRECT_SYNC_FAILED',
+                errorDetails: { message: errorMsg },
+              },
+            });
+          });
           throw err;
         }
       }

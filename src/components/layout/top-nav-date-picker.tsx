@@ -16,6 +16,7 @@ export function TopNavDatePicker() {
     const params = new URLSearchParams(searchParams.toString());
     params.set('days', days);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    router.refresh();
   };
 
   return (

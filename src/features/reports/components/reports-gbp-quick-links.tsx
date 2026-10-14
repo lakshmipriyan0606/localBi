@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Store, Search, ArrowRight } from 'lucide-react';
+import { Store, Search, MessageSquare, FileText, ArrowRight } from 'lucide-react';
 
 interface QuickLinksProps {
   tenantSlug: string;
@@ -17,64 +17,127 @@ export function ReportsGbpQuickLinks({
   brandLocations,
 }: QuickLinksProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Store className="h-4 w-4 text-teal-600" />
-            <h3 className="text-sm font-bold text-slate-900">Storefront Locations Matrix</h3>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 1. Locations Matrix */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Store className="h-4 w-4 text-teal-600" />
+              <h3 className="text-sm font-bold text-slate-900">Locations Matrix</h3>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+              className="text-xs font-semibold text-teal-600 hover:text-teal-800 flex items-center gap-1"
+            >
+              <span>View</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
+          <p className="text-xs text-slate-500">
+            Compare customer views, calls, directions, and website clicks across {brandLocations.length} branches.
+          </p>
+        </div>
+        <div className="pt-2 border-t border-slate-100">
           <Link
             href={`/client/${tenantSlug}/reports/gbp/locations?days=${dateRangeDays}&brandId=${selectedBrandId}`}
-            className="text-xs font-semibold text-teal-600 hover:text-teal-800 flex items-center gap-1"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors w-full justify-center"
           >
-            <span>Open Matrix</span>
+            <span>Open Location Matrix</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
-        </div>
-        <p className="text-xs text-slate-500">
-          Inspect customer interactions across {brandLocations.length} storefront branches.
-        </p>
-        <div className="divide-y divide-slate-100">
-          {brandLocations.length === 0 ? (
-            <div className="py-4 text-center text-xs text-slate-400">
-              No storefront locations registered for this brand yet.
-            </div>
-          ) : (
-            brandLocations.slice(0, 4).map((loc) => (
-              <div key={loc.id} className="py-2 flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-800">{loc.name}</span>
-                <span className="text-slate-400 font-mono">{loc.city}</span>
-              </div>
-            ))
-          )}
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-teal-600" />
-            <h3 className="text-sm font-bold text-slate-900">Monthly Search Terms</h3>
+      {/* 2. Customer Reviews */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-bold text-slate-900">Customer Reviews</h3>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/reports/gbp/reviews?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+              className="text-xs font-semibold text-amber-600 hover:text-amber-800 flex items-center gap-1"
+            >
+              <span>Manage</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
+          <p className="text-xs text-slate-500">
+            Monitor incoming customer ratings, filter unanswered feedback, and publish owner replies directly to Google.
+          </p>
+        </div>
+        <div className="pt-2 border-t border-slate-100">
           <Link
-            href={`/client/${tenantSlug}/reports/gbp/search-terms?brandId=${selectedBrandId}`}
-            className="text-xs font-semibold text-teal-600 hover:text-teal-800 flex items-center gap-1"
+            href={`/client/${tenantSlug}/reports/gbp/reviews?days=${dateRangeDays}&brandId=${selectedBrandId}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors w-full justify-center"
           >
-            <span>View Terms</span>
+            <span>Open Review Explorer</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
-        <p className="text-xs text-slate-500">
-          Customer queries directly triggering Google Business Profile impressions on Search and Maps.
-        </p>
-        <div className="pt-2">
+      </div>
+
+      {/* 3. Posts & Updates */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-600" />
+              <h3 className="text-sm font-bold text-slate-900">Posts & Updates</h3>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/reports/gbp/posts?brandId=${selectedBrandId}`}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+            >
+              <span>Manage</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <p className="text-xs text-slate-500">
+            Publish announcements, promotional offers, and call-to-action buttons to your Google storefronts.
+          </p>
+        </div>
+        <div className="pt-2 border-t border-slate-100">
+          <Link
+            href={`/client/${tenantSlug}/reports/gbp/posts?brandId=${selectedBrandId}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors w-full justify-center"
+          >
+            <span>Open Posts Manager</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      </div>
+
+      {/* 4. Monthly Search Terms */}
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-teal-600" />
+              <h3 className="text-sm font-bold text-slate-900">Search Keywords</h3>
+            </div>
+            <Link
+              href={`/client/${tenantSlug}/reports/gbp/search-terms?brandId=${selectedBrandId}`}
+              className="text-xs font-semibold text-teal-600 hover:text-teal-800 flex items-center gap-1"
+            >
+              <span>Explore</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <p className="text-xs text-slate-500">
+            Customer queries directly triggering Google Business Profile impressions on Search and Maps.
+          </p>
+        </div>
+        <div className="pt-2 border-t border-slate-100">
           <Link
             href={`/client/${tenantSlug}/reports/gbp/search-terms?brandId=${selectedBrandId}`}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-teal-700 bg-teal-50 px-3 py-2 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 bg-teal-50 px-2.5 py-1.5 rounded-lg border border-teal-200 hover:bg-teal-100 transition-colors w-full justify-center"
           >
-            <span>Open Monthly Search Terms Explorer</span>
-            <ArrowRight className="h-3.5 w-3.5" />
+            <span>Open Keyword Explorer</span>
+            <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
       </div>

@@ -29,6 +29,84 @@ export interface StoreKeywordDto {
   updatedAt: Date;
 }
 
+export interface AssignedStoreInfoDto {
+  id: string;
+  name: string;
+  city: string | null;
+}
+
+export interface KeywordPerformanceItemDto {
+  id: string;
+  brandId: string;
+  term: string;
+  normalizedTerm: string;
+  source: string;
+  status: string;
+  locale: string;
+  country: string;
+  createdAt: Date;
+  updatedAt: Date;
+  trackedStoresCount: number;
+  assignedStores: AssignedStoreInfoDto[];
+  // Rank metrics (from local geo-grid engine)
+  latestRank: number | null;
+  previousRank: number | null;
+  rankDelta: number | null; // previousRank - latestRank (positive = improvement)
+  rankMovement: 'IMPROVED' | 'DECLINED' | 'UNCHANGED' | 'NEW' | 'UNRANKED';
+  top3Coverage: number | null;
+  top10Coverage: number | null;
+  shareOfVoice: number | null;
+  lastCheckedAt: Date | null;
+  // Search Console metrics (from Google Search Console)
+  gscClicks: number;
+  gscImpressions: number;
+  gscCtr: number;
+  gscAvgPosition: number | null;
+  hasGscData: boolean;
+}
+
+export interface SeoPerformanceSummaryDto {
+  totalTrackedKeywords: number;
+  activeKeywordsCount: number;
+  pausedKeywordsCount: number;
+  keywordsWithRankData: number;
+  improvedCount: number;
+  declinedCount: number;
+  unchangedCount: number;
+  top3Count: number;
+  top10Count: number;
+  top20Count: number;
+  beyond20Count: number;
+  totalGscClicks: number;
+  totalGscImpressions: number;
+  averageGscCtr: number;
+  averageGscPosition: number | null;
+  lastScanTime: Date | null;
+  lastSyncTime: Date | null;
+}
+
+export interface KeywordPerformanceOverviewOptions {
+  status?: string;
+  search?: string;
+  source?: string;
+  movement?: 'IMPROVED' | 'DECLINED' | 'UNCHANGED' | 'NEW' | 'UNRANKED' | 'ALL';
+  storeId?: string;
+  days?: number;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface KeywordPerformanceResultDto {
+  summary: SeoPerformanceSummaryDto;
+  items: KeywordPerformanceItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export class KeywordService {
   /**
    * Normalizes a keyword: trims leading/trailing spaces, collapses multiple
@@ -47,12 +125,12 @@ export class KeywordService {
   public static async addKeyword(
     tenantId: string,
     brandId: string,
-    termOrParams: string | { term: string; source?: any; locale?: string; country?: string; tags?: string[] },
-    optionsOrContext?: any,
+    termOrParams: string | { term: string; source?: string; locale?: string; country?: string; tags?: string[] },
+    optionsOrContext?: { source?: string; locale?: string; country?: string; tags?: string[] } | AuthorizedContext,
     maybeContext?: AuthorizedContext
   ): Promise<KeywordDto> {
     let term: string;
-    let source: any = 'MANUAL';
+    let source = 'MANUAL';
     let locale = 'en';
     let country = 'IN';
     let context: AuthorizedContext;
@@ -167,7 +245,7 @@ export class KeywordService {
           take: 100,
         });
       });
-      queries = metrics.map((m: any) => m.query.query);
+      queries = metrics.map((m) => m.query?.queryText || '');
     }
 
     AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
@@ -232,7 +310,7 @@ export class KeywordService {
           take: 100,
         });
       });
-      terms = metrics.map((m: any) => m.term);
+      terms = metrics.map((m) => m.term);
     }
 
     AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
@@ -371,17 +449,18 @@ export class KeywordService {
     keywordId: string,
     status: 'ACTIVE' | 'PAUSED',
     context: AuthorizedContext
-  ): Promise<void> {
+  ): Promise<KeywordDto> {
     AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
 
-    await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      await tx.keyword.update({
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const updated = await tx.keyword.update({
         where: { id: keywordId },
         data: {
           status,
           updatedAt: new Date(),
         },
       });
+      return updated;
     });
   }
 
@@ -391,7 +470,7 @@ export class KeywordService {
   public static async listBrandKeywords(
     tenantId: string,
     brandId: string,
-    optionsOrContext?: any,
+    optionsOrContext?: { status?: string; search?: string; page?: number; limit?: number } | AuthorizedContext,
     maybeContext?: AuthorizedContext
   ): Promise<{ items: KeywordDto[]; total: number }> {
     let context: AuthorizedContext;
@@ -400,7 +479,7 @@ export class KeywordService {
     if (optionsOrContext && ('role' in optionsOrContext || 'scopeMode' in optionsOrContext)) {
       context = optionsOrContext as AuthorizedContext;
     } else {
-      options = optionsOrContext || {};
+      options = (optionsOrContext as { status?: string; search?: string; page?: number; limit?: number }) || {};
       context = maybeContext!;
     }
 
@@ -413,7 +492,7 @@ export class KeywordService {
       });
       if (!brand) throw new Error(`Brand ${brandId} not found`);
 
-      const where: any = { tenantId, brandId };
+      const where: { tenantId: string; brandId: string; status?: string; term?: { contains: string; mode: 'insensitive' } } = { tenantId, brandId };
       if (options.status) where.status = options.status;
       if (options.search) {
         where.term = { contains: options.search, mode: 'insensitive' };
@@ -493,6 +572,401 @@ export class KeywordService {
         createdAt: m.createdAt,
         updatedAt: m.updatedAt,
       }));
+    });
+  }
+
+  /**
+   * Deletes a keyword and cascades to associated store mappings and rank records.
+   */
+  public static async deleteKeyword(
+    tenantId: string,
+    keywordId: string,
+    context: AuthorizedContext
+  ): Promise<{ success: boolean; id: string }> {
+    AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const keyword = await tx.keyword.findFirst({
+        where: { id: keywordId, tenantId },
+        select: { id: true, term: true, brandId: true },
+      });
+      if (!keyword) {
+        throw new Error(`Keyword ${keywordId} not found`);
+      }
+
+      await tx.keyword.delete({
+        where: { id: keywordId },
+      });
+
+      logger.info(
+        { tenantId, keywordId, term: keyword.term, brandId: keyword.brandId },
+        '[KeywordService] Deleted keyword'
+      );
+
+      return { success: true, id: keywordId };
+    });
+  }
+
+  /**
+   * Comprehensive Keyword Performance Overview combining local geo-grid rank telemetry
+   * and Google Search Console performance with safe zero-handling, deterministic movement
+   * calculations, and rich brand-level SEO summary KPIs.
+   */
+  public static async getKeywordPerformanceOverview(
+    tenantId: string,
+    brandId: string,
+    options: KeywordPerformanceOverviewOptions = {},
+    context: AuthorizedContext
+  ): Promise<KeywordPerformanceResultDto> {
+    AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // 1. Verify brand ownership
+      const brand = await tx.brand.findFirst({
+        where: { id: brandId, tenantId, isArchived: false },
+        select: { id: true, name: true },
+      });
+      if (!brand) throw new Error(`Brand ${brandId} not found`);
+
+      // 2. Resolve date boundaries
+      const days = options.days ? Math.max(1, options.days) : 30;
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      // 3. Resolve brand-scoped GSC property
+      const mappings = await tx.internalResourceMapping.findMany({
+        where: {
+          tenantId,
+          status: 'ACTIVE',
+          OR: [{ internalId: brandId }, { brandId }],
+          resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+        },
+        select: { resourceId: true },
+      });
+      const gscResourceIds = mappings.map((m) => m.resourceId);
+
+      let brandGscPropertyId: string | null = null;
+      if (gscResourceIds.length > 0) {
+        const prop = await tx.gscProperty.findFirst({
+          where: { tenantId, resourceId: { in: gscResourceIds } },
+          select: { id: true },
+        });
+        brandGscPropertyId = prop?.id || null;
+      }
+
+      // 4. Pre-fetch GSC query metrics by normalized keyword
+      const gscMetricsByTerm = new Map<
+        string,
+        { clicks: number; impressions: number; sumPos: number; lastDate: Date | null }
+      >();
+      let lastGscSyncTime: Date | null = null;
+
+      if (brandGscPropertyId) {
+        const gscQueries = await tx.gscQuery.findMany({
+          where: { tenantId, propertyId: brandGscPropertyId },
+          include: {
+            dailyMetrics: {
+              where: {
+                date: { gte: startDate },
+              },
+              select: {
+                date: true,
+                clicks: true,
+                impressions: true,
+                sumPositionImpressions: true,
+              },
+            },
+          },
+        });
+
+        for (const q of gscQueries) {
+          const norm = this.normalizeKeyword(q.queryText);
+          let clicks = 0;
+          let impressions = 0;
+          let sumPos = 0;
+          let latestMetricDate: Date | null = null;
+
+          for (const dm of q.dailyMetrics) {
+            clicks += dm.clicks;
+            impressions += dm.impressions;
+            sumPos += dm.sumPositionImpressions;
+            if (!latestMetricDate || dm.date > latestMetricDate) {
+              latestMetricDate = dm.date;
+            }
+            if (!lastGscSyncTime || dm.date > lastGscSyncTime) {
+              lastGscSyncTime = dm.date;
+            }
+          }
+
+          const existing = gscMetricsByTerm.get(norm) || {
+            clicks: 0,
+            impressions: 0,
+            sumPos: 0,
+            lastDate: null,
+          };
+          gscMetricsByTerm.set(norm, {
+            clicks: existing.clicks + clicks,
+            impressions: existing.impressions + impressions,
+            sumPos: existing.sumPos + sumPos,
+            lastDate:
+              latestMetricDate && (!existing.lastDate || latestMetricDate > existing.lastDate)
+                ? latestMetricDate
+                : existing.lastDate,
+          });
+        }
+      }
+
+      // 5. Fetch all brand keywords with store assignments
+      const keywords = await tx.keyword.findMany({
+        where: { tenantId, brandId },
+        include: {
+          storeKeywords: {
+            where: options.storeId ? { storeId: options.storeId } : undefined,
+            include: {
+              store: {
+                select: { id: true, name: true, city: true },
+              },
+            },
+          },
+        },
+        orderBy: [{ status: 'asc' }, { term: 'asc' }],
+      });
+
+      // Filter by store if requested
+      const eligibleKeywords = options.storeId
+        ? keywords.filter((k) => k.storeKeywords.length > 0)
+        : keywords;
+
+      // 6. Fetch latest completed rank runs for these keywords
+      const rankRuns = await tx.rankRun.findMany({
+        where: {
+          tenantId,
+          brandId,
+          storeId: options.storeId || undefined,
+          status: { in: ['SUCCESS', 'COMPLETED', 'PARTIAL'] },
+        },
+        orderBy: { scheduledDate: 'desc' },
+        include: {
+          summary: true,
+        },
+        take: 2000,
+      });
+
+      // Group runs by keywordId
+      const runsByKeyword = new Map<string, Array<typeof rankRuns[0]>>();
+      let lastScanTime: Date | null = null;
+
+      for (const run of rankRuns) {
+        if (!lastScanTime || (run.completedAt && run.completedAt > lastScanTime)) {
+          lastScanTime = run.completedAt;
+        }
+        const list = runsByKeyword.get(run.keywordId) || [];
+        if (list.length < 2) {
+          list.push(run);
+          runsByKeyword.set(run.keywordId, list);
+        }
+      }
+
+      // 7. Aggregate performance rows and calculate SEO Summary KPIs
+      const allItems: KeywordPerformanceItemDto[] = [];
+      let totalGscClicks = 0;
+      let totalGscImpressions = 0;
+      let totalGscSumPos = 0;
+      let improvedCount = 0;
+      let declinedCount = 0;
+      let unchangedCount = 0;
+      let top3Count = 0;
+      let top10Count = 0;
+      let top20Count = 0;
+      let beyond20Count = 0;
+      let keywordsWithRankData = 0;
+
+      for (const kw of eligibleKeywords) {
+        const runs = runsByKeyword.get(kw.id) || [];
+        const latestRun = runs[0];
+        const prevRun = runs[1];
+
+        const latestRank = latestRun?.summary?.averageFoundRank ?? null;
+        const prevRank = prevRun?.summary?.averageFoundRank ?? null;
+
+        let rankDelta: number | null = null;
+        let rankMovement: 'IMPROVED' | 'DECLINED' | 'UNCHANGED' | 'NEW' | 'UNRANKED' = 'UNRANKED';
+
+        if (latestRank !== null) {
+          keywordsWithRankData++;
+          if (latestRank <= 3) top3Count++;
+          else if (latestRank <= 10) top10Count++;
+          else if (latestRank <= 20) top20Count++;
+          else beyond20Count++;
+
+          if (prevRank !== null) {
+            // Rank 1 is better than Rank 10: improvement = previousRank - latestRank > 0
+            const diff = prevRank - latestRank;
+            rankDelta = Math.round(diff * 10) / 10;
+            if (diff > 0.05) {
+              rankMovement = 'IMPROVED';
+              improvedCount++;
+            } else if (diff < -0.05) {
+              rankMovement = 'DECLINED';
+              declinedCount++;
+            } else {
+              rankMovement = 'UNCHANGED';
+              unchangedCount++;
+            }
+          } else {
+            rankMovement = 'NEW';
+          }
+        }
+
+        // GSC lookup
+        const gsc = gscMetricsByTerm.get(kw.normalizedTerm) || {
+          clicks: 0,
+          impressions: 0,
+          sumPos: 0,
+          lastDate: null,
+        };
+        totalGscClicks += gsc.clicks;
+        totalGscImpressions += gsc.impressions;
+        totalGscSumPos += gsc.sumPos;
+
+        const gscCtr =
+          gsc.impressions > 0 ? Math.round((gsc.clicks / gsc.impressions) * 10000) / 100 : 0;
+        const gscAvgPosition =
+          gsc.impressions > 0 ? Math.round((gsc.sumPos / gsc.impressions) * 10) / 10 : null;
+
+        allItems.push({
+          id: kw.id,
+          brandId: kw.brandId,
+          term: kw.term,
+          normalizedTerm: kw.normalizedTerm,
+          source: kw.source,
+          status: kw.status,
+          locale: kw.locale,
+          country: kw.country,
+          createdAt: kw.createdAt,
+          updatedAt: kw.updatedAt,
+          trackedStoresCount: kw.storeKeywords.length,
+          assignedStores: kw.storeKeywords.map((sk) => ({
+            id: sk.store.id,
+            name: sk.store.name,
+            city: sk.store.city,
+          })),
+          latestRank,
+          previousRank: prevRank,
+          rankDelta,
+          rankMovement,
+          top3Coverage: latestRun?.summary?.top3Coverage ?? null,
+          top10Coverage: latestRun?.summary?.top10Coverage ?? null,
+          shareOfVoice: latestRun?.summary?.shareOfVoice ?? null,
+          lastCheckedAt: latestRun?.completedAt ?? null,
+          gscClicks: gsc.clicks,
+          gscImpressions: gsc.impressions,
+          gscCtr,
+          gscAvgPosition,
+          hasGscData: gsc.impressions > 0 || gsc.clicks > 0,
+        });
+      }
+
+      // 8. Assemble SEO performance summary KPIs
+      const summary: SeoPerformanceSummaryDto = {
+        totalTrackedKeywords: eligibleKeywords.length,
+        activeKeywordsCount: eligibleKeywords.filter((k) => k.status === 'ACTIVE').length,
+        pausedKeywordsCount: eligibleKeywords.filter((k) => k.status === 'PAUSED').length,
+        keywordsWithRankData,
+        improvedCount,
+        declinedCount,
+        unchangedCount,
+        top3Count,
+        top10Count,
+        top20Count,
+        beyond20Count,
+        totalGscClicks,
+        totalGscImpressions,
+        averageGscCtr:
+          totalGscImpressions > 0
+            ? Math.round((totalGscClicks / totalGscImpressions) * 10000) / 100
+            : 0,
+        averageGscPosition:
+          totalGscImpressions > 0
+            ? Math.round((totalGscSumPos / totalGscImpressions) * 10) / 10
+            : null,
+        lastScanTime,
+        lastSyncTime: lastGscSyncTime,
+      };
+
+      // 9. Filter items
+      let filtered = allItems;
+      if (options.search) {
+        const q = options.search.toLowerCase().trim();
+        filtered = filtered.filter((i) => i.term.toLowerCase().includes(q));
+      }
+      if (options.source && options.source !== 'ALL') {
+        filtered = filtered.filter((i) => i.source === options.source);
+      }
+      if (options.status && options.status !== 'ALL') {
+        filtered = filtered.filter((i) => i.status === options.status);
+      }
+      if (options.movement && options.movement !== 'ALL') {
+        filtered = filtered.filter((i) => i.rankMovement === options.movement);
+      }
+
+      // 10. Sort items
+      const sortBy = options.sortBy || 'term';
+      const sortDir = options.sortDir === 'desc' ? -1 : 1;
+
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'latestRank': {
+            const valA = a.latestRank !== null ? a.latestRank : 9999;
+            const valB = b.latestRank !== null ? b.latestRank : 9999;
+            return (valA - valB) * sortDir;
+          }
+          case 'rankDelta': {
+            const valA = a.rankDelta !== null ? a.rankDelta : -9999;
+            const valB = b.rankDelta !== null ? b.rankDelta : -9999;
+            return (valA - valB) * sortDir;
+          }
+          case 'gscClicks':
+            return (a.gscClicks - b.gscClicks) * sortDir;
+          case 'gscImpressions':
+            return (a.gscImpressions - b.gscImpressions) * sortDir;
+          case 'gscCtr':
+            return (a.gscCtr - b.gscCtr) * sortDir;
+          case 'gscAvgPosition': {
+            const valA = a.gscAvgPosition !== null ? a.gscAvgPosition : 9999;
+            const valB = b.gscAvgPosition !== null ? b.gscAvgPosition : 9999;
+            return (valA - valB) * sortDir;
+          }
+          case 'lastCheckedAt': {
+            const valA = a.lastCheckedAt ? new Date(a.lastCheckedAt).getTime() : 0;
+            const valB = b.lastCheckedAt ? new Date(b.lastCheckedAt).getTime() : 0;
+            return (valA - valB) * sortDir;
+          }
+          case 'createdAt': {
+            const valA = new Date(a.createdAt).getTime();
+            const valB = new Date(b.createdAt).getTime();
+            return (valA - valB) * sortDir;
+          }
+          case 'term':
+          default:
+            return a.term.localeCompare(b.term) * sortDir;
+        }
+      });
+
+      // 11. Pagination
+      const page = Math.max(1, options.page ?? 1);
+      const limit = Math.max(1, options.limit ?? 25);
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit) || 1;
+      const paginatedItems = filtered.slice((page - 1) * limit, page * limit);
+
+      return {
+        summary,
+        items: paginatedItems,
+        total,
+        page,
+        limit,
+        totalPages,
+      };
     });
   }
 }

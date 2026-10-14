@@ -6,10 +6,26 @@ import { OverviewKpiCard } from './overview-kpi-card';
 import { OverviewKpiCardSkeleton } from './overview-kpi-card-skeleton';
 import { OverviewKpiEmpty } from './overview-kpi-empty';
 
+export interface ExecutivePerformanceSummary {
+  gsc?: {
+    totalClicks?: number;
+    totalImpressions?: number;
+  };
+  gbp?: {
+    totalViews?: number;
+    callClicks?: number;
+    directionRequests?: number;
+  };
+  previousPeriod?: {
+    clicksGrowthPercent?: number;
+    impressionsGrowthPercent?: number;
+  };
+}
+
 interface OverviewKpiGridProps {
   tenantSlug: string;
   primaryBrand: { id: string; name: string } | null;
-  performanceSummary: any;
+  performanceSummary: ExecutivePerformanceSummary | null | undefined;
   startDate: string;
   endDate: string;
   isLoading?: boolean;

@@ -2,6 +2,7 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleOAuthService } from './google-oauth-service';
 import { logger } from '@/shared/observability/logger';
+import { AppError, ErrorCode, createValidationError } from '@/shared/errors';
 
 export interface GscUrlInspectionResult {
   inspectionUrl: string;
@@ -56,11 +57,42 @@ export interface GscPageIndexingSummary {
 
 export class GscIndexingService {
   /**
+   * Validates that the requested inspection URL belongs to the authorized Search Console property.
+   */
+  public static validateUrlOwnership(siteUrl: string, targetUrl: string): void {
+    let parsed: URL;
+    try {
+      parsed = new URL(targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`);
+    } catch {
+      throw createValidationError(`Invalid inspection URL provided: "${targetUrl}"`);
+    }
+
+    if (siteUrl.startsWith('sc-domain:')) {
+      const domain = siteUrl.replace(/^sc-domain:/, '').trim().toLowerCase();
+      const host = parsed.hostname.toLowerCase();
+      if (host !== domain && !host.endsWith(`.${domain}`)) {
+        throw createValidationError(
+          `The requested URL (${parsed.href}) does not belong to the verified domain property (${domain}).`
+        );
+      }
+    } else {
+      const prefix = siteUrl.trim().toLowerCase();
+      if (!parsed.href.toLowerCase().startsWith(prefix)) {
+        throw createValidationError(
+          `The requested URL (${parsed.href}) does not belong to the verified URL-prefix property (${siteUrl}).`
+        );
+      }
+    }
+  }
+
+  /**
    * Performs real-time URL inspection using Google Search Console URL Inspection API.
    */
   public static async inspectUrl(
     tenantId: string,
-    inspectionUrl: string
+    inspectionUrl: string,
+    brandId?: string,
+    propertyId?: string
   ): Promise<GscUrlInspectionResult> {
     const { activeConnection, property } = await TenantContextService.withTenantContext(
       prisma,
@@ -69,9 +101,38 @@ export class GscIndexingService {
         const conn = await tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId },
-        });
+
+        let prop = null;
+        if (propertyId) {
+          prop = await tx.gscProperty.findFirst({ where: { tenantId, id: propertyId } });
+        } else if (brandId) {
+          const mapping = await tx.internalResourceMapping.findFirst({
+            where: {
+              tenantId,
+              internalId: brandId,
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+          if (mapping) {
+            prop = await tx.gscProperty.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  { propertyUrl: mapping.resource.externalResourceId },
+                  { resourceId: mapping.resourceId },
+                ],
+              },
+            });
+          }
+        }
+
+        if (!prop) {
+          prop = await tx.gscProperty.findFirst({
+            where: { tenantId },
+          });
+        }
+
         return { activeConnection: conn, property: prop };
       }
     );
@@ -80,17 +141,20 @@ export class GscIndexingService {
       throw new Error('Google Search Console is not connected for this tenant.');
     }
 
+    const siteUrl = property.propertyUrl;
+    // Format target URL
+    const targetUrl = inspectionUrl.startsWith('http')
+      ? inspectionUrl
+      : `${siteUrl.replace(/\/$/, '')}/${inspectionUrl.replace(/^\//, '')}`;
+
+    // Validate ownership before dispatching to Google API
+    this.validateUrlOwnership(siteUrl, targetUrl);
+
     const accessToken = await GoogleOAuthService.refreshAccessToken(
       activeConnection.encryptedRefreshToken,
       tenantId,
       activeConnection.id
     );
-
-    const siteUrl = property.propertyUrl;
-    // Ensure inspection URL starts with property URL or domain
-    const targetUrl = inspectionUrl.startsWith('http')
-      ? inspectionUrl
-      : `${siteUrl.replace(/\/$/, '')}/${inspectionUrl.replace(/^\//, '')}`;
 
     logger.info({ targetUrl, siteUrl }, 'Querying Google Search Console URL Inspection API');
 
@@ -109,7 +173,14 @@ export class GscIndexingService {
     if (!res.ok) {
       const errText = await res.text();
       logger.error({ status: res.status, errText }, 'Google URL inspection API error');
-      throw new Error(`Google URL Inspection failed: ${res.statusText}`);
+      if (res.status === 403 || res.status === 429) {
+        throw new AppError({
+          code: ErrorCode.INTEGRATION_RATE_LIMIT,
+          statusCode: res.status,
+          message: 'Google Search Console URL Inspection API quota exceeded or permission denied. Please verify credentials or retry later.',
+        });
+      }
+      throw new Error(`Google URL Inspection failed (${res.status}): ${res.statusText}`);
     }
 
     const json = await res.json();
@@ -134,7 +205,11 @@ export class GscIndexingService {
   /**
    * Fetches real indexing summary and sitemaps from Google Search Console.
    */
-  public static async getPageIndexingSummary(tenantId: string): Promise<GscPageIndexingSummary> {
+  public static async getPageIndexingSummary(
+    tenantId: string,
+    brandId?: string,
+    propertyId?: string
+  ): Promise<GscPageIndexingSummary> {
     const { activeConnection, property } = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
@@ -142,9 +217,38 @@ export class GscIndexingService {
         const conn = await tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId },
-        });
+
+        let prop = null;
+        if (propertyId) {
+          prop = await tx.gscProperty.findFirst({ where: { tenantId, id: propertyId } });
+        } else if (brandId) {
+          const mapping = await tx.internalResourceMapping.findFirst({
+            where: {
+              tenantId,
+              internalId: brandId,
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+          if (mapping) {
+            prop = await tx.gscProperty.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  { propertyUrl: mapping.resource.externalResourceId },
+                  { resourceId: mapping.resourceId },
+                ],
+              },
+            });
+          }
+        }
+
+        if (!prop) {
+          prop = await tx.gscProperty.findFirst({
+            where: { tenantId },
+          });
+        }
+
         return { activeConnection: conn, property: prop };
       }
     );
@@ -162,7 +266,7 @@ export class GscIndexingService {
     const siteUrl = property.propertyUrl;
 
     // 1. Fetch Sitemaps from Google Webmasters API
-    let sitemapsList: any[] = [];
+    let sitemapsList: Array<Record<string, unknown>> = [];
     try {
       const sitemapsRes = await fetch(
         `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`,

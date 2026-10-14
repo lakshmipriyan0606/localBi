@@ -36,6 +36,9 @@ export interface LocationDto {
   updatedAt: Date;
   brandName?: string | undefined;
   status: 'ACTIVE' | 'ARCHIVED';
+  gbpSyncStatus?: string | null | undefined;
+  gbpSyncedAt?: Date | null | undefined;
+  gbpSyncError?: string | null | undefined;
 }
 
 export interface CreateLocationInput {
@@ -109,6 +112,9 @@ export class LocationService {
       isClosed: boolean;
       createdAt: Date;
       updatedAt: Date;
+      gbpSyncStatus?: string | null;
+      gbpSyncedAt?: Date | null;
+      gbpSyncError?: string | null;
       brand?: { name: string } | null;
     },
     brandName?: string
@@ -119,6 +125,9 @@ export class LocationService {
       stateRegion: loc.state,
       countryCode: loc.country,
       status: loc.isArchived ? 'ARCHIVED' : 'ACTIVE',
+      gbpSyncStatus: loc.gbpSyncStatus ?? null,
+      gbpSyncedAt: loc.gbpSyncedAt ?? null,
+      gbpSyncError: loc.gbpSyncError ?? null,
     };
   }
 

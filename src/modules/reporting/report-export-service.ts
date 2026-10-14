@@ -8,7 +8,7 @@ export class ReportExportService {
   public static sanitizeCsvField(value: string | number | boolean | null | undefined): string {
     if (value === null || value === undefined) return '';
     const str = String(value);
-    if (/^[=\+\-\@\t\r]/.test(str)) {
+    if (/^[=+\-@\t\r]/.test(str)) {
       return `'${str}`;
     }
     // Escape quotes for standard CSV RFC 4180
@@ -50,6 +50,104 @@ export class ReportExportService {
       `# Brand: ${this.sanitizeCsvField(report.brandName)}`,
       `# Date Range: ${report.dateRange.startDate} to ${report.dateRange.endDate}`,
       `# Generated At: ${report.generatedAt}`,
+      '',
+    ].join('\n');
+
+    return `${meta}${headers.join(',')}\n${rows.map((r) => r.join(',')).join('\n')}`;
+  }
+
+  /**
+   * Generates a secured CSV for Google Search Console queries with formula injection sanitization.
+   */
+  public static exportGscQueriesCsv(
+    queries: Array<{
+      queryText: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+      previousClicks?: number | null | undefined;
+      clicksChange?: number | null | undefined;
+      positionChange?: number | null | undefined;
+    }>,
+    metaInfo: { brandName: string; startDate: string; endDate: string }
+  ): string {
+    const headers = [
+      'Search Query',
+      'Clicks',
+      'Impressions',
+      'CTR (%)',
+      'Average Position',
+      'Previous Clicks',
+      'Clicks Change',
+      'Position Change',
+    ];
+
+    const rows = queries.map((q) => [
+      this.sanitizeCsvField(q.queryText),
+      this.sanitizeCsvField(q.clicks),
+      this.sanitizeCsvField(q.impressions),
+      this.sanitizeCsvField(Number((q.ctr * 100).toFixed(2))),
+      this.sanitizeCsvField(q.position > 0 ? q.position.toFixed(1) : '—'),
+      this.sanitizeCsvField(q.previousClicks !== null && q.previousClicks !== undefined ? q.previousClicks : '—'),
+      this.sanitizeCsvField(q.clicksChange !== null && q.clicksChange !== undefined ? (q.clicksChange > 0 ? `+${q.clicksChange}` : q.clicksChange) : '—'),
+      this.sanitizeCsvField(q.positionChange !== null && q.positionChange !== undefined ? (q.positionChange > 0 ? `+${q.positionChange}` : q.positionChange) : '—'),
+    ]);
+
+    const meta = [
+      `# Search Console Queries Report`,
+      `# Brand: ${this.sanitizeCsvField(metaInfo.brandName)}`,
+      `# Date Range: ${metaInfo.startDate} to ${metaInfo.endDate}`,
+      `# Generated At: ${new Date().toISOString()}`,
+      '',
+    ].join('\n');
+
+    return `${meta}${headers.join(',')}\n${rows.map((r) => r.join(',')).join('\n')}`;
+  }
+
+  /**
+   * Generates a secured CSV for Google Search Console landing pages with formula injection sanitization.
+   */
+  public static exportGscPagesCsv(
+    pages: Array<{
+      fullUrl: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+      previousClicks?: number | null | undefined;
+      clicksChange?: number | null | undefined;
+      positionChange?: number | null | undefined;
+    }>,
+    metaInfo: { brandName: string; startDate: string; endDate: string }
+  ): string {
+    const headers = [
+      'Landing Page URL',
+      'Clicks',
+      'Impressions',
+      'CTR (%)',
+      'Average Position',
+      'Previous Clicks',
+      'Clicks Change',
+      'Position Change',
+    ];
+
+    const rows = pages.map((p) => [
+      this.sanitizeCsvField(p.fullUrl),
+      this.sanitizeCsvField(p.clicks),
+      this.sanitizeCsvField(p.impressions),
+      this.sanitizeCsvField(Number((p.ctr * 100).toFixed(2))),
+      this.sanitizeCsvField(p.position > 0 ? p.position.toFixed(1) : '—'),
+      this.sanitizeCsvField(p.previousClicks !== null && p.previousClicks !== undefined ? p.previousClicks : '—'),
+      this.sanitizeCsvField(p.clicksChange !== null && p.clicksChange !== undefined ? (p.clicksChange > 0 ? `+${p.clicksChange}` : p.clicksChange) : '—'),
+      this.sanitizeCsvField(p.positionChange !== null && p.positionChange !== undefined ? (p.positionChange > 0 ? `+${p.positionChange}` : p.positionChange) : '—'),
+    ]);
+
+    const meta = [
+      `# Search Console Landing Pages Report`,
+      `# Brand: ${this.sanitizeCsvField(metaInfo.brandName)}`,
+      `# Date Range: ${metaInfo.startDate} to ${metaInfo.endDate}`,
+      `# Generated At: ${new Date().toISOString()}`,
       '',
     ].join('\n');
 

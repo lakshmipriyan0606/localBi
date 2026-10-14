@@ -12,6 +12,12 @@ import {
   Globe,
   Navigation,
   ArrowUpRight,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  MessageSquare,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
 
 export interface LocationsPerformanceExplorerProps {
@@ -74,25 +80,87 @@ export function LocationsPerformanceExplorer({
   const columns: ColumnDef<GbpLocationBreakdownRow>[] = [
     {
       key: "locationName",
-      header: "Location",
+      header: "Location & Address",
       sortable: true,
       render: (row) => (
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2.5">
           <MapPin className="h-4 w-4 text-teal-600 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="min-w-0">
             <Link
               href={`/client/${tenantSlug}/locations/${row.locationId}`}
-              className="font-semibold text-slate-900 hover:text-teal-700 hover:underline flex items-center gap-1 group cursor-pointer"
+              className="font-semibold text-slate-900 hover:text-teal-700 hover:underline flex items-center gap-1 group cursor-pointer truncate"
             >
-              <span>{row.locationName}</span>
-              <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="truncate">{row.locationName}</span>
+              <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
             </Link>
-            <p className="text-[11px] text-slate-400">
-              {row.city} {row.storeCode ? `• ${row.storeCode}` : ""}
+            <p className="text-[11px] text-slate-500 truncate">
+              {row.addressLine1 ? `${row.addressLine1}, ` : ""}
+              {row.city}
+              {row.state ? `, ${row.state}` : ""}
+              {row.storeCode ? ` • ${row.storeCode}` : ""}
             </p>
           </div>
         </div>
       ),
+    },
+    {
+      key: "isMapped",
+      header: "GBP Status",
+      sortable: true,
+      render: (row) => {
+        if (!row.isMapped) {
+          return (
+            <div className="flex flex-col gap-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200 w-fit">
+                <AlertTriangle className="h-3 w-3 text-amber-600" />
+                Unmapped
+              </span>
+              <Link
+                href={`/client/${tenantSlug}/integrations`}
+                className="text-[10px] text-indigo-600 hover:underline flex items-center gap-0.5"
+              >
+                <span>Map in Integrations</span>
+                <ExternalLink className="h-2.5 w-2.5" />
+              </Link>
+            </div>
+          );
+        }
+
+        const isSyncError = row.gbpSyncStatus === "ERROR";
+        const isSyncing = row.gbpSyncStatus === "SYNCING";
+
+        return (
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                Mapped
+              </span>
+              {isSyncError ? (
+                <span className="text-[10px] font-medium text-rose-600" title={row.syncError || "Sync error"}>
+                  Sync Error
+                </span>
+              ) : isSyncing ? (
+                <span className="text-[10px] font-medium text-blue-600 flex items-center gap-1">
+                  <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                  Syncing
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400">
+                  {row.lastSyncedAt
+                    ? `Synced ${new Date(row.lastSyncedAt).toLocaleDateString()}`
+                    : "Ready"}
+                </span>
+              )}
+            </div>
+            {row.googleResourceName && (
+              <span className="text-[10px] text-slate-400 truncate max-w-[140px]" title={row.googleResourceName}>
+                {row.googleResourceName}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "totalViews",
@@ -153,7 +221,7 @@ export function LocationsPerformanceExplorer({
     },
     {
       key: "directionRequests",
-      header: "Direction Requests",
+      header: "Directions",
       sortable: true,
       align: "right",
       render: (row) => (
@@ -162,6 +230,30 @@ export function LocationsPerformanceExplorer({
           <span className="font-medium tabular-nums">
             {formatNumber(row.directionRequests)}
           </span>
+        </div>
+      ),
+    },
+    {
+      key: "locationId",
+      header: "Quick Links",
+      sortable: false,
+      align: "right",
+      render: (row) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link
+            href={`/client/${tenantSlug}/reports/gbp/reviews?locationId=${row.locationId}&brandId=${selectedBrandId}`}
+            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+            title="View Reviews for this location"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+          </Link>
+          <Link
+            href={`/client/${tenantSlug}/reports/gbp/posts?locationId=${row.locationId}&brandId=${selectedBrandId}`}
+            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
+            title="Manage Posts for this location"
+          >
+            <FileText className="h-3.5 w-3.5" />
+          </Link>
         </div>
       ),
     },

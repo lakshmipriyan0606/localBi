@@ -7,7 +7,7 @@ import { GscSitemapsService } from '@/modules/integrations/google/gsc-sitemaps-s
 import { handleRouteError, createValidationError } from '@/shared/errors';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string }> }
 ) {
   try {
@@ -26,7 +26,16 @@ export async function GET(
 
     AuthorizationService.assertCan(authorizedContext, Action.DASHBOARD_VIEW);
 
-    const summary = await GscSitemapsService.getSitemaps(tenant.id);
+    const brandId = request.nextUrl.searchParams.get('brandId') || undefined;
+    const propertyId = request.nextUrl.searchParams.get('propertyId') || undefined;
+
+    if (brandId && authorizedContext.scopeMode === 'RESTRICTED') {
+      if (!authorizedContext.grantedBrandIds.has(brandId)) {
+        return NextResponse.json({ error: 'Access denied to the specified brand' }, { status: 403 });
+      }
+    }
+
+    const summary = await GscSitemapsService.getSitemaps(tenant.id, brandId, propertyId);
 
     return NextResponse.json({ success: true, data: summary });
   } catch (error) {
@@ -56,12 +65,20 @@ export async function POST(
 
     const body = await request.json();
     const sitemapUrl = body.sitemapUrl;
+    const brandId = body.brandId || request.nextUrl.searchParams.get('brandId') || undefined;
+    const propertyId = body.propertyId || request.nextUrl.searchParams.get('propertyId') || undefined;
 
     if (!sitemapUrl || typeof sitemapUrl !== 'string') {
       throw createValidationError('Missing required field: sitemapUrl');
     }
 
-    const sitemap = await GscSitemapsService.submitSitemap(tenant.id, sitemapUrl.trim());
+    if (brandId && authorizedContext.scopeMode === 'RESTRICTED') {
+      if (!authorizedContext.grantedBrandIds.has(brandId)) {
+        return NextResponse.json({ error: 'Access denied to the specified brand' }, { status: 403 });
+      }
+    }
+
+    const sitemap = await GscSitemapsService.submitSitemap(tenant.id, sitemapUrl.trim(), brandId, propertyId);
 
     return NextResponse.json({ success: true, data: sitemap });
   } catch (error) {
@@ -91,12 +108,20 @@ export async function DELETE(
 
     const body = await request.json();
     const sitemapUrl = body.sitemapUrl;
+    const brandId = body.brandId || request.nextUrl.searchParams.get('brandId') || undefined;
+    const propertyId = body.propertyId || request.nextUrl.searchParams.get('propertyId') || undefined;
 
     if (!sitemapUrl || typeof sitemapUrl !== 'string') {
       throw createValidationError('Missing required field: sitemapUrl');
     }
 
-    await GscSitemapsService.deleteSitemap(tenant.id, sitemapUrl.trim());
+    if (brandId && authorizedContext.scopeMode === 'RESTRICTED') {
+      if (!authorizedContext.grantedBrandIds.has(brandId)) {
+        return NextResponse.json({ error: 'Access denied to the specified brand' }, { status: 403 });
+      }
+    }
+
+    await GscSitemapsService.deleteSitemap(tenant.id, sitemapUrl.trim(), brandId, propertyId);
 
     return NextResponse.json({ success: true, message: 'Sitemap deleted successfully' });
   } catch (error) {

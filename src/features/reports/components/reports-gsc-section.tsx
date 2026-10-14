@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Clock, Sparkles } from 'lucide-react';
+import { ArrowRight, Clock, Sparkles, ShieldCheck, Globe } from 'lucide-react';
 import { DashboardMetricCard } from '@/features/overview/components/dashboard-metric-card';
 import { MetricCardSkeleton } from '@/components/analytics/analytics-skeletons';
 import { AnalyticsComparisonEngine } from '@/shared/analytics/comparison';
@@ -105,13 +105,21 @@ export function ReportsGscSection({
             <GoogleGIcon />
           </div>
           <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-[17px] font-bold tracking-tight text-slate-900 leading-none">
                 Search Console
               </h2>
-              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100/70 text-indigo-800">
-                ✓ More Clicks. Higher Rankings.
-              </span>
+              {gsc?.propertyUrl ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-100/80 text-indigo-800 font-semibold border border-indigo-200">
+                  <Globe className="w-3 h-3 text-indigo-600" />
+                  <span>{gsc.propertyUrl}</span>
+                  <span className="text-[10px] text-indigo-600 font-sans font-bold">({gsc.propertyType === 'DOMAIN' ? 'Domain' : 'Prefix'})</span>
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100/70 text-indigo-800">
+                  ✓ More Clicks. Higher Rankings.
+                </span>
+              )}
             </div>
             <p className="text-[11.5px] text-slate-500 mt-1 leading-none">
               Track your website&apos;s organic search performance on Google
@@ -120,6 +128,16 @@ export function ReportsGscSection({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap self-end sm:self-auto">
+          {gsc?.lastSyncedAt && (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50/90 border border-emerald-200/80 text-[11px] font-medium text-emerald-800"
+              title={`Last successful Google Search Console synchronization: ${new Date(gsc.lastSyncedAt).toLocaleString()}`}
+            >
+              <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+              <span>Synced: {new Date(gsc.lastSyncedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
+
           <div
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50/90 border border-amber-200/80 text-[11px] font-medium text-amber-800"
             title={`Google Search Console operates with an unavoidable 48 to 72 hour processing delay. Google's newest search data is up to ${lagDate}.`}
@@ -187,7 +205,7 @@ export function ReportsGscSection({
           />
           <DashboardMetricCard
             label="Average Position"
-            value={position > 0 ? position.toFixed(1) : (position === 0 ? '0.0' : '—')}
+            value={position > 0 ? position.toFixed(1) : '—'}
             delta={hasGscData ? (positionComp.deltaPercent ?? undefined) : undefined}
             vsLabel={`vs previous ${dateRangeDays} days`}
             icon="crown"

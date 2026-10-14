@@ -88,7 +88,7 @@ export class GbpPostsService {
   /**
    * Creates a post via Google API and persists locally.
    */
-  public static async createPost(context: AuthorizedContext, tenantId: string, locationId: string, data: any) {
+  public static async createPost(context: AuthorizedContext, tenantId: string, locationId: string, data: Record<string, unknown>) {
     AuthorizationService.assertCan(context, Action.GBP_WRITE);
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {

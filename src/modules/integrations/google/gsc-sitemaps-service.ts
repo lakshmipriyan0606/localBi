@@ -3,7 +3,7 @@ import path from 'path';
 import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { GoogleOAuthService } from './google-oauth-service';
-import { AppError, ErrorCode } from '@/shared/errors';
+import { AppError, ErrorCode, createValidationError } from '@/shared/errors';
 import { logger } from '@/shared/observability/logger';
 
 export interface GscSitemapItem {
@@ -49,9 +49,42 @@ async function saveStoredSitemaps(data: Record<string, GscSitemapItem[]>): Promi
 
 export class GscSitemapsService {
   /**
+   * Validates that the requested sitemap URL belongs to the authorized Search Console property.
+   */
+  public static validateSitemapOwnership(siteUrl: string, targetUrl: string): void {
+    let parsed: URL;
+    try {
+      parsed = new URL(targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`);
+    } catch {
+      throw createValidationError(`Invalid sitemap URL provided: "${targetUrl}"`);
+    }
+
+    if (siteUrl.startsWith('sc-domain:')) {
+      const domain = siteUrl.replace(/^sc-domain:/, '').trim().toLowerCase();
+      const host = parsed.hostname.toLowerCase();
+      if (host !== domain && !host.endsWith(`.${domain}`)) {
+        throw createValidationError(
+          `The requested sitemap URL (${parsed.href}) does not belong to the verified domain property (${domain}).`
+        );
+      }
+    } else {
+      const prefix = siteUrl.trim().toLowerCase();
+      if (!parsed.href.toLowerCase().startsWith(prefix)) {
+        throw createValidationError(
+          `The requested sitemap URL (${parsed.href}) does not belong to the verified URL-prefix property (${siteUrl}).`
+        );
+      }
+    }
+  }
+
+  /**
    * Fetches sitemaps from Google Search Console Webmasters API and merges with stored submissions.
    */
-  public static async getSitemaps(tenantId: string): Promise<GscSitemapsSummary> {
+  public static async getSitemaps(
+    tenantId: string,
+    brandId?: string,
+    propertyId?: string
+  ): Promise<GscSitemapsSummary> {
     const { activeConnection, property } = await TenantContextService.withTenantContext(
       prisma,
       tenantId,
@@ -59,9 +92,38 @@ export class GscSitemapsService {
         const conn = await tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId },
-        });
+
+        let prop = null;
+        if (propertyId) {
+          prop = await tx.gscProperty.findFirst({ where: { tenantId, id: propertyId } });
+        } else if (brandId) {
+          const mapping = await tx.internalResourceMapping.findFirst({
+            where: {
+              tenantId,
+              internalId: brandId,
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+          if (mapping) {
+            prop = await tx.gscProperty.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  { propertyUrl: mapping.resource.externalResourceId },
+                  { resourceId: mapping.resourceId },
+                ],
+              },
+            });
+          }
+        }
+
+        if (!prop) {
+          prop = await tx.gscProperty.findFirst({
+            where: { tenantId },
+          });
+        }
+
         return { activeConnection: conn, property: prop };
       }
     );
@@ -71,7 +133,8 @@ export class GscSitemapsService {
     }
 
     const siteUrl = property.propertyUrl;
-    let googleSitemaps: any[] = [];
+    const storageKey = `${tenantId}:${siteUrl}`;
+    let googleSitemaps: Array<Record<string, unknown>> = [];
 
     try {
       const accessToken = await GoogleOAuthService.refreshAccessToken(
@@ -148,7 +211,7 @@ export class GscSitemapsService {
       if (apiSuccess) {
         // If API succeeded, GSC is the absolute source of truth. 
         // Sync local cache to exactly match GSC so deletions reflect instantly.
-        allStored[tenantId] = formattedGoogle;
+        allStored[storageKey] = formattedGoogle;
         await saveStoredSitemaps(allStored);
         
         return {
@@ -159,7 +222,7 @@ export class GscSitemapsService {
         // If API failed (e.g., rate limit, network issue), fall back to local cache
         return {
           propertyUrl: siteUrl,
-          sitemaps: allStored[tenantId] || [],
+          sitemaps: allStored[storageKey] || [],
         };
       }
     } catch (err) {
@@ -167,7 +230,7 @@ export class GscSitemapsService {
       const allStored = await getStoredSitemaps();
       return {
         propertyUrl: siteUrl,
-        sitemaps: allStored[tenantId] || [],
+        sitemaps: allStored[storageKey] || [],
       };
     }
   }
@@ -177,7 +240,9 @@ export class GscSitemapsService {
    */
   public static async submitSitemap(
     tenantId: string,
-    sitemapUrlOrPath: string
+    sitemapUrlOrPath: string,
+    brandId?: string,
+    propertyId?: string
   ): Promise<GscSitemapItem> {
     const { activeConnection, property } = await TenantContextService.withTenantContext(
       prisma,
@@ -186,9 +251,38 @@ export class GscSitemapsService {
         const conn = await tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId },
-        });
+
+        let prop = null;
+        if (propertyId) {
+          prop = await tx.gscProperty.findFirst({ where: { tenantId, id: propertyId } });
+        } else if (brandId) {
+          const mapping = await tx.internalResourceMapping.findFirst({
+            where: {
+              tenantId,
+              internalId: brandId,
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+          if (mapping) {
+            prop = await tx.gscProperty.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  { propertyUrl: mapping.resource.externalResourceId },
+                  { resourceId: mapping.resourceId },
+                ],
+              },
+            });
+          }
+        }
+
+        if (!prop) {
+          prop = await tx.gscProperty.findFirst({
+            where: { tenantId },
+          });
+        }
+
         return { activeConnection: conn, property: prop };
       }
     );
@@ -208,6 +302,9 @@ export class GscSitemapsService {
     const fullSitemapUrl = cleanPath.startsWith('http')
       ? cleanPath
       : `${cleanSite}/${cleanPath}`;
+
+    // Validate ownership before submission
+    this.validateSitemapOwnership(siteUrl, fullSitemapUrl);
 
     // Verify sitemap directly over HTTP
     let discoveredPages = 1;
@@ -288,10 +385,11 @@ export class GscSitemapsService {
 
     // Save to tenant stored sitemaps
     const allStored = await getStoredSitemaps();
-    const list = allStored[tenantId] || [];
+    const storageKey = `${tenantId}:${siteUrl}`;
+    const list = allStored[storageKey] || [];
     const filtered = list.filter((s) => s.path !== fullSitemapUrl);
     filtered.unshift(newSitemap);
-    allStored[tenantId] = filtered;
+    allStored[storageKey] = filtered;
     await saveStoredSitemaps(allStored);
 
     return newSitemap;
@@ -302,7 +400,9 @@ export class GscSitemapsService {
    */
   public static async deleteSitemap(
     tenantId: string,
-    sitemapUrl: string
+    sitemapUrl: string,
+    brandId?: string,
+    propertyId?: string
   ): Promise<{ success: boolean }> {
     const { activeConnection, property } = await TenantContextService.withTenantContext(
       prisma,
@@ -311,9 +411,38 @@ export class GscSitemapsService {
         const conn = await tx.integrationConnection.findFirst({
           where: { tenantId, status: 'ACTIVE' },
         });
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId },
-        });
+
+        let prop = null;
+        if (propertyId) {
+          prop = await tx.gscProperty.findFirst({ where: { tenantId, id: propertyId } });
+        } else if (brandId) {
+          const mapping = await tx.internalResourceMapping.findFirst({
+            where: {
+              tenantId,
+              internalId: brandId,
+              resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+            },
+            include: { resource: true },
+          });
+          if (mapping) {
+            prop = await tx.gscProperty.findFirst({
+              where: {
+                tenantId,
+                OR: [
+                  { propertyUrl: mapping.resource.externalResourceId },
+                  { resourceId: mapping.resourceId },
+                ],
+              },
+            });
+          }
+        }
+
+        if (!prop) {
+          prop = await tx.gscProperty.findFirst({
+            where: { tenantId },
+          });
+        }
+
         return { activeConnection: conn, property: prop };
       }
     );
@@ -356,8 +485,9 @@ export class GscSitemapsService {
 
     // Remove from local storage
     const allStored = await getStoredSitemaps();
-    if (allStored[tenantId]) {
-      allStored[tenantId] = allStored[tenantId].filter((s) => s.path !== sitemapUrl);
+    const storageKey = property ? `${tenantId}:${property.propertyUrl}` : tenantId;
+    if (allStored[storageKey]) {
+      allStored[storageKey] = allStored[storageKey].filter((s) => s.path !== sitemapUrl);
       await saveStoredSitemaps(allStored);
     }
 

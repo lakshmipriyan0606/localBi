@@ -19,14 +19,33 @@ export async function GET(
     if (!authorizedContext) throw new Error('Unauthorized context missing');
 
     const { searchParams } = new URL(request.url);
-    const storeId = searchParams.get('storeId');
+    const storeId = searchParams.get('storeId') || undefined;
     const keywordId = searchParams.get('keywordId');
+    const isTrend = searchParams.get('trend') === 'true';
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 10;
     const latestOnly = searchParams.get('latest') === 'true';
+    const days = searchParams.get('days') ? parseInt(searchParams.get('days')!, 10) : 30;
 
-    if (!storeId || !keywordId) {
+    if (!keywordId) {
       return NextResponse.json(
-        { error: 'storeId and keywordId are required query parameters' },
+        { error: 'keywordId is a required query parameter' },
+        { status: 400 }
+      );
+    }
+
+    if (isTrend) {
+      const trend = await RankRunService.getKeywordHistoricalTrend(
+        authorizedContext.tenantId,
+        keywordId,
+        { storeId, days },
+        authorizedContext
+      );
+      return NextResponse.json({ success: true, trend });
+    }
+
+    if (!storeId) {
+      return NextResponse.json(
+        { error: 'storeId is required when requesting specific store runs' },
         { status: 400 }
       );
     }

@@ -8,6 +8,9 @@ import { ReportExportService } from '@/modules/reporting/report-export-service';
 import { WhiteLabelService } from '@/modules/agency/whitelabel-service';
 import { handleRouteError } from '@/shared/errors';
 
+import { ReportingService, QueryDimensionRow, PageDimensionRow } from '@/modules/reports/reporting-service';
+import { prisma } from '@/shared/database/client';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenantSlug: string }> }
@@ -30,8 +33,67 @@ export async function POST(
 
     const body = await request.json();
     const format = body.format || 'csv'; // 'csv' | 'pdf'
-    const exportType = body.type || 'stores'; // 'stores' | 'calls' | 'executive'
+    const exportType = body.type || 'stores'; // 'stores' | 'calls' | 'executive' | 'queries' | 'pages'
     const snapshotId = body.snapshotId as string | undefined;
+
+    // Google Search Console Export Modes
+    if (exportType === 'queries' || exportType === 'pages') {
+      const dimension = exportType === 'queries' ? 'query' : 'page';
+      const drilldownResult = await ReportingService.getDrilldownData(
+        token,
+        tenantSlug,
+        dimension,
+        {
+          startDate: body.startDate,
+          endDate: body.endDate,
+          brandId: body.brandId,
+          page: 1,
+          pageSize: 5000,
+          search: body.search,
+          sortBy: body.sortBy,
+          sortOrder: body.sortOrder,
+        }
+      );
+
+      let brandName = tenant.name;
+      if (body.brandId) {
+        const brand = await prisma.brand.findFirst({
+          where: { id: body.brandId, tenantId: tenant.id },
+          select: { name: true },
+        });
+        if (brand) brandName = brand.name;
+      }
+
+      const metaInfo = {
+        brandName,
+        startDate: body.startDate || '',
+        endDate: body.endDate || '',
+      };
+
+      if (exportType === 'queries') {
+        const rows = drilldownResult.rows as QueryDimensionRow[];
+        const csvContent = ReportExportService.exportGscQueriesCsv(rows, metaInfo);
+        const dateTag = `${body.startDate || 'start'}-to-${body.endDate || 'end'}`;
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="gsc-queries-${tenantSlug}-${dateTag}.csv"`,
+          },
+        });
+      } else {
+        const rows = drilldownResult.rows as PageDimensionRow[];
+        const csvContent = ReportExportService.exportGscPagesCsv(rows, metaInfo);
+        const dateTag = `${body.startDate || 'start'}-to-${body.endDate || 'end'}`;
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="gsc-pages-${tenantSlug}-${dateTag}.csv"`,
+          },
+        });
+      }
+    }
 
     let reportDto;
     if (snapshotId) {

@@ -92,6 +92,17 @@ export interface BrandRankDashboardDto {
   }>;
 }
 
+export interface RankTrendPointDto {
+  date: string;
+  localRank: number | null;
+  top3Coverage: number | null;
+  top10Coverage: number | null;
+  shareOfVoice: number | null;
+  gscAvgPosition: number | null;
+  gscClicks: number;
+  gscImpressions: number;
+}
+
 export class RankRunService {
   /**
    * Computes the summary metrics for a set of point observations.
@@ -587,6 +598,183 @@ export class RankRunService {
           topCompetitors: (obs.topCompetitors as unknown as CompetitorObservation[]) ?? [],
         })),
       }));
+    });
+  }
+
+  /**
+   * Retrieves deterministic historical trend for a keyword, combining verified Local Geo-Grid
+   * rank observations with Google Search Console daily metrics by date.
+   */
+  public static async getKeywordHistoricalTrend(
+    tenantId: string,
+    keywordId: string,
+    options: { storeId?: string; days?: number; bucket?: 'daily' | 'weekly' | 'monthly' } = {},
+    context: AuthorizedContext
+  ): Promise<RankTrendPointDto[]> {
+    AuthorizationService.assertCan(context, Action.DASHBOARD_VIEW);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const keyword = await tx.keyword.findFirst({
+        where: { id: keywordId, tenantId },
+        select: { id: true, brandId: true, term: true, normalizedTerm: true },
+      });
+      if (!keyword) throw new Error(`Keyword ${keywordId} not found`);
+
+      const days = options.days ? Math.max(1, options.days) : 30;
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      // 1. Fetch local rank runs
+      const runs = await tx.rankRun.findMany({
+        where: {
+          tenantId,
+          keywordId,
+          storeId: options.storeId || undefined,
+          status: { in: ['SUCCESS', 'COMPLETED', 'PARTIAL'] },
+          scheduledDate: { gte: startDate },
+        },
+        include: { summary: true },
+        orderBy: { scheduledDate: 'asc' },
+      });
+
+      // 2. Fetch GSC daily metrics for this brand and keyword term
+      const mappings = await tx.internalResourceMapping.findMany({
+        where: {
+          tenantId,
+          status: 'ACTIVE',
+          OR: [{ internalId: keyword.brandId }, { brandId: keyword.brandId }],
+          resource: { provider: 'GOOGLE_SEARCH_CONSOLE' },
+        },
+        select: { resourceId: true },
+      });
+      const gscResourceIds = mappings.map((m) => m.resourceId);
+
+      let gscDailyMetrics: Array<{
+        date: Date;
+        clicks: number;
+        impressions: number;
+        sumPositionImpressions: number;
+      }> = [];
+
+      if (gscResourceIds.length > 0) {
+        const prop = await tx.gscProperty.findFirst({
+          where: { tenantId, resourceId: { in: gscResourceIds } },
+          select: { id: true },
+        });
+        if (prop) {
+          const queryRecord = await tx.gscQuery.findFirst({
+            where: {
+              tenantId,
+              propertyId: prop.id,
+              queryText: { equals: keyword.term, mode: 'insensitive' },
+            },
+            include: {
+              dailyMetrics: {
+                where: { date: { gte: startDate } },
+                orderBy: { date: 'asc' },
+              },
+            },
+          });
+          if (queryRecord) {
+            gscDailyMetrics = queryRecord.dailyMetrics;
+          }
+        }
+      }
+
+      // 3. Bucket data by date key (YYYY-MM-DD)
+      const bucketMap = new Map<
+        string,
+        {
+          localRanks: number[];
+          top3Coverages: number[];
+          top10Coverages: number[];
+          shareOfVoices: number[];
+          gscClicks: number;
+          gscImpressions: number;
+          gscSumPos: number;
+        }
+      >();
+
+      for (const run of runs) {
+        const dateKey = run.scheduledDate.toISOString().slice(0, 10);
+        const b = bucketMap.get(dateKey) || {
+          localRanks: [],
+          top3Coverages: [],
+          top10Coverages: [],
+          shareOfVoices: [],
+          gscClicks: 0,
+          gscImpressions: 0,
+          gscSumPos: 0,
+        };
+        if (run.summary) {
+          if (run.summary.averageFoundRank !== null) {
+            b.localRanks.push(run.summary.averageFoundRank);
+          }
+          b.top3Coverages.push(run.summary.top3Coverage);
+          b.top10Coverages.push(run.summary.top10Coverage);
+          b.shareOfVoices.push(run.summary.shareOfVoice);
+        }
+        bucketMap.set(dateKey, b);
+      }
+
+      for (const dm of gscDailyMetrics) {
+        const dateKey = dm.date.toISOString().slice(0, 10);
+        const b = bucketMap.get(dateKey) || {
+          localRanks: [],
+          top3Coverages: [],
+          top10Coverages: [],
+          shareOfVoices: [],
+          gscClicks: 0,
+          gscImpressions: 0,
+          gscSumPos: 0,
+        };
+        b.gscClicks += dm.clicks;
+        b.gscImpressions += dm.impressions;
+        b.gscSumPos += dm.sumPositionImpressions;
+        bucketMap.set(dateKey, b);
+      }
+
+      // 4. Return chronological trend points
+      const sortedDates = Array.from(bucketMap.keys()).sort();
+      const trend: RankTrendPointDto[] = sortedDates.map((dateStr) => {
+        const b = bucketMap.get(dateStr)!;
+        const localRank =
+          b.localRanks.length > 0
+            ? Math.round((b.localRanks.reduce((s, r) => s + r, 0) / b.localRanks.length) * 10) / 10
+            : null;
+        const top3Coverage =
+          b.top3Coverages.length > 0
+            ? Math.round(
+                (b.top3Coverages.reduce((s, r) => s + r, 0) / b.top3Coverages.length) * 10
+              ) / 10
+            : null;
+        const top10Coverage =
+          b.top10Coverages.length > 0
+            ? Math.round(
+                (b.top10Coverages.reduce((s, r) => s + r, 0) / b.top10Coverages.length) * 10
+              ) / 10
+            : null;
+        const shareOfVoice =
+          b.shareOfVoices.length > 0
+            ? Math.round(
+                (b.shareOfVoices.reduce((s, r) => s + r, 0) / b.shareOfVoices.length) * 10
+              ) / 10
+            : null;
+        const gscAvgPosition =
+          b.gscImpressions > 0 ? Math.round((b.gscSumPos / b.gscImpressions) * 10) / 10 : null;
+
+        return {
+          date: dateStr,
+          localRank,
+          top3Coverage,
+          top10Coverage,
+          shareOfVoice,
+          gscAvgPosition,
+          gscClicks: b.gscClicks,
+          gscImpressions: b.gscImpressions,
+        };
+      });
+
+      return trend;
     });
   }
 

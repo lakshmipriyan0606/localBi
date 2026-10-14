@@ -53,7 +53,8 @@ export interface TenantReportContext {
 export class ReportContextService {
   public static async resolveReportContext(
     token: string | null | undefined,
-    tenantSlug: string
+    tenantSlug: string,
+    brandId?: string
   ): Promise<TenantReportContext | null> {
     if (!token) {
       return null;
@@ -142,20 +143,40 @@ export class ReportContextService {
         });
 
         const hasGbpMapping = mappings.some((m) => m.internalType === 'LOCATION');
-        const hasGscMapping = mappings.some(
-          (m) =>
-            (m.internalType === 'BRAND' || m.internalType === 'WEBSURFACE') &&
-            m.resource?.provider === 'GOOGLE_SEARCH_CONSOLE'
-        );
+
+        // Brand-scoped or tenant-wide GSC mapping
+        const brandGscMapping = brandId
+          ? mappings.find(
+              (m) =>
+                m.resource?.provider === 'GOOGLE_SEARCH_CONSOLE' &&
+                (m.internalId === brandId ||
+                  (m.internalType === 'WEBSURFACE' && wsList.some((ws) => ws.id === m.internalId && ws.brandId === brandId)))
+            )
+          : null;
+
+        const hasGscMapping = brandId
+          ? Boolean(brandGscMapping)
+          : mappings.some(
+              (m) =>
+                (m.internalType === 'BRAND' || m.internalType === 'WEBSURFACE') &&
+                m.resource?.provider === 'GOOGLE_SEARCH_CONSOLE'
+            );
+
         const hasGa4Mapping = mappings.some(
           (m) =>
             (m.internalType === 'BRAND' || m.internalType === 'WEBSURFACE') &&
             m.resource?.provider === 'GOOGLE_ANALYTICS_4'
         );
 
-        const prop = await tx.gscProperty.findFirst({
-          where: { tenantId: tenant.id },
-        });
+        let resolvedPropertyUrl = '';
+        if (brandGscMapping?.resource?.externalResourceId) {
+          resolvedPropertyUrl = brandGscMapping.resource.externalResourceId;
+        } else {
+          const prop = await tx.gscProperty.findFirst({
+            where: { tenantId: tenant.id },
+          });
+          resolvedPropertyUrl = prop?.propertyUrl || '';
+        }
 
         return {
           brands: bList,
@@ -171,7 +192,7 @@ export class ReportContextService {
           isGbpConnected: hasGbpScope && hasGbpMapping,
           isGscConnected: hasGscScope && hasGscMapping,
           isGa4Connected: hasGa4Scope && hasGa4Mapping,
-          propertyUrl: prop?.propertyUrl || '',
+          propertyUrl: resolvedPropertyUrl,
         };
       }
     );

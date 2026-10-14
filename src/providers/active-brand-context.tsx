@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface BrandOption {
   id: string;
@@ -84,6 +85,8 @@ export function ActiveBrandProvider({
     return brands.find((b) => b.id === activeBrandId) || brands[0];
   }, [brands, activeBrandId]);
 
+  const queryClient = useQueryClient();
+
   // 3. Setter to switch active brand globally across all pages and components
   const setActiveBrandId = useCallback(
     (id: string) => {
@@ -94,13 +97,19 @@ export function ActiveBrandProvider({
         document.cookie = `localbi_active_brand_${tenantSlug}=${id}; path=/; max-age=31536000; SameSite=Lax`;
         setPersistedBrandId(id);
         window.dispatchEvent(new CustomEvent('localbi-brand-changed', { detail: { brandId: id } }));
+        try {
+          queryClient.invalidateQueries();
+        } catch {
+          // ignore if outside query context
+        }
       }
 
       const params = new URLSearchParams(searchParams.toString());
       params.set('brandId', id);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.refresh();
     },
-    [brands, tenantSlug, searchParams, pathname, router]
+    [brands, tenantSlug, searchParams, pathname, router, queryClient]
   );
 
   // Sync cookie and localStorage on initial mount / change

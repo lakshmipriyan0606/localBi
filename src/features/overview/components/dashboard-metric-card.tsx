@@ -146,8 +146,9 @@ export function DashboardMetricCard({
       ? `${value}${suffix}`
       : value.toLocaleString('en-US');
   const hasDelta = typeof delta === 'number' && !isNaN(delta);
-  const isPositive = hasDelta ? (invertDelta ? delta < 0 : delta > 0) : false;
-  const ArrowIcon = isPositive ? ArrowUp : ArrowDown;
+  const isZero = hasDelta && delta === 0;
+  const isPositive = hasDelta && !isZero ? (invertDelta ? delta < 0 : delta > 0) : false;
+  const ArrowIcon = isPositive ? (invertDelta ? ArrowDown : ArrowUp) : (invertDelta ? ArrowUp : ArrowDown);
 
   return (
     <div
@@ -217,13 +218,18 @@ export function DashboardMetricCard({
               <div
                 className={cn(
                   'flex items-center gap-0.5 text-[11px] font-bold leading-tight',
-                  isActive ? 'text-white/90' : (isPositive ? 'text-emerald-600' : 'text-rose-600')
+                  isActive
+                    ? 'text-white/90'
+                    : isZero
+                    ? 'text-slate-500'
+                    : isPositive
+                    ? 'text-emerald-600'
+                    : 'text-rose-600'
                 )}
               >
-                <ArrowIcon className="w-3 h-3 stroke-[2.5]" />
+                {!isZero && <ArrowIcon className="w-3 h-3 stroke-[2.5]" />}
                 <span>
-                  {delta > 0 ? '' : ''}
-                  {Math.abs(delta)}%
+                  {isZero ? '0.0%' : `${delta > 0 ? '+' : ''}${delta}%`}
                 </span>
               </div>
               <span
@@ -232,7 +238,7 @@ export function DashboardMetricCard({
                   isActive ? "text-white/70" : "text-slate-400"
                 )}
               >
-                {vsLabel || 'vs previous 30 days'}
+                {vsLabel || 'vs previous period'}
               </span>
             </div>
           ) : sublabel ? (

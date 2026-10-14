@@ -38,6 +38,17 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
   const locationsList = data?.items || [];
   const activeCount = useMemo(() => locationsList.filter((l) => !l.isArchived).length, [locationsList]);
   const uniqueCities = useMemo(() => new Set(locationsList.map((l) => l.city)).size, [locationsList]);
+  const syncedGbpCount = useMemo(
+    () => locationsList.filter((l) => !l.isArchived && (l.gbpSyncStatus === 'SYNCED' || l.gbpSyncStatus === 'ACTIVE')).length,
+    [locationsList]
+  );
+  const syncPercentage = activeCount > 0 ? Math.round((syncedGbpCount / activeCount) * 100) : 0;
+  const syncSublabel =
+    activeCount === 0
+      ? 'No active locations'
+      : syncedGbpCount === activeCount
+      ? 'All locations synced & active'
+      : `${syncedGbpCount} of ${activeCount} locations synced`;
 
   return (
     <div className="space-y-4 pb-8">
@@ -75,8 +86,8 @@ export function LocationsView({ tenantSlug, brands }: LocationsViewProps) {
         />
         <DashboardMetricCard
           label="GBP Sync Status"
-          value="100%"
-          sublabel="All locations active & mapped"
+          value={`${syncPercentage}%`}
+          sublabel={syncSublabel}
           icon="check-circle"
           color="teal"
           sparkColor="#14B8A6"
