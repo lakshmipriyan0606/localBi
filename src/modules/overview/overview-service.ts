@@ -214,6 +214,8 @@ export class OverviewService {
             state: true,
             country: true,
             storeCode: true,
+            latitude: true,
+            longitude: true,
           },
           orderBy: { name: 'asc' },
         }),
@@ -334,67 +336,89 @@ export class OverviewService {
       const ctr = gscImpressions > 0 ? Math.round((gscClicks / gscImpressions) * 1000) / 10 : 0;
       const avgPos = gscImpressions > 0 ? Math.round((gscSumPos / gscImpressions) * 10) / 10 : 0;
 
-      // Query real GSC queries if available
+      // Query metrics must use the same tenant and reporting window as the headline KPIs.
+      // Aggregate duplicate normalized query text before ranking so separate daily rows
+      // do not appear as duplicate query entries.
       const gscQueries = await tx.gscDailyQueryMetric.findMany({
-        where: { tenantId },
-        include: { query: true },
-        orderBy: { clicks: 'desc' },
-        take: 5,
+        where: {
+          tenantId,
+          date: { gte: start, lte: end },
+        },
+        include: { query: { select: { queryText: true } } },
       });
 
-      const queryRows: OverviewGscQueryItem[] = gscQueries.map((q: {
+      const queryAggregate = new Map<string, {
+        query: string;
         clicks: number;
         impressions: number;
         sumPositionImpressions: number;
-        query?: { queryText: string } | null;
-      }) => {
-        const ctrVal = q.impressions > 0 ? Math.round((q.clicks / q.impressions) * 1000) / 10 : 0;
-        const posVal = q.impressions > 0 ? Math.round((q.sumPositionImpressions / q.impressions) * 10) / 10 : 0;
-        return {
-          query: q.query?.queryText || 'Query',
+      }>();
+      for (const row of gscQueries) {
+        const queryText = row.query?.queryText?.trim();
+        if (!queryText) continue;
+        const key = queryText.toLocaleLowerCase();
+        const existing = queryAggregate.get(key) ?? {
+          query: queryText,
+          clicks: 0,
+          impressions: 0,
+          sumPositionImpressions: 0,
+        };
+        existing.clicks += row.clicks;
+        existing.impressions += row.impressions;
+        existing.sumPositionImpressions += row.sumPositionImpressions;
+        queryAggregate.set(key, existing);
+      }
+
+      const queryRows: OverviewGscQueryItem[] = [...queryAggregate.values()]
+        .sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions)
+        .slice(0, 5)
+        .map((q) => ({
+          query: q.query,
           clicks: q.clicks,
           impressions: q.impressions,
-          ctr: `${ctrVal}%`,
-          position: posVal,
-        };
-      });
+          ctr: `${q.impressions > 0 ? Math.round((q.clicks / q.impressions) * 1000) / 10 : 0}%`,
+          position: q.impressions > 0
+            ? Math.round((q.sumPositionImpressions / q.impressions) * 10) / 10
+            : 0,
+        }));
 
-      // Real locations for Map & Rankings
-      const realMapLocations: OverviewLocationMapItem[] = locations.map((loc, idx) => {
-        const isUS = loc.country.toUpperCase() === 'US' || loc.country.toUpperCase() === 'USA';
-        const isIN = loc.country.toUpperCase() === 'IN' || loc.country.toUpperCase() === 'IND';
-        const region: 'us' | 'india' | 'other' = isUS ? 'us' : isIN ? 'india' : 'other';
-        const flag = isUS ? '🇺🇸' : isIN ? '🇮🇳' : '🌐';
+      // Only render map pins for locations with persisted, valid coordinates.
+      // Never manufacture coordinates from country names or array indexes.
+      const realMapLocations: OverviewLocationMapItem[] = locations
+        .filter((loc) =>
+          typeof loc.latitude === 'number' &&
+          typeof loc.longitude === 'number' &&
+          Number.isFinite(loc.latitude) &&
+          Number.isFinite(loc.longitude) &&
+          loc.latitude >= -90 && loc.latitude <= 90 &&
+          loc.longitude >= -180 && loc.longitude <= 180
+        )
+        .map((loc) => {
+          const country = loc.country.toUpperCase();
+          const isUS = country === 'US' || country === 'USA';
+          const isIN = country === 'IN' || country === 'IND';
+          const region: 'us' | 'india' | 'other' = isUS ? 'us' : isIN ? 'india' : 'other';
+          const flag = isUS ? '🇺🇸' : isIN ? '🇮🇳' : '🌐';
 
-        const lat = isUS ? 39.7 + idx * 0.05 : isIN ? 13.0 + idx * 0.05 : 20.0 + idx * 0.5;
-        const lng = isUS ? -104.9 - idx * 0.05 : isIN ? 80.2 + idx * 0.05 : 0.0 + idx * 1.0;
+          return {
+            id: loc.id,
+            name: loc.name,
+            region,
+            countryCode: country,
+            countryName: isUS ? 'United States' : isIN ? 'India' : loc.country,
+            flag,
+            lat: loc.latitude!,
+            lng: loc.longitude!,
+            users: 0,
+            conversions: 0,
+            rate: '0.0%',
+            trend: 0,
+          };
+        });
 
-        return {
-          id: loc.id,
-          name: loc.name,
-          region,
-          countryCode: loc.country.toUpperCase(),
-          countryName: isUS ? 'United States' : isIN ? 'India' : loc.country,
-          flag,
-          lat,
-          lng,
-          users: 0,
-          conversions: 0,
-          rate: '0.0%',
-          trend: 0,
-          isHq: idx === 0,
-        };
-      });
-
-      const realRankings: OverviewLocationRankingItem[] = locations.map((loc, idx) => ({
-        rank: idx + 1,
-        name: loc.name,
-        region: loc.country.toUpperCase(),
-        users: 0,
-        conversions: 0,
-        rate: '0.0%',
-        trend: 0,
-      }));
+      // No location ranking activity is available from the currently queried sources.
+      // Do not present zero-filled placeholder rankings as measured performance.
+      const realRankings: OverviewLocationRankingItem[] = [];
 
       let hasWebData = false;
       try {
