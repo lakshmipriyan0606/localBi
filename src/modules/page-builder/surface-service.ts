@@ -319,105 +319,139 @@ export class SurfaceService {
     webSurface: WebSurfaceDto;
     domain: DomainDto | null;
   } | null> {
-    const clean = hostnameOrSubdomain.trim().toLowerCase();
-
-    // 1. Direct custom domain match
-    const domainRecord = await prisma.domain.findFirst({
-      where: { hostname: clean },
-      include: {
-        tenant: { select: { id: true, name: true, slug: true } },
-        brand: { select: { id: true, name: true, slug: true } },
-        webSurface: true,
-      },
-    });
-
-    if (domainRecord && domainRecord.webSurface) {
-      return {
-        tenant: domainRecord.tenant,
-        brand: domainRecord.brand,
-        webSurface: {
-          id: domainRecord.webSurface.id,
-          tenantId: domainRecord.webSurface.tenantId,
-          brandId: domainRecord.webSurface.brandId,
-          type: domainRecord.webSurface.type,
-          name: domainRecord.webSurface.name,
-          status: domainRecord.webSurface.status,
-          createdAt: domainRecord.webSurface.createdAt,
-          updatedAt: domainRecord.webSurface.updatedAt,
-        },
-        domain: {
-          id: domainRecord.id,
-          tenantId: domainRecord.tenantId,
-          brandId: domainRecord.brandId,
-          webSurfaceId: domainRecord.webSurfaceId,
-          hostname: domainRecord.hostname,
-          isPrimary: domainRecord.isPrimary,
-          isVerified: domainRecord.isVerified,
-          sslStatus: domainRecord.sslStatus,
-          createdAt: domainRecord.createdAt,
-          updatedAt: domainRecord.updatedAt,
-        },
-      };
+    if (!hostnameOrSubdomain || typeof hostnameOrSubdomain !== 'string') {
+      return null;
     }
 
-    // 2. Subdomain match against legacy microsites / brands
-    const microsite = await prisma.microsite.findFirst({
-      where: {
-        OR: [{ subdomain: clean }, { customDomain: clean }],
-      },
-    });
+    // Strict normalization: trim, lowercase, strip protocol, trailing slashes, port
+    let clean = hostnameOrSubdomain.trim().toLowerCase();
+    clean = clean.replace(/^https?:\/\//, '');
+    clean = (clean.split('/')[0] ?? '').trim();
+    clean = (clean.split(':')[0] ?? '').trim();
+    if (clean.endsWith('.')) {
+      clean = clean.slice(0, -1);
+    }
 
-    if (microsite) {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: microsite.tenantId },
-        select: { id: true, name: true, slug: true },
+    if (!clean || clean.length > 255) {
+      return null;
+    }
+
+    // 1. Direct custom domain match via hardened SECURITY DEFINER function
+    try {
+      const rows = await prisma.$queryRaw<
+        Array<{
+          tenant_id: string;
+          tenant_name: string;
+          tenant_slug: string;
+          brand_id: string;
+          brand_name: string;
+          brand_slug: string;
+          web_surface_id: string;
+          web_surface_name: string;
+          web_surface_type: string;
+          web_surface_status: string;
+          domain_id: string;
+          hostname: string;
+          is_primary: boolean;
+          is_verified: boolean;
+          ssl_status: string;
+        }>
+      >`SELECT * FROM resolve_storefront_domain(${clean})`;
+
+      const row = rows[0];
+      if (row) {
+        return {
+          tenant: { id: row.tenant_id, name: row.tenant_name, slug: row.tenant_slug },
+          brand: { id: row.brand_id, name: row.brand_name, slug: row.brand_slug },
+          webSurface: {
+            id: row.web_surface_id,
+            tenantId: row.tenant_id,
+            brandId: row.brand_id,
+            type: row.web_surface_type,
+            name: row.web_surface_name,
+            status: row.web_surface_status,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          domain: row.domain_id ? {
+            id: row.domain_id,
+            tenantId: row.tenant_id,
+            brandId: row.brand_id,
+            webSurfaceId: row.web_surface_id,
+            hostname: row.hostname,
+            isPrimary: row.is_primary,
+            isVerified: row.is_verified,
+            sslStatus: row.ssl_status,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } : null,
+        };
+      }
+    } catch {
+      // Function not available; proceed to scoped fallback
+    }
+
+    // 2. Subdomain & Brand match scoped to published public data only
+    return TenantContextService.withPublicReadContext(prisma, async (tx) => {
+      // 2A. Subdomain match against published microsites
+      const microsite = await tx.microsite.findFirst({
+        where: {
+          OR: [{ subdomain: clean }, { customDomain: clean }],
+          published: true,
+        },
       });
 
-      if (!tenant) return null;
-
-      const brandId = microsite.brandId || microsite.id;
-      let brand = await prisma.brand.findFirst({
-        where: { id: brandId, tenantId: microsite.tenantId },
-        select: { id: true, name: true, slug: true },
-      });
-
-      // Fallback: grab first brand for this tenant if not linked directly
-      if (!brand) {
-        brand = await prisma.brand.findFirst({
-          where: { tenantId: microsite.tenantId },
+      if (microsite) {
+        const tenant = await tx.tenant.findUnique({
+          where: { id: microsite.tenantId },
           select: { id: true, name: true, slug: true },
         });
+
+        if (!tenant) return null;
+
+        const brandId = microsite.brandId || microsite.id;
+        let brand = await tx.brand.findFirst({
+          where: { id: brandId, tenantId: microsite.tenantId, isArchived: false },
+          select: { id: true, name: true, slug: true },
+        });
+
+        if (!brand) {
+          brand = await tx.brand.findFirst({
+            where: { tenantId: microsite.tenantId, isArchived: false },
+            select: { id: true, name: true, slug: true },
+          });
+        }
+
+        if (brand) {
+          const surface = await this.ensureLocalBiSurface(microsite.tenantId, brand.id);
+          return {
+            tenant,
+            brand,
+            webSurface: surface,
+            domain: null,
+          };
+        }
       }
 
-      if (brand) {
-        const surface = await this.ensureLocalBiSurface(microsite.tenantId, brand.id);
+      // 2B. Match active brand slug directly under published scope
+      const brandMatch = await tx.brand.findFirst({
+        where: { slug: clean, isArchived: false },
+        include: {
+          tenant: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      if (brandMatch) {
+        const surface = await this.ensureLocalBiSurface(brandMatch.tenantId, brandMatch.id);
         return {
-          tenant,
-          brand,
+          tenant: brandMatch.tenant,
+          brand: { id: brandMatch.id, name: brandMatch.name, slug: brandMatch.slug },
           webSurface: surface,
           domain: null,
         };
       }
-    }
 
-    // 3. Match brand slug directly
-    const brandMatch = await prisma.brand.findFirst({
-      where: { slug: clean },
-      include: {
-        tenant: { select: { id: true, name: true, slug: true } },
-      },
+      return null;
     });
-
-    if (brandMatch) {
-      const surface = await this.ensureLocalBiSurface(brandMatch.tenantId, brandMatch.id);
-      return {
-        tenant: brandMatch.tenant,
-        brand: { id: brandMatch.id, name: brandMatch.name, slug: brandMatch.slug },
-        webSurface: surface,
-        domain: null,
-      };
-    }
-
-    return null;
   }
 }

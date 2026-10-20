@@ -385,7 +385,7 @@ export class WebAnalyticsService {
       >();
 
       events.forEach((e) => {
-        const dateKey = e.occurredAt.toISOString().split('T')[0];
+        const dateKey = e.occurredAt.toISOString().split('T')[0] || '';
         if (!trendMap.has(dateKey)) {
           trendMap.set(dateKey, {
             visitors: new Set(),
@@ -763,7 +763,9 @@ export class WebAnalyticsService {
           };
         }),
         sources: Array.from(sourceMap.entries()).map(([key, data]) => {
-          const [source, medium] = key.split(' / ');
+          const parts = key.split(' / ');
+          const source = parts[0] || '(direct)';
+          const medium = parts[1] || '(none)';
           const sCount = data.sessions.size || 1;
           return {
             source,

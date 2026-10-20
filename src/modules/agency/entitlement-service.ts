@@ -11,6 +11,7 @@ import {
   createTenantAccessDeniedError,
 } from '../../shared/errors';
 import { logger } from '../../shared/observability/logger';
+import type { Prisma } from '@prisma/client';
 import { FeatureKey, FeatureKeyType, EntitlementDto } from './agency-types';
 
 export class EntitlementService {
@@ -22,39 +23,41 @@ export class EntitlementService {
     featureKey: string,
     clientAccountId?: string | null
   ): Promise<boolean> {
-    // 1. Check workspace/tenant entitlement
-    const tenantEntitlement = await prisma.tenantEntitlement.findUnique({
-      where: {
-        tenantId_featureKey: {
-          tenantId,
-          featureKey,
-        },
-      },
-    });
-
-    if (tenantEntitlement && !tenantEntitlement.enabled) {
-      return false;
-    }
-
-    // 2. If client account specified, check client-level override
-    if (clientAccountId) {
-      const clientEntitlement = await prisma.clientFeatureEntitlement.findUnique({
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      // 1. Check workspace/tenant entitlement
+      const tenantEntitlement = await tx.tenantEntitlement.findUnique({
         where: {
-          uq_client_feature_entitlement: {
+          uq_tenant_entitlement_key: {
             tenantId,
-            clientAccountId,
             featureKey,
           },
         },
       });
 
-      if (clientEntitlement !== null) {
-        return clientEntitlement.enabled;
+      if (tenantEntitlement && !tenantEntitlement.enabled) {
+        return false;
       }
-    }
 
-    // Default to true if not explicitly restricted
-    return true;
+      // 2. If client account specified, check client-level override
+      if (clientAccountId) {
+        const clientEntitlement = await tx.clientFeatureEntitlement.findUnique({
+          where: {
+            uq_client_feature_entitlement: {
+              tenantId,
+              clientAccountId,
+              featureKey,
+            },
+          },
+        });
+
+        if (clientEntitlement !== null) {
+          return clientEntitlement.enabled;
+        }
+      }
+
+      // Default to true if not explicitly restricted
+      return true;
+    });
   }
 
   /**
@@ -92,7 +95,7 @@ export class EntitlementService {
     await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       await tx.tenantEntitlement.upsert({
         where: {
-          tenantId_featureKey: {
+          uq_tenant_entitlement_key: {
             tenantId,
             featureKey,
           },
@@ -120,7 +123,9 @@ export class EntitlementService {
             action: 'entitlement:set_tenant',
             resourceType: 'TenantEntitlement',
             resourceId: featureKey,
-            payload: { featureKey, enabled, limits },
+            newValues: { featureKey, enabled, limits: limits as Prisma.InputJsonObject },
+            ipAddress: 'INTERNAL',
+            userAgent: 'INTERNAL',
           },
         });
       }
@@ -179,7 +184,9 @@ export class EntitlementService {
             action: 'entitlement:set_client',
             resourceType: 'ClientFeatureEntitlement',
             resourceId: `${clientAccountId}:${featureKey}`,
-            payload: { clientAccountId, featureKey, enabled, limits },
+            newValues: { clientAccountId, featureKey, enabled, limits: limits as Prisma.InputJsonObject },
+            ipAddress: 'INTERNAL',
+            userAgent: 'INTERNAL',
           },
         });
       }
@@ -195,49 +202,51 @@ export class EntitlementService {
     tenantId: string,
     clientAccountId?: string | null
   ): Promise<EntitlementDto[]> {
-    const tenantRecords = await prisma.tenantEntitlement.findMany({
-      where: { tenantId },
-    });
-
-    const tenantMap = new Map(tenantRecords.map((r) => [r.featureKey, r]));
-
-    let clientMap = new Map<string, { enabled: boolean; limits: unknown }>();
-    if (clientAccountId) {
-      const clientRecords = await prisma.clientFeatureEntitlement.findMany({
-        where: { tenantId, clientAccountId },
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const tenantRecords = await tx.tenantEntitlement.findMany({
+        where: { tenantId },
       });
-      clientMap = new Map(clientRecords.map((r) => [r.featureKey, r]));
-    }
 
-    const allKeys = Object.values(FeatureKey);
+      const tenantMap = new Map(tenantRecords.map((r) => [r.featureKey, r]));
 
-    return allKeys.map((key) => {
-      const clientOverride = clientMap.get(key);
-      if (clientOverride) {
-        return {
-          featureKey: key,
-          enabled: clientOverride.enabled,
-          limits: (clientOverride.limits as Record<string, unknown>) || {},
-          source: 'CLIENT_OVERRIDE',
-        };
+      let clientMap = new Map<string, { enabled: boolean; limits: unknown }>();
+      if (clientAccountId) {
+        const clientRecords = await tx.clientFeatureEntitlement.findMany({
+          where: { tenantId, clientAccountId },
+        });
+        clientMap = new Map(clientRecords.map((r) => [r.featureKey, r]));
       }
 
-      const tenantRecord = tenantMap.get(key);
-      if (tenantRecord) {
+      const allKeys = Object.values(FeatureKey);
+
+      return allKeys.map((key) => {
+        const clientOverride = clientMap.get(key);
+        if (clientOverride) {
+          return {
+            featureKey: key,
+            enabled: clientOverride.enabled,
+            limits: (clientOverride.limits as Record<string, unknown>) || {},
+            source: 'CLIENT_OVERRIDE',
+          };
+        }
+
+        const tenantRecord = tenantMap.get(key);
+        if (tenantRecord) {
+          return {
+            featureKey: key,
+            enabled: tenantRecord.enabled,
+            limits: (tenantRecord.limits as Record<string, unknown>) || {},
+            source: tenantRecord.source as 'PLAN_DEFAULT' | 'MANUAL_OVERRIDE',
+          };
+        }
+
         return {
           featureKey: key,
-          enabled: tenantRecord.enabled,
-          limits: (tenantRecord.limits as Record<string, unknown>) || {},
-          source: tenantRecord.source as 'PLAN_DEFAULT' | 'MANUAL_OVERRIDE',
+          enabled: true,
+          limits: {},
+          source: 'PLAN_DEFAULT',
         };
-      }
-
-      return {
-        featureKey: key,
-        enabled: true,
-        limits: {},
-        source: 'PLAN_DEFAULT',
-      };
+      });
     });
   }
 

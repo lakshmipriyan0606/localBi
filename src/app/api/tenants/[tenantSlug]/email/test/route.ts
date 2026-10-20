@@ -16,11 +16,11 @@ export async function POST(
     const cookieStore = await cookies();
     const rawToken = SessionCookieManager.getSessionToken(cookieStore);
 
-    const { authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
+    const { user, authorizedContext } = await ContextResolver.resolveTenantContext(rawToken, tenantSlug);
     if (!authorizedContext) throw new Error('Unauthorized context missing');
 
     const body = await request.json().catch(() => ({}));
-    const recipientEmail = body.to || authorizedContext.email;
+    const recipientEmail = body.to || user.email;
 
     const config = getConfig();
 

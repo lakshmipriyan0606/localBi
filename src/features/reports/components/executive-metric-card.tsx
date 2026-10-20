@@ -22,6 +22,7 @@ const SOURCE_BADGES: Record<MetricSource, { label: string; bg: string; text: str
   MERCHANT: { label: 'Merchant', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
   LOCAL_RANK_PROVIDER: { label: 'Rank', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
   DIRECTORY_PROVIDER: { label: 'Directory', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+  BACKLINK_PROVIDER: { label: 'Backlinks', bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
 };
 
 export function ExecutiveMetricCard({

@@ -103,7 +103,7 @@ export class BacklinkRelevanceEngine {
     let overall: RelevanceDimensionScore = 'LOW';
     if (input.competitorCount >= 2 && (industry === 'HIGH' || local === 'HIGH' || businessLegitimacy === 'HIGH')) {
       overall = 'HIGH';
-    } else if (input.competitorCount >= 1 && (industry !== 'LOW' || local !== 'LOW')) {
+    } else if (input.competitorCount >= 1 && (industry !== 'UNKNOWN' || local !== 'UNKNOWN')) {
       overall = 'MEDIUM';
     } else if (industry === 'HIGH' || businessLegitimacy === 'HIGH') {
       overall = 'MEDIUM';

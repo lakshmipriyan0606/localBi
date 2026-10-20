@@ -71,7 +71,7 @@ export class ListingsReportingAdapter {
         const blMetrics = await BacklinkRepository.getSummaryMetrics(
           tenant.id,
           brand.id,
-          context.webSurfaceId || ''
+          context.selectedWebSurface?.id || ''
         );
         totalBacklinks = blMetrics.totalBacklinks;
         referringDomains = blMetrics.referringDomains;

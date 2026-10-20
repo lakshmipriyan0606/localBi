@@ -36,9 +36,9 @@ export async function resolveWebAnalyticsContext(
   const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get('pageSize') || '20', 10)));
 
   // If user is restricted to specific stores, verify authorized store scope
-  if (authorizedContext.locationIds && authorizedContext.locationIds.length > 0) {
-    if (!storeId || !authorizedContext.locationIds.includes(storeId)) {
-      storeId = authorizedContext.locationIds[0];
+  if (authorizedContext.scopeMode === 'RESTRICTED' && authorizedContext.grantedLocationIds.size > 0) {
+    if (!storeId || !authorizedContext.grantedLocationIds.has(storeId)) {
+      storeId = Array.from(authorizedContext.grantedLocationIds)[0];
     }
   }
 

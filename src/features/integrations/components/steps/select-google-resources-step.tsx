@@ -191,7 +191,7 @@ export function SelectGoogleResourcesStep({
     if (!editingBrand) return;
     const currentIndex = brands.findIndex((b) => b.id === editingBrand.id);
     if (currentIndex >= 0 && currentIndex < brands.length - 1) {
-      setEditingBrand(brands[currentIndex + 1]);
+      setEditingBrand(brands[currentIndex + 1] ?? null);
     }
   };
 

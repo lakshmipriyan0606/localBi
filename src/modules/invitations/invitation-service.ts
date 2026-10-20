@@ -509,7 +509,7 @@ export class InvitationService {
       const config = getConfig();
       EmailService.sendWelcome({
         recipientEmail: result.user.email,
-        userName: result.user.fullName || result.user.email.split('@')[0],
+        userName: result.user.fullName || result.user.email.split('@')[0] || 'User',
         tenantName: result.tenantName,
         dashboardUrl: `${config.APP_URL}/t/${result.tenantSlug}/dashboard`,
       }).catch((err) => logger.warn({ err }, 'Failed to dispatch welcome email after invite acceptance'));

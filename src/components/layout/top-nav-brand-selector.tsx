@@ -34,7 +34,7 @@ export function TopNavBrandSelector({
 
   // Extract tenantSlug from pathname (assumes /client/[tenantSlug]/...)
   const segments = pathname.split('/');
-  const tenantSlug = segments[1] === 'client' ? segments[2] : (brandCtx?.tenantSlug || '');
+  const tenantSlug = (segments[1] === 'client' ? segments[2] : brandCtx?.tenantSlug) || '';
 
   // React Query live brands sync
   const { data: brandData } = useBrandsQuery(tenantSlug, { includeArchived: false });

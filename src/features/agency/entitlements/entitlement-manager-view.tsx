@@ -224,13 +224,13 @@ export function EntitlementManagerView({ tenantSlug }: EntitlementManagerViewPro
                     <div className="space-y-1">
                       <div className="flex items-center gap-2.5">
                         <span className="font-semibold text-sm text-slate-900">
-                          {featureInfo.label}
+                          {featureInfo?.label ?? key}
                         </span>
                         <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                           {key}
                         </span>
                         <Badge variant="neutral" className="text-[10px]">
-                          {featureInfo.module}
+                          {featureInfo?.module ?? 'General'}
                         </Badge>
                         {source === 'CLIENT_OVERRIDE' && (
                           <Badge variant="secondary" className="text-[10px]">
@@ -244,7 +244,7 @@ export function EntitlementManagerView({ tenantSlug }: EntitlementManagerViewPro
                         )}
                       </div>
                       <p className="text-xs text-slate-500 max-w-xl">
-                        {featureInfo.description}
+                        {featureInfo?.description ?? ''}
                       </p>
                     </div>
 

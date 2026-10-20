@@ -35,15 +35,15 @@ function evaluatePasswordStrength(password: string): StrengthResult {
 
   const clampedScore = Math.min(score, 4) as 0 | 1 | 2 | 3 | 4;
 
-  const labels: Record<number, string>   = { 0: 'Too short', 1: 'Weak', 2: 'Fair', 3: 'Strong', 4: 'Very strong' };
-  const colors: Record<number, string>   = { 0: 'text-slate-400', 1: 'text-red-500', 2: 'text-amber-500', 3: 'text-emerald-500', 4: 'text-emerald-600' };
-  const barColors: Record<number, string> = { 0: 'bg-slate-200', 1: 'bg-red-400', 2: 'bg-amber-400', 3: 'bg-emerald-400', 4: 'bg-emerald-500' };
+  const labels: Record<0 | 1 | 2 | 3 | 4, string>   = { 0: 'Too short', 1: 'Weak', 2: 'Fair', 3: 'Strong', 4: 'Very strong' };
+  const colors: Record<0 | 1 | 2 | 3 | 4, string>   = { 0: 'text-slate-400', 1: 'text-red-500', 2: 'text-amber-500', 3: 'text-emerald-500', 4: 'text-emerald-600' };
+  const barColors: Record<0 | 1 | 2 | 3 | 4, string> = { 0: 'bg-slate-200', 1: 'bg-red-400', 2: 'bg-amber-400', 3: 'bg-emerald-400', 4: 'bg-emerald-500' };
 
   return {
     score: clampedScore,
-    label: labels[clampedScore],
-    color: colors[clampedScore],
-    barColor: barColors[clampedScore],
+    label: labels[clampedScore] ?? 'Weak',
+    color: colors[clampedScore] ?? 'text-slate-400',
+    barColor: barColors[clampedScore] ?? 'bg-slate-200',
     tips,
   };
 }

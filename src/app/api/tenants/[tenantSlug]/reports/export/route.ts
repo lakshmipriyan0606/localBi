@@ -39,21 +39,19 @@ export async function POST(
     // Google Search Console Export Modes
     if (exportType === 'queries' || exportType === 'pages') {
       const dimension = exportType === 'queries' ? 'query' : 'page';
-      const drilldownResult = await ReportingService.getDrilldownData(
-        token,
-        tenantSlug,
+      const drilldownResult = await ReportingService.getDrilldownData({
+        tenantId: tenant.id,
+        context: authorizedContext,
         dimension,
-        {
-          startDate: body.startDate,
-          endDate: body.endDate,
-          brandId: body.brandId,
-          page: 1,
-          pageSize: 5000,
-          search: body.search,
-          sortBy: body.sortBy,
-          sortOrder: body.sortOrder,
-        }
-      );
+        startDate: body.startDate,
+        endDate: body.endDate,
+        brandId: body.brandId,
+        page: 1,
+        pageSize: 5000,
+        search: body.search,
+        sortBy: body.sortBy,
+        sortOrder: body.sortOrder,
+      });
 
       let brandName = tenant.name;
       if (body.brandId) {
@@ -71,7 +69,7 @@ export async function POST(
       };
 
       if (exportType === 'queries') {
-        const rows = drilldownResult.rows as QueryDimensionRow[];
+        const rows = drilldownResult.items as QueryDimensionRow[];
         const csvContent = ReportExportService.exportGscQueriesCsv(rows, metaInfo);
         const dateTag = `${body.startDate || 'start'}-to-${body.endDate || 'end'}`;
         return new NextResponse(csvContent, {
@@ -82,7 +80,7 @@ export async function POST(
           },
         });
       } else {
-        const rows = drilldownResult.rows as PageDimensionRow[];
+        const rows = drilldownResult.items as PageDimensionRow[];
         const csvContent = ReportExportService.exportGscPagesCsv(rows, metaInfo);
         const dateTag = `${body.startDate || 'start'}-to-${body.endDate || 'end'}`;
         return new NextResponse(csvContent, {

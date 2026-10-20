@@ -304,7 +304,7 @@ describe('Phase 14: Agency & White-Label Multi-Client Portal Engine', () => {
             brandId: testBrandAId,
             name: 'Acme NYC Flagship',
             storeCode: `NYC-${testId}`,
-            address: '100 Broadway',
+            addressLine1: '100 Broadway',
             city: 'New York',
             state: 'NY',
             postalCode: '10005',
@@ -333,8 +333,10 @@ describe('Phase 14: Agency & White-Label Multi-Client Portal Engine', () => {
       expect(suspended.status).toBe('SUSPENDED');
       expect(suspended.suspendedAt).toBeInstanceOf(Date);
 
-      // Verify records are intact
-      const brandCount = await prisma.brand.count({ where: { clientAccountId: clientAccountAId } });
+      // Verify records are intact within tenant context
+      const brandCount = await TenantContextService.withTenantContext(prisma, agencyTenantId, async (tx) => {
+        return tx.brand.count({ where: { clientAccountId: clientAccountAId } });
+      });
       expect(brandCount).toBe(1);
     });
 

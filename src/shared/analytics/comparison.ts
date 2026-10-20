@@ -3,6 +3,7 @@
  * Single source of truth for percent changes, zero-division guards, and trend evaluation.
  */
 
+export type { ComparisonType } from './date-range';
 export type ComparisonTrendDirection = 'UP' | 'DOWN' | 'NEUTRAL' | 'NEW' | 'UNAVAILABLE';
 
 export interface ComparisonDelta {

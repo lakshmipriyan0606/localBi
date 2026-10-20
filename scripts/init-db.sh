@@ -57,7 +57,16 @@ psql -v ON_ERROR_STOP=1 \
         NOREPLICATION
         NOBYPASSRLS;
 
-    -- 3. Revoke all default privileges from public pseudo-role
+    -- 3. Create Dedicated Non-Login Hostname Resolver Role (Point Lookup Only, Strictly NOLOGIN)
+    CREATE ROLE localbi_resolver WITH
+        NOLOGIN
+        NOSUPERUSER
+        NOCREATEDB
+        NOCREATEROLE
+        NOREPLICATION
+        BYPASSRLS;
+
+    -- 4. Revoke all default privileges from public pseudo-role
     REVOKE ALL ON DATABASE :"db_name" FROM PUBLIC;
     REVOKE ALL ON SCHEMA public FROM PUBLIC;
 
@@ -71,7 +80,11 @@ psql -v ON_ERROR_STOP=1 \
     -- 6. Grant schema usage only to runtime role (cannot execute DDL)
     GRANT USAGE ON SCHEMA public TO localbi_app;
 
-    -- 7. Configure default privileges for future objects created by localbi_migrator
+    -- 7. Grant resolver role and schema privileges so localbi_migrator can assign function ownership
+    GRANT localbi_resolver TO localbi_migrator;
+    GRANT USAGE, CREATE ON SCHEMA public TO localbi_resolver;
+
+    -- 8. Configure default privileges for future objects created by localbi_migrator
     ALTER DEFAULT PRIVILEGES FOR ROLE localbi_migrator IN SCHEMA public
         GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO localbi_app;
 

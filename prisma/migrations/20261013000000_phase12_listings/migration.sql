@@ -251,13 +251,15 @@ DROP INDEX "idx_gbp_daily_metrics_location_metric_date";
 ALTER TABLE "brand_themes" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "call_events" RENAME CONSTRAINT "pk_call_events" TO "call_events_pkey",
+ALTER TABLE "call_events" RENAME CONSTRAINT "pk_call_events" TO "call_events_pkey";
+ALTER TABLE "call_events"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "occurred_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "calls" RENAME CONSTRAINT "pk_calls" TO "calls_pkey",
+ALTER TABLE "calls" RENAME CONSTRAINT "pk_calls" TO "calls_pkey";
+ALTER TABLE "calls"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "started_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "answered_at" SET DATA TYPE TIMESTAMP(3),
@@ -270,35 +272,40 @@ ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 ALTER TABLE "categories" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "competitors" RENAME CONSTRAINT "pk_competitors" TO "competitors_pkey",
+ALTER TABLE "competitors" RENAME CONSTRAINT "pk_competitors" TO "competitors_pkey";
+ALTER TABLE "competitors"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_authors" RENAME CONSTRAINT "pk_content_authors" TO "content_authors_pkey",
+ALTER TABLE "content_authors" RENAME CONSTRAINT "pk_content_authors" TO "content_authors_pkey";
+ALTER TABLE "content_authors"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_briefs" RENAME CONSTRAINT "pk_content_briefs" TO "content_briefs_pkey",
+ALTER TABLE "content_briefs" RENAME CONSTRAINT "pk_content_briefs" TO "content_briefs_pkey";
+ALTER TABLE "content_briefs"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_categories" RENAME CONSTRAINT "pk_content_categories" TO "content_categories_pkey",
+ALTER TABLE "content_categories" RENAME CONSTRAINT "pk_content_categories" TO "content_categories_pkey";
+ALTER TABLE "content_categories"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_items" RENAME CONSTRAINT "pk_content_items" TO "content_items_pkey",
+ALTER TABLE "content_items" RENAME CONSTRAINT "pk_content_items" TO "content_items_pkey";
+ALTER TABLE "content_items"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "published_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "scheduled_at" SET DATA TYPE TIMESTAMP(3),
@@ -307,12 +314,14 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_relations" RENAME CONSTRAINT "pk_content_relations" TO "content_relations_pkey",
+ALTER TABLE "content_relations" RENAME CONSTRAINT "pk_content_relations" TO "content_relations_pkey";
+ALTER TABLE "content_relations"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "content_versions" RENAME CONSTRAINT "pk_content_versions" TO "content_versions_pkey",
+ALTER TABLE "content_versions" RENAME CONSTRAINT "pk_content_versions" TO "content_versions_pkey";
+ALTER TABLE "content_versions"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "content" DROP DEFAULT,
 ALTER COLUMN "published_at" SET DATA TYPE TIMESTAMP(3),
@@ -325,13 +334,15 @@ ALTER TABLE "domains" ALTER COLUMN "updated_at" DROP DEFAULT;
 ALTER TABLE "ga4_daily_metrics" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "gbp_search_terms" RENAME CONSTRAINT "pk_gbp_search_terms" TO "gbp_search_terms_pkey",
+ALTER TABLE "gbp_search_terms" RENAME CONSTRAINT "pk_gbp_search_terms" TO "gbp_search_terms_pkey";
+ALTER TABLE "gbp_search_terms"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "synced_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "keywords" RENAME CONSTRAINT "pk_keywords" TO "keywords_pkey",
+ALTER TABLE "keywords" RENAME CONSTRAINT "pk_keywords" TO "keywords_pkey";
+ALTER TABLE "keywords"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
@@ -345,7 +356,8 @@ ALTER TABLE "locations" ALTER COLUMN "gbp_sync_status" SET DATA TYPE TEXT,
 ALTER COLUMN "gbp_synced_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "merchant_brand_configs" RENAME CONSTRAINT "pk_merchant_brand_configs" TO "merchant_brand_configs_pkey",
+ALTER TABLE "merchant_brand_configs" RENAME CONSTRAINT "pk_merchant_brand_configs" TO "merchant_brand_configs_pkey";
+ALTER TABLE "merchant_brand_configs"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "last_reconciled_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
@@ -353,7 +365,8 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "merchant_local_inventory_states" RENAME CONSTRAINT "pk_merchant_local_inventory_states" TO "merchant_local_inventory_states_pkey",
+ALTER TABLE "merchant_local_inventory_states" RENAME CONSTRAINT "pk_merchant_local_inventory_states" TO "merchant_local_inventory_states_pkey";
+ALTER TABLE "merchant_local_inventory_states"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "last_submitted_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "last_checked_at" SET DATA TYPE TIMESTAMP(3),
@@ -362,7 +375,8 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "merchant_product_issues" RENAME CONSTRAINT "pk_merchant_product_issues" TO "merchant_product_issues_pkey",
+ALTER TABLE "merchant_product_issues" RENAME CONSTRAINT "pk_merchant_product_issues" TO "merchant_product_issues_pkey";
+ALTER TABLE "merchant_product_issues"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "first_seen_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "last_seen_at" SET DATA TYPE TIMESTAMP(3),
@@ -372,7 +386,8 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "merchant_product_mappings" RENAME CONSTRAINT "pk_merchant_product_mappings" TO "merchant_product_mappings_pkey",
+ALTER TABLE "merchant_product_mappings" RENAME CONSTRAINT "pk_merchant_product_mappings" TO "merchant_product_mappings_pkey";
+ALTER TABLE "merchant_product_mappings"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "last_submitted_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "last_successful_sync_at" SET DATA TYPE TIMESTAMP(3),
@@ -382,7 +397,8 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "opportunities" RENAME CONSTRAINT "pk_opportunities" TO "opportunities_pkey",
+ALTER TABLE "opportunities" RENAME CONSTRAINT "pk_opportunities" TO "opportunities_pkey";
+ALTER TABLE "opportunities"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "detected_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "last_evaluated_at" SET DATA TYPE TIMESTAMP(3),
@@ -394,7 +410,8 @@ ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "opportunity_evidence" RENAME CONSTRAINT "pk_opportunity_evidence" TO "opportunity_evidence_pkey",
+ALTER TABLE "opportunity_evidence" RENAME CONSTRAINT "pk_opportunity_evidence" TO "opportunity_evidence_pkey";
+ALTER TABLE "opportunity_evidence"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "captured_at" SET DATA TYPE TIMESTAMP(3);
 
@@ -405,37 +422,43 @@ ALTER TABLE "page_templates" ALTER COLUMN "updated_at" DROP DEFAULT;
 ALTER TABLE "pages" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "product_merchant_configs" RENAME CONSTRAINT "pk_product_merchant_configs" TO "product_merchant_configs_pkey",
+ALTER TABLE "product_merchant_configs" RENAME CONSTRAINT "pk_product_merchant_configs" TO "product_merchant_configs_pkey";
+ALTER TABLE "product_merchant_configs"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "rank_grid_configs" RENAME CONSTRAINT "pk_rank_grid_configs" TO "rank_grid_configs_pkey",
+ALTER TABLE "rank_grid_configs" RENAME CONSTRAINT "pk_rank_grid_configs" TO "rank_grid_configs_pkey";
+ALTER TABLE "rank_grid_configs"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "rank_observations" RENAME CONSTRAINT "pk_rank_observations" TO "rank_observations_pkey",
+ALTER TABLE "rank_observations" RENAME CONSTRAINT "pk_rank_observations" TO "rank_observations_pkey";
+ALTER TABLE "rank_observations"
 ALTER COLUMN "observed_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "rank_run_summaries" RENAME CONSTRAINT "pk_rank_run_summaries" TO "rank_run_summaries_pkey",
+ALTER TABLE "rank_run_summaries" RENAME CONSTRAINT "pk_rank_run_summaries" TO "rank_run_summaries_pkey";
+ALTER TABLE "rank_run_summaries"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "rank_runs" RENAME CONSTRAINT "pk_rank_runs" TO "rank_runs_pkey",
+ALTER TABLE "rank_runs" RENAME CONSTRAINT "pk_rank_runs" TO "rank_runs_pkey";
+ALTER TABLE "rank_runs"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "started_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "completed_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "redirects" RENAME CONSTRAINT "pk_redirects" TO "redirects_pkey",
+ALTER TABLE "redirects" RENAME CONSTRAINT "pk_redirects" TO "redirects_pkey";
+ALTER TABLE "redirects"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
@@ -445,12 +468,14 @@ ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 ALTER TABLE "seo_configs" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "store_competitors" RENAME CONSTRAINT "pk_store_competitors" TO "store_competitors_pkey",
+ALTER TABLE "store_competitors" RENAME CONSTRAINT "pk_store_competitors" TO "store_competitors_pkey";
+ALTER TABLE "store_competitors"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "last_observed_at" SET DATA TYPE TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "store_keywords" RENAME CONSTRAINT "pk_store_keywords" TO "store_keywords_pkey",
+ALTER TABLE "store_keywords" RENAME CONSTRAINT "pk_store_keywords" TO "store_keywords_pkey";
+ALTER TABLE "store_keywords"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
@@ -460,7 +485,8 @@ ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
 ALTER TABLE "store_products" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "virtual_numbers" RENAME CONSTRAINT "pk_virtual_numbers" TO "virtual_numbers_pkey",
+ALTER TABLE "virtual_numbers" RENAME CONSTRAINT "pk_virtual_numbers" TO "virtual_numbers_pkey";
+ALTER TABLE "virtual_numbers"
 ALTER COLUMN "id" DROP DEFAULT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "activated_at" SET DATA TYPE TIMESTAMP(3),

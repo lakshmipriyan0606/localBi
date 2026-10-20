@@ -28,7 +28,7 @@ export class ConversionReportingAdapter {
           tenantId: tenant.id,
           brandId: brand.id,
           ...storeFilter,
-          timestamp: { gte: curStart, lte: curEnd },
+          occurredAt: { gte: curStart, lte: curEnd },
         },
         select: { eventType: true },
       });
@@ -67,7 +67,7 @@ export class ConversionReportingAdapter {
             tenantId: tenant.id,
             brandId: brand.id,
             ...storeFilter,
-            timestamp: { gte: prevStart, lte: prevEnd },
+            occurredAt: { gte: prevStart, lte: prevEnd },
           },
           select: { eventType: true },
         });
@@ -125,17 +125,17 @@ export class ConversionReportingAdapter {
       return {
         state,
         websiteActions: {
-          callClicks: ComparisonEngine.calculate(curCallClicks, prevCallClicks, 'INTEGER'),
-          whatsappClicks: ComparisonEngine.calculate(curWhatsappClicks, prevWhatsappClicks, 'INTEGER'),
-          directionsClicks: ComparisonEngine.calculate(curDirectionsClicks, prevDirectionsClicks, 'INTEGER'),
-          formStarts: ComparisonEngine.calculate(curFormStarts, prevFormStarts, 'INTEGER'),
-          totalActions: ComparisonEngine.calculate(curTotalActions, prevTotalActions, 'INTEGER'),
+          callClicks: ComparisonEngine.calculate(curCallClicks, prevCallClicks, { decimals: 0 }),
+          whatsappClicks: ComparisonEngine.calculate(curWhatsappClicks, prevWhatsappClicks, { decimals: 0 }),
+          directionsClicks: ComparisonEngine.calculate(curDirectionsClicks, prevDirectionsClicks, { decimals: 0 }),
+          formStarts: ComparisonEngine.calculate(curFormStarts, prevFormStarts, { decimals: 0 }),
+          totalActions: ComparisonEngine.calculate(curTotalActions, prevTotalActions, { decimals: 0 }),
         },
         confirmedConversions: {
-          formLeads: ComparisonEngine.calculate(currentLeads, prevLeads, 'INTEGER'),
-          trackedCalls: ComparisonEngine.calculate(currentCalls, prevCalls, 'INTEGER'),
-          bookings: ComparisonEngine.calculate(0, null, 'INTEGER'),
-          totalConfirmed: ComparisonEngine.calculate(curTotalConfirmed, prevTotalConfirmed, 'INTEGER'),
+          formLeads: ComparisonEngine.calculate(currentLeads, prevLeads, { decimals: 0 }),
+          trackedCalls: ComparisonEngine.calculate(currentCalls, prevCalls, { decimals: 0 }),
+          bookings: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+          totalConfirmed: ComparisonEngine.calculate(curTotalConfirmed, prevTotalConfirmed, { decimals: 0 }),
         },
         byChannel: [
           { channel: 'Phone Calls', actions: curCallClicks, confirmed: currentCalls },
@@ -153,17 +153,17 @@ export class ConversionReportingAdapter {
     return {
       state,
       websiteActions: {
-        callClicks: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        whatsappClicks: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        directionsClicks: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        formStarts: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        totalActions: ComparisonEngine.calculate(0, null, 'INTEGER'),
+        callClicks: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        whatsappClicks: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        directionsClicks: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        formStarts: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        totalActions: ComparisonEngine.calculate(0, null, { decimals: 0 }),
       },
       confirmedConversions: {
-        formLeads: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        trackedCalls: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        bookings: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        totalConfirmed: ComparisonEngine.calculate(0, null, 'INTEGER'),
+        formLeads: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        trackedCalls: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        bookings: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        totalConfirmed: ComparisonEngine.calculate(0, null, { decimals: 0 }),
       },
       byChannel: [],
     };

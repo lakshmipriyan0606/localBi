@@ -175,7 +175,7 @@ export class GscIndexingService {
       logger.error({ status: res.status, errText }, 'Google URL inspection API error');
       if (res.status === 403 || res.status === 429) {
         throw new AppError({
-          code: ErrorCode.INTEGRATION_RATE_LIMIT,
+          code: ErrorCode.GOOGLE_RATE_LIMITED,
           statusCode: res.status,
           message: 'Google Search Console URL Inspection API quota exceeded or permission denied. Please verify credentials or retry later.',
         });
@@ -376,10 +376,10 @@ export class GscIndexingService {
       indexedPages,
       notIndexedReasons: [],
       sitemaps: sitemapsList.map((s) => ({
-        path: s.path,
-        lastSubmitted: s.lastSubmitted,
-        lastDownloaded: s.lastDownloaded,
-        isPending: s.isPending,
+        path: String(s.path || ''),
+        lastSubmitted: typeof s.lastSubmitted === 'string' ? s.lastSubmitted : undefined,
+        lastDownloaded: typeof s.lastDownloaded === 'string' ? s.lastDownloaded : undefined,
+        isPending: typeof s.isPending === 'boolean' ? s.isPending : undefined,
         errors: Number(s.errors || 0),
         warnings: Number(s.warnings || 0),
       })),

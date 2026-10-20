@@ -75,6 +75,7 @@ export function GlobalSearchDialog({
       }, 50);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [open]);
 
   // All searchable items

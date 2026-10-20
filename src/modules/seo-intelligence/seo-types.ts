@@ -114,6 +114,7 @@ export interface SeoPageSignals {
   wordCount: number;
   internalLinkCount: number;
   externalLinkCount: number;
+  externalLinks?: Array<{ href: string; text?: string; isNofollow?: boolean }>;
   imageCount: number;
   missingAltCount: number;
   structuredDataTypes: string[];

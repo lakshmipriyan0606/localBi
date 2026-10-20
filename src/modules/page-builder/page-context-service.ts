@@ -76,6 +76,7 @@ export interface TrackingContextDto {
   brandName?: string | undefined;
   webSurfaceId: string;
   webSurfaceType?: string | undefined;
+  pageId?: string | undefined;
   pageType: PageTemplateType;
   storeId?: string | undefined;
   storeName?: string | undefined;

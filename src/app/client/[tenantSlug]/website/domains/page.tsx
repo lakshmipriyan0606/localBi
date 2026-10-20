@@ -68,7 +68,9 @@ export default function SiteStudioDomainsPage() {
     if (!raw) return;
 
     // Normalize URL/hostname: strip protocol, trailing slashes, and paths
-    const cleaned = raw.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0].trim();
+    const withoutProtocol = raw.toLowerCase().replace(/^https?:\/\//, '');
+    const pathPart = withoutProtocol.split('/')[0] ?? '';
+    const cleaned = (pathPart.split(':')[0] ?? '').trim();
 
     if (!cleaned) {
       setError('Please enter a valid domain (e.g. www.example.com).');

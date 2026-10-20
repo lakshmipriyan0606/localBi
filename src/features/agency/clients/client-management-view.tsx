@@ -614,7 +614,7 @@ export function ClientManagementView({ tenantSlug }: ClientManagementViewProps) 
               Cancel
             </Button>
             <Button
-              variant={actionClient?.type === 'suspend' ? 'danger' : 'primary'}
+              variant={actionClient?.type === 'suspend' ? 'destructive' : 'primary'}
               onClick={handleConfirmAction}
               disabled={
                 suspendClientMutation.isPending ||

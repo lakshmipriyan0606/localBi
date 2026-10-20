@@ -20,6 +20,7 @@ import { TenantContextService } from '@/shared/database/tenant-context';
 import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { PuckService } from '@/modules/microsites/puck-service';
 import { puckConfig as legacyPuckConfig } from '@/modules/microsites/puck-config';
+import { Render } from '@measured/puck';
 
 export async function generateMetadata({
   params,

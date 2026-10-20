@@ -174,7 +174,7 @@ export function ExportReportDialog({
         notify.success('Printable report opened in new tab.');
         onClose();
       } else {
-        notify.warn('Pop-up blocked. Please allow pop-ups to view the printable report.');
+        notify.warning('Pop-up blocked. Please allow pop-ups to view the printable report.');
       }
     } catch (err: unknown) {
       console.error('[ExportReportDialog] Printable report error:', err);

@@ -114,7 +114,7 @@ export function GoogleIntegrationsModal({
     setSyncing(true);
     try {
       const res = await browserClient.post<any>(`/api/tenants/${tenantSlug}/sync`, { provider: 'ALL' });
-      notify.success(res?.message || 'Data synchronized successfully with Google APIs.');
+      notify.success(res.data?.message || 'Data synchronized successfully with Google APIs.');
       await fetchIntegrationStatus();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('localbi-sync-completed'));

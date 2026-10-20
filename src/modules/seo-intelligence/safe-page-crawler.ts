@@ -453,12 +453,13 @@ export class SafePageCrawler {
     // 8. Links analysis
     let internalLinkCount = 0;
     let externalLinkCount = 0;
+    const externalLinks: Array<{ href: string; text?: string; isNofollow?: boolean }> = [];
     try {
       const baseDomain = new URL(finalUrl).hostname.replace(/^www\./, '');
-      const linkRegex = /<a[^>]*href=["']([^"']+)["']/gi;
+      const linkRegex = /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>(.*?)<\/a>/gis;
       let m: RegExpExecArray | null;
       while ((m = linkRegex.exec(html)) !== null) {
-        const href = m[1]?.trim();
+        const href = m[2]?.trim();
         if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
           continue;
         }
@@ -469,6 +470,9 @@ export class SafePageCrawler {
             internalLinkCount++;
           } else {
             externalLinkCount++;
+            const isNofollow = /\brel=["'][^"']*nofollow[^"']*["']/i.test(m[1] + ' ' + m[3]);
+            const text = m[4]?.replace(/<[^>]+>/g, '').trim();
+            externalLinks.push({ href: resolved.href, text, isNofollow });
           }
         } catch {
           // relative link
@@ -571,6 +575,7 @@ export class SafePageCrawler {
       wordCount,
       internalLinkCount,
       externalLinkCount,
+      externalLinks,
       imageCount,
       missingAltCount,
       structuredDataTypes,

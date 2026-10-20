@@ -1,4 +1,5 @@
 import { prisma } from '@/shared/database/client';
+import { Prisma } from '@prisma/client';
 import { PasswordService } from './password-service';
 import { SessionService, SessionMetadata, ActiveSession, AuthenticatedUser } from './session-service';
 import { normalizeEmail } from './email-normalizer';
@@ -217,7 +218,7 @@ export class RegistrationService {
           tenantId: tenant.id,
           featureKey: e.featureKey,
           enabled: e.enabled,
-          limits: e.limits,
+          limits: e.limits as unknown as Prisma.InputJsonValue,
           source: 'PLAN_DEFAULT',
         })),
         skipDuplicates: true,

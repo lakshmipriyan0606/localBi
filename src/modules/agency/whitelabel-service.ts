@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/client';
+import { Prisma } from '@prisma/client';
 import { TenantContextService } from '../../shared/database/tenant-context';
 import {
   AuthorizedContext,
@@ -57,44 +58,46 @@ export class WhiteLabelService {
    * Retrieves white-label configuration for a tenant with safe defaults.
    */
   public static async getWhiteLabelConfig(tenantId: string): Promise<WhiteLabelConfigDto> {
-    const config = await prisma.whiteLabelConfig.findUnique({
-      where: { tenantId },
-      include: {
-        portalDomain: {
-          select: {
-            id: true,
-            hostname: true,
-            status: true,
-            sslStatus: true,
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const config = await tx.whiteLabelConfig.findUnique({
+        where: { tenantId },
+        include: {
+          portalDomain: {
+            select: {
+              id: true,
+              hostname: true,
+              status: true,
+              sslStatus: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!config) {
+      if (!config) {
+        return {
+          tenantId,
+          ...DEFAULT_WHITE_LABEL,
+        };
+      }
+
       return {
-        tenantId,
-        ...DEFAULT_WHITE_LABEL,
+        id: config.id,
+        tenantId: config.tenantId,
+        enabled: config.enabled,
+        portalName: config.portalName,
+        companyLegalName: config.companyLegalName,
+        logoUrl: config.logoUrl,
+        faviconUrl: config.faviconUrl,
+        primaryColor: config.primaryColor,
+        secondaryColor: config.secondaryColor,
+        accentColor: config.accentColor,
+        supportEmail: config.supportEmail,
+        supportUrl: config.supportUrl,
+        hideLocalBiBranding: config.hideLocalBiBranding,
+        customCss: config.customCss,
+        portalDomain: config.portalDomain,
       };
-    }
-
-    return {
-      id: config.id,
-      tenantId: config.tenantId,
-      enabled: config.enabled,
-      portalName: config.portalName,
-      companyLegalName: config.companyLegalName,
-      logoUrl: config.logoUrl,
-      faviconUrl: config.faviconUrl,
-      primaryColor: config.primaryColor,
-      secondaryColor: config.secondaryColor,
-      accentColor: config.accentColor,
-      supportEmail: config.supportEmail,
-      supportUrl: config.supportUrl,
-      hideLocalBiBranding: config.hideLocalBiBranding,
-      customCss: config.customCss,
-      portalDomain: config.portalDomain,
-    };
+    });
   }
 
   /**
@@ -170,7 +173,9 @@ export class WhiteLabelService {
           action: 'whitelabel:update',
           resourceType: 'WhiteLabelConfig',
           resourceId: config.id,
-          payload: input as Record<string, unknown>,
+          newValues: input as unknown as Prisma.InputJsonValue,
+          ipAddress: 'INTERNAL',
+          userAgent: 'INTERNAL',
         },
       });
 
@@ -198,33 +203,69 @@ export class WhiteLabelService {
 
   /**
    * Resolves white-label portal branding by hostname (custom portal domain).
+   * Validates and normalizes hostname, enforces active domain and tenant state via
+   * hardened SECURITY DEFINER resolution function, and establishes tenant context
+   * before retrieving tenant-scoped branding configuration.
    */
   public static async resolveByHostname(hostname: string): Promise<{
     tenant: { id: string; name: string; slug: string };
     branding: WhiteLabelConfigDto;
   } | null> {
-    const cleanHost = hostname.trim().toLowerCase().split(':')[0];
-
-    const portalDomain = await prisma.portalDomain.findUnique({
-      where: { hostname: cleanHost },
-      include: {
-        tenant: { select: { id: true, name: true, slug: true, status: true } },
-      },
-    });
-
-    if (!portalDomain || portalDomain.status !== 'ACTIVE' || portalDomain.tenant.status !== 'ACTIVE') {
+    if (!hostname || typeof hostname !== 'string') {
       return null;
     }
 
-    const branding = await this.getWhiteLabelConfig(portalDomain.tenant.id);
+    // Strict normalization: trim, lowercase, strip protocol, trailing slashes, port
+    let cleanHost = hostname.trim().toLowerCase();
+    cleanHost = cleanHost.replace(/^https?:\/\//, '');
+    cleanHost = (cleanHost.split('/')[0] ?? '').trim();
+    cleanHost = (cleanHost.split(':')[0] ?? '').trim();
+    if (cleanHost.endsWith('.')) {
+      cleanHost = cleanHost.slice(0, -1);
+    }
 
-    return {
-      tenant: {
-        id: portalDomain.tenant.id,
-        name: portalDomain.tenant.name,
-        slug: portalDomain.tenant.slug,
-      },
-      branding,
-    };
+    // Basic hostname sanity check (RFC 1123, max 255 chars, alphanumeric/hyphens/dots, strictly no underscores)
+    if (
+      !cleanHost ||
+      cleanHost.length > 255 ||
+      !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/.test(cleanHost)
+    ) {
+      return null;
+    }
+
+    try {
+      // 1. Resolve via hardened SECURITY DEFINER function
+      const rows = await prisma.$queryRaw<
+        Array<{
+          tenant_id: string;
+          tenant_name: string;
+          tenant_slug: string;
+          tenant_status: string;
+          domain_id: string;
+          hostname: string;
+          status: string;
+        }>
+      >`SELECT * FROM resolve_portal_domain(${cleanHost})`;
+
+      const resolved = rows[0];
+      if (!resolved || resolved.status !== 'ACTIVE' || resolved.tenant_status !== 'ACTIVE') {
+        return null;
+      }
+
+      // 2. Establish tenant context before reading tenant-specific configuration
+      const branding = await this.getWhiteLabelConfig(resolved.tenant_id);
+
+      return {
+        tenant: {
+          id: resolved.tenant_id,
+          name: resolved.tenant_name,
+          slug: resolved.tenant_slug,
+        },
+        branding,
+      };
+    } catch (err: unknown) {
+      logger.warn({ hostname: cleanHost, error: (err as Error)?.message }, 'Failed to resolve portal domain by hostname');
+      return null;
+    }
   }
 }

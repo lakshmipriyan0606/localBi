@@ -52,7 +52,12 @@ export function OverviewKpiGrid({
   const gsc = performanceSummary?.gsc;
   const gbp = performanceSummary?.gbp;
   const prev = performanceSummary?.previousPeriod;
-  const hasData = Boolean(performanceSummary && (gsc?.totalClicks > 0 || gsc?.totalImpressions > 0 || gbp?.totalViews > 0));
+  const hasData = Boolean(
+    performanceSummary &&
+      ((gsc?.totalClicks ?? 0) > 0 ||
+        (gsc?.totalImpressions ?? 0) > 0 ||
+        (gbp?.totalViews ?? 0) > 0)
+  );
 
   return (
     <section className="space-y-3 animate-in fade-in duration-300" aria-label="Executive Performance Indicators">

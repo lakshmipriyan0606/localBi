@@ -155,7 +155,7 @@ export function ReviewGoogleResourcesStep({
     if (!editingBrand) return;
     const currentIdx = brands.findIndex((b) => b.id === editingBrand.id);
     if (currentIdx >= 0 && currentIdx < brands.length - 1) {
-      setEditingBrand(brands[currentIdx + 1]);
+      setEditingBrand(brands[currentIdx + 1] ?? null);
     }
   };
 

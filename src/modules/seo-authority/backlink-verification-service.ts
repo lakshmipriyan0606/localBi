@@ -42,7 +42,7 @@ export class BacklinkVerificationService {
       }
 
       // Check external links for matching canonical target URL
-      const matchingLink = crawlResult.signals.externalLinks.find((l) => {
+      const matchingLink = crawlResult.signals.externalLinks?.find((l) => {
         const canonicalHref = BacklinkRepository.canonicalizeUrl(l.href);
         return canonicalHref === cleanTarget || canonicalHref.startsWith(cleanTarget);
       });

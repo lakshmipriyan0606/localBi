@@ -35,7 +35,7 @@ export async function POST(
     }
 
     logger.info(
-      { tenantId: context.tenantId, jobName },
+      { tenantId: authorizedContext.tenantId, jobName },
       'Manual cron trigger via API'
     );
 

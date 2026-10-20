@@ -35,7 +35,7 @@ export function TrendMetricCard({
     const isPositive =
       deltaPercent !== undefined && deltaPercent !== null
         ? deltaPercent >= 0
-        : trendData[trendData.length - 1] >= trendData[0];
+        : (trendData[trendData.length - 1] ?? 0) >= (trendData[0] ?? 0);
 
     const strokeColor =
       trendColor ||

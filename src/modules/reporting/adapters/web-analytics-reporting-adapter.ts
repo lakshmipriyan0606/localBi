@@ -26,16 +26,14 @@ export class WebAnalyticsReportingAdapter {
           tenantId: tenant.id,
           brandId: brand.id,
           ...surfaceFilter,
-          startedAt: { gte: curStart, lte: curEnd },
+          firstSeenAt: { gte: curStart, lte: curEnd },
         },
         select: {
           id: true,
           visitorId: true,
-          startedAt: true,
-          pageViewCount: true,
-          activeEngagementMs: true,
-          isBounce: true,
-          firstLandingPath: true,
+          firstSeenAt: true,
+          lastSeenAt: true,
+          firstTouchLandingPage: true,
         },
       });
 
@@ -50,16 +48,14 @@ export class WebAnalyticsReportingAdapter {
             tenantId: tenant.id,
             brandId: brand.id,
             ...surfaceFilter,
-            startedAt: { gte: prevStart, lte: prevEnd },
+            firstSeenAt: { gte: prevStart, lte: prevEnd },
           },
           select: {
             id: true,
             visitorId: true,
-            startedAt: true,
-            pageViewCount: true,
-            activeEngagementMs: true,
-            isBounce: true,
-            firstLandingPath: true,
+            firstSeenAt: true,
+            lastSeenAt: true,
+            firstTouchLandingPage: true,
           },
         });
       }
@@ -67,10 +63,15 @@ export class WebAnalyticsReportingAdapter {
       // Aggregate current metrics
       const uniqueVisitors = new Set(currentSessions.map((s) => s.visitorId)).size;
       const totalSessions = currentSessions.length;
-      const totalPageViews = currentSessions.reduce((sum, s) => sum + (s.pageViewCount || 1), 0);
-      const totalEngagementSec = currentSessions.reduce((sum, s) => sum + (s.activeEngagementMs || 0) / 1000, 0);
+      const totalPageViews = totalSessions;
+      const totalEngagementSec = currentSessions.reduce(
+        (sum, s) => sum + Math.max(0, (s.lastSeenAt.getTime() - s.firstSeenAt.getTime()) / 1000),
+        0
+      );
       const avgEngagementSec = totalSessions > 0 ? Math.round(totalEngagementSec / totalSessions) : 0;
-      const bounceCount = currentSessions.filter((s) => s.isBounce).length;
+      const bounceCount = currentSessions.filter(
+        (s) => s.firstSeenAt.getTime() === s.lastSeenAt.getTime()
+      ).length;
       const bounceRate = totalSessions > 0 ? Number(((bounceCount / totalSessions) * 100).toFixed(1)) : 0;
 
       // Aggregate comparison metrics
@@ -78,17 +79,20 @@ export class WebAnalyticsReportingAdapter {
         ? new Set(prevSessions.map((s) => s.visitorId)).size
         : null;
       const prevTotalSessions = comparisonRange?.enabled ? prevSessions.length : null;
-      const prevTotalPageViews = comparisonRange?.enabled
-        ? prevSessions.reduce((sum, s) => sum + (s.pageViewCount || 1), 0)
-        : null;
+      const prevTotalPageViews = prevTotalSessions;
       const prevTotalEngagementSec = comparisonRange?.enabled
-        ? prevSessions.reduce((sum, s) => sum + (s.activeEngagementMs || 0) / 1000, 0)
+        ? prevSessions.reduce(
+            (sum, s) => sum + Math.max(0, (s.lastSeenAt.getTime() - s.firstSeenAt.getTime()) / 1000),
+            0
+          )
         : null;
       const prevAvgEngagementSec =
         comparisonRange?.enabled && prevTotalSessions && prevTotalSessions > 0
           ? Math.round((prevTotalEngagementSec || 0) / prevTotalSessions)
           : null;
-      const prevBounceCount = comparisonRange?.enabled ? prevSessions.filter((s) => s.isBounce).length : null;
+      const prevBounceCount = comparisonRange?.enabled
+        ? prevSessions.filter((s) => s.firstSeenAt.getTime() === s.lastSeenAt.getTime()).length
+        : null;
       const prevBounceRate =
         comparisonRange?.enabled && prevTotalSessions && prevTotalSessions > 0
           ? Number((((prevBounceCount || 0) / prevTotalSessions) * 100).toFixed(1))
@@ -97,15 +101,15 @@ export class WebAnalyticsReportingAdapter {
       // 3. Timeseries aggregation by date
       const dateMap = new Map<string, { visitors: Set<string>; sessions: number; pageViews: number; engagementMs: number }>();
       for (const s of currentSessions) {
-        const d = s.startedAt.toISOString().split('T')[0]!;
+        const d = s.firstSeenAt.toISOString().split('T')[0]!;
         if (!dateMap.has(d)) {
           dateMap.set(d, { visitors: new Set(), sessions: 0, pageViews: 0, engagementMs: 0 });
         }
         const bucket = dateMap.get(d)!;
         bucket.visitors.add(s.visitorId);
         bucket.sessions += 1;
-        bucket.pageViews += s.pageViewCount || 1;
-        bucket.engagementMs += s.activeEngagementMs || 0;
+        bucket.pageViews += 1;
+        bucket.engagementMs += Math.max(0, s.lastSeenAt.getTime() - s.firstSeenAt.getTime());
       }
 
       const timeseries = Array.from(dateMap.entries())
@@ -121,7 +125,7 @@ export class WebAnalyticsReportingAdapter {
       // 4. Top Landing Pages
       const landingMap = new Map<string, { sessions: number; visitors: Set<string> }>();
       for (const s of currentSessions) {
-        const path = s.firstLandingPath || '/';
+        const path = s.firstTouchLandingPage || '/';
         if (!landingMap.has(path)) {
           landingMap.set(path, { sessions: 0, visitors: new Set() });
         }
@@ -174,15 +178,18 @@ export class WebAnalyticsReportingAdapter {
         state,
         source: 'LOCALBI',
         metrics: {
-          visitors: ComparisonEngine.calculate(uniqueVisitors, prevUniqueVisitors, 'INTEGER'),
-          sessions: ComparisonEngine.calculate(totalSessions, prevTotalSessions, 'INTEGER'),
-          pageViews: ComparisonEngine.calculate(totalPageViews, prevTotalPageViews, 'INTEGER'),
+          visitors: ComparisonEngine.calculate(uniqueVisitors, prevUniqueVisitors, { decimals: 0 }),
+          sessions: ComparisonEngine.calculate(totalSessions, prevTotalSessions, { decimals: 0 }),
+          pageViews: ComparisonEngine.calculate(totalPageViews, prevTotalPageViews, { decimals: 0 }),
           avgActiveEngagementSeconds: ComparisonEngine.calculate(
             avgEngagementSec,
             prevAvgEngagementSec,
-            'INTEGER'
+            { decimals: 0 }
           ),
-          bounceRate: ComparisonEngine.calculate(bounceRate, prevBounceRate, 'PERCENTAGE'),
+          bounceRate: ComparisonEngine.calculate(bounceRate, prevBounceRate, {
+            higherIsBetter: false,
+            decimals: 1,
+          }),
         },
         timeseries,
         topLandingPages,
@@ -200,11 +207,11 @@ export class WebAnalyticsReportingAdapter {
       state,
       source: 'LOCALBI',
       metrics: {
-        visitors: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        sessions: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        pageViews: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        avgActiveEngagementSeconds: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        bounceRate: ComparisonEngine.calculate(0, null, 'PERCENTAGE'),
+        visitors: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        sessions: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        pageViews: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        avgActiveEngagementSeconds: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        bounceRate: ComparisonEngine.calculate(0, null, { higherIsBetter: false, decimals: 1 }),
       },
       timeseries: [],
       topLandingPages: [],

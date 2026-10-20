@@ -216,6 +216,11 @@ describe('Live PostgreSQL 16 Dual-Role Row-Level Security (RLS) Exhaustive Integ
     await expect(
       appPrisma.$executeRawUnsafe('SET ROLE postgres;')
     ).rejects.toThrow();
+
+    // Attempt SET ROLE localbi_resolver as localbi_app -> must fail with permission denied
+    await expect(
+      appPrisma.$executeRawUnsafe('SET ROLE localbi_resolver;')
+    ).rejects.toThrow();
   });
 
   // --- Stage 5: Exhaustive RLS Configuration for all 25 Tenant Tables ---

@@ -69,8 +69,8 @@ export default async function TenantIntegrationsPage({
   mappingState.webSurfaces.forEach((ws) => {
     if (ws.brandId && ws.domains && ws.domains.length > 0) {
       const primary = ws.domains.find((d) => d.isPrimary) || ws.domains[0];
-      if (primary?.domainName && !brandDomains.has(ws.brandId)) {
-        brandDomains.set(ws.brandId, primary.domainName);
+      if (primary?.hostname && !brandDomains.has(ws.brandId)) {
+        brandDomains.set(ws.brandId, primary.hostname);
       }
     }
   });

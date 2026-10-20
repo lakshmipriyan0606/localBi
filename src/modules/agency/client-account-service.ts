@@ -1,4 +1,5 @@
 import { prisma } from '../../shared/database/client';
+import { Prisma } from '@prisma/client';
 import { TenantContextService } from '../../shared/database/tenant-context';
 import {
   AuthorizedContext,
@@ -52,28 +53,52 @@ export class ClientAccountService {
     }
 
     const cleanName = input.name.trim();
-    const cleanSlug = (input.slug ? this.generateSlug(input.slug) : this.generateSlug(cleanName));
+    const baseSlug = (input.slug ? this.generateSlug(input.slug) : this.generateSlug(cleanName));
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      // Check slug uniqueness within tenant
-      const existing = await tx.clientAccount.findUnique({
-        where: {
-          uq_client_account_tenant_slug: {
-            tenantId,
-            slug: cleanSlug,
-          },
-        },
-      });
+      let finalSlug = baseSlug;
 
-      if (existing) {
-        throw createConflictError(`A client account with slug "${cleanSlug}" already exists in this organization`);
+      if (input.slug) {
+        // Explicit slug requested: check if exists, throw conflict
+        const existing = await tx.clientAccount.findUnique({
+          where: {
+            uq_client_account_tenant_slug: {
+              tenantId,
+              slug: baseSlug,
+            },
+          },
+        });
+
+        if (existing) {
+          throw createConflictError(`A client account with slug "${baseSlug}" already exists in this organization`);
+        }
+      } else {
+        // Auto-generated slug: check collision and auto-increment with -1, -2, etc.
+        let counter = 0;
+        let candidateSlug = baseSlug;
+        while (true) {
+          const existing = await tx.clientAccount.findUnique({
+            where: {
+              uq_client_account_tenant_slug: {
+                tenantId,
+                slug: candidateSlug,
+              },
+            },
+          });
+          if (!existing) {
+            finalSlug = candidateSlug;
+            break;
+          }
+          counter++;
+          candidateSlug = `${baseSlug}-${counter}`;
+        }
       }
 
       const client = await tx.clientAccount.create({
         data: {
           tenantId,
           name: cleanName,
-          slug: cleanSlug,
+          slug: finalSlug,
           status: 'ACTIVE',
           primaryContact: input.primaryContact?.trim() || null,
           contactEmail: input.contactEmail?.trim().toLowerCase() || null,
@@ -125,7 +150,7 @@ export class ClientAccountService {
     tenantId: string,
     options: ListClientsOptions,
     context: AuthorizedContext
-  ): Promise<{ items: ClientAccountDto[]; total: number; page: number; pageSize: number }> {
+  ): Promise<{ items: ClientAccountDto[]; clients: ClientAccountDto[]; total: number; page: number; pageSize: number }> {
     if (context.tenantId !== tenantId) {
       throw createTenantAccessDeniedError(tenantId);
     }
@@ -148,7 +173,7 @@ export class ClientAccountService {
         ? Array.from(context.grantedClientAccountIds)
         : undefined;
 
-      const whereClause: Parameters<typeof tx.clientAccount.findMany>[0]['where'] = {
+      const whereClause: Prisma.ClientAccountWhereInput = {
         tenantId,
         ...(options.status ? { status: options.status } : { status: { not: 'ARCHIVED' } }),
         ...(options.search
@@ -205,7 +230,7 @@ export class ClientAccountService {
         };
       });
 
-      return { items, total, page, pageSize };
+      return { items, clients: items, total, page, pageSize };
     });
   }
 
@@ -214,7 +239,7 @@ export class ClientAccountService {
    */
   public static async getClientAccount(
     tenantId: string,
-    identifier: { id?: string; slug?: string },
+    identifier: string | { id?: string; slug?: string },
     context: AuthorizedContext
   ): Promise<ClientAccountDto> {
     if (context.tenantId !== tenantId) {
@@ -226,8 +251,12 @@ export class ClientAccountService {
       const client = await tx.clientAccount.findFirst({
         where: {
           tenantId,
-          ...(identifier.id ? { id: identifier.id } : {}),
-          ...(identifier.slug ? { slug: identifier.slug.trim().toLowerCase() } : {}),
+          ...(typeof identifier === 'string'
+            ? { OR: [{ id: identifier }, { slug: identifier.trim().toLowerCase() }] }
+            : {
+                ...(identifier.id ? { id: identifier.id } : {}),
+                ...(identifier.slug ? { slug: identifier.slug.trim().toLowerCase() } : {}),
+              }),
         },
         include: {
           brands: {
@@ -243,7 +272,7 @@ export class ClientAccountService {
       });
 
       if (!client) {
-        throw createResourceNotFoundError('ClientAccount', identifier.id || identifier.slug || '');
+        throw createResourceNotFoundError('ClientAccount', typeof identifier === 'string' ? identifier : identifier.id || identifier.slug || '');
       }
 
       AuthorizationService.assertClientAccess(context, client.id);
@@ -325,7 +354,7 @@ export class ClientAccountService {
           action: 'client:update',
           resourceType: 'ClientAccount',
           resourceId: existing.id,
-          newValues: input as Record<string, unknown>,
+          newValues: input as unknown as Prisma.InputJsonValue,
           ipAddress: 'INTERNAL',
           userAgent: 'INTERNAL',
         },

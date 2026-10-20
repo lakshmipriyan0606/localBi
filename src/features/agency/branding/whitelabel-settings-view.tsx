@@ -43,7 +43,7 @@ export function WhiteLabelSettingsView({ tenantSlug }: WhiteLabelSettingsViewPro
   const { data: domains, isLoading: isLoadingDomains } = usePortalDomainsQuery(tenantSlug);
   const createDomainMutation = useCreatePortalDomainMutation(tenantSlug);
   const verifyDomainMutation = useVerifyPortalDomainMutation(tenantSlug);
-  const deleteDomainMutation = useDeleteDomainMutation(tenantSlug);
+  const deleteDomainMutation = useDeletePortalDomainMutation(tenantSlug);
 
   // Form states
   const [formData, setFormData] = useState({

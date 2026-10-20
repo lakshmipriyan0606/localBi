@@ -14,7 +14,7 @@
     "test:integration": "vitest run tests/live-rls.test.ts tests/live-redis.test.ts tests/bootstrap-password-safety.test.ts",
     "test:e2e": "playwright test",
     "test:spikes": "vitest run spikes",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc --noEmit",
     "lint": "eslint .",
     "verify": "node scripts/verify-pipeline.cjs",
     "worker": "tsx scripts/start-worker.ts"

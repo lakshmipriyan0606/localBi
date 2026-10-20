@@ -335,7 +335,7 @@ function ProductSlotCard({
 
       {/* Currently Connected Preview or Add-Manual link */}
       <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-        {isConnected ? (
+        {currentResource ? (
           <div className="text-slate-600 font-mono truncate max-w-md">
             <span className="text-slate-400 font-sans">Active resource: </span>
             {currentResource.product === 'GA4' && currentResource.propertyId

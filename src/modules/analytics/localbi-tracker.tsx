@@ -141,7 +141,8 @@ export class LocalBiTracker {
       const buf = new Uint8Array(length / 2);
       window.crypto.getRandomValues(buf);
       for (let i = 0; i < buf.length; i++) {
-        rand += ('0' + buf[i].toString(16)).slice(-2);
+        const byte = buf[i] ?? 0;
+        rand += ('0' + byte.toString(16)).slice(-2);
       }
     } else {
       for (let j = 0; j < length; j++) {
@@ -154,7 +155,7 @@ export class LocalBiTracker {
   private static getCookie(name: string): string | null {
     if (typeof document === 'undefined') return null;
     const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
-    return match ? decodeURIComponent(match[1]) : null;
+    return match && match[1] ? decodeURIComponent(match[1]) : null;
   }
 
   private static setCookie(name: string, value: string, days: number): void {

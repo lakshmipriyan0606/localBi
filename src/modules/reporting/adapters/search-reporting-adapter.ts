@@ -44,7 +44,7 @@ export class SearchReportingAdapter {
       }
 
       // 2. Fetch current period GSC metrics
-      const currentGsc = await tx.gscDailyPerformance.findMany({
+      const currentGsc = await tx.gscDailyPropertyTotal.findMany({
         where: {
           tenantId: tenant.id,
           propertyId: gscProp.id,
@@ -59,7 +59,7 @@ export class SearchReportingAdapter {
         const prevStart = new Date(comparisonRange.startDate + 'T00:00:00.000Z');
         const prevEnd = new Date(comparisonRange.endDate + 'T23:59:59.999Z');
 
-        prevGsc = await tx.gscDailyPerformance.findMany({
+        prevGsc = await tx.gscDailyPropertyTotal.findMany({
           where: {
             tenantId: tenant.id,
             propertyId: gscProp.id,
@@ -68,42 +68,43 @@ export class SearchReportingAdapter {
         });
       }
 
-      const curClicks = currentGsc.reduce((sum, r) => sum + r.clicks, 0);
-      const curImpressions = currentGsc.reduce((sum, r) => sum + r.impressions, 0);
+      const curClicks = currentGsc.reduce((sum: number, r) => sum + r.clicks, 0);
+      const curImpressions = currentGsc.reduce((sum: number, r) => sum + r.impressions, 0);
+      const curSumPos = currentGsc.reduce((sum: number, r) => sum + r.sumPositionImpressions, 0);
       const curCtr = curImpressions > 0 ? (curClicks / curImpressions) * 100 : 0;
-      const curPos =
-        currentGsc.length > 0
-          ? currentGsc.reduce((sum, r) => sum + r.position, 0) / currentGsc.length
-          : 0;
+      const curPos = curImpressions > 0 ? curSumPos / curImpressions : 0;
 
-      const prevClicks = comparisonRange?.enabled ? prevGsc.reduce((sum, r) => sum + r.clicks, 0) : null;
-      const prevImpressions = comparisonRange?.enabled ? prevGsc.reduce((sum, r) => sum + r.impressions, 0) : null;
+      const prevClicks = comparisonRange?.enabled ? prevGsc.reduce((sum: number, r) => sum + r.clicks, 0) : null;
+      const prevImpressions = comparisonRange?.enabled ? prevGsc.reduce((sum: number, r) => sum + r.impressions, 0) : null;
+      const prevSumPos = comparisonRange?.enabled ? prevGsc.reduce((sum: number, r) => sum + r.sumPositionImpressions, 0) : null;
       const prevCtr =
         comparisonRange?.enabled && prevImpressions && prevImpressions > 0
           ? ((prevClicks || 0) / prevImpressions) * 100
           : null;
       const prevPos =
-        comparisonRange?.enabled && prevGsc.length > 0
-          ? prevGsc.reduce((sum, r) => sum + r.position, 0) / prevGsc.length
+        comparisonRange?.enabled && prevImpressions && prevImpressions > 0 && prevSumPos !== null
+          ? prevSumPos / prevImpressions
           : null;
 
       // 4. Fetch Top Queries and Pages
-      const topQueryRecords = await tx.gscQueryPerformance.findMany({
+      const topQueryRecords = await tx.gscDailyQueryMetric.findMany({
         where: {
           tenantId: tenant.id,
           propertyId: gscProp.id,
           date: { gte: curStart, lte: curEnd },
         },
+        include: { query: true },
         orderBy: { clicks: 'desc' },
         take: 10,
       });
 
-      const topPageRecords = await tx.gscPagePerformance.findMany({
+      const topPageRecords = await tx.gscDailyPageMetric.findMany({
         where: {
           tenantId: tenant.id,
           propertyId: gscProp.id,
           date: { gte: curStart, lte: curEnd },
         },
+        include: { page: true },
         orderBy: { clicks: 'desc' },
         take: 10,
       });
@@ -113,13 +114,17 @@ export class SearchReportingAdapter {
         where: { tenantId: tenant.id, brandId: brand.id, status: 'ACTIVE' },
       });
 
-      const timeseries = currentGsc.map((r) => ({
-        date: r.date.toISOString().split('T')[0]!,
-        clicks: r.clicks,
-        impressions: r.impressions,
-        ctr: Number(r.ctr.toFixed(2)),
-        position: Number(r.position.toFixed(1)),
-      }));
+      const timeseries = currentGsc.map((r) => {
+        const ctr = r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0;
+        const position = r.impressions > 0 ? r.sumPositionImpressions / r.impressions : 0;
+        return {
+          date: r.date.toISOString().split('T')[0]!,
+          clicks: r.clicks,
+          impressions: r.impressions,
+          ctr: Number(ctr.toFixed(2)),
+          position: Number(position.toFixed(1)),
+        };
+      });
 
       const state: ModuleReportState = currentGsc.length > 0 ? 'DATA' : 'NO_DATA';
 
@@ -127,29 +132,37 @@ export class SearchReportingAdapter {
         state,
         source: 'GSC',
         metrics: {
-          clicks: ComparisonEngine.calculate(curClicks, prevClicks, 'INTEGER'),
-          impressions: ComparisonEngine.calculate(curImpressions, prevImpressions, 'INTEGER'),
-          ctr: ComparisonEngine.calculate(curCtr, prevCtr, 'PERCENTAGE'),
-          averagePosition: ComparisonEngine.calculate(curPos, prevPos, 'POSITION'),
+          clicks: ComparisonEngine.calculate(curClicks, prevClicks, { decimals: 0 }),
+          impressions: ComparisonEngine.calculate(curImpressions, prevImpressions, { decimals: 0 }),
+          ctr: ComparisonEngine.calculate(curCtr, prevCtr, { decimals: 1 }),
+          averagePosition: ComparisonEngine.calculate(curPos, prevPos, { higherIsBetter: false, decimals: 1 }),
           trackedKeywordsCount,
-          top3Coverage: ComparisonEngine.calculate(0, null, 'PERCENTAGE'),
-          averageRank: ComparisonEngine.calculate(0, null, 'POSITION'),
+          top3Coverage: ComparisonEngine.calculate(0, null, { decimals: 1 }),
+          averageRank: ComparisonEngine.calculate(0, null, { higherIsBetter: false, decimals: 1 }),
         },
         timeseries,
-        topQueries: topQueryRecords.map((q) => ({
-          query: q.query,
-          clicks: q.clicks,
-          impressions: q.impressions,
-          ctr: Number(q.ctr.toFixed(2)),
-          position: Number(q.position.toFixed(1)),
-        })),
-        topPages: topPageRecords.map((p) => ({
-          path: p.page,
-          clicks: p.clicks,
-          impressions: p.impressions,
-          ctr: Number(p.ctr.toFixed(2)),
-          position: Number(p.position.toFixed(1)),
-        })),
+        topQueries: topQueryRecords.map((q) => {
+          const ctr = q.impressions > 0 ? (q.clicks / q.impressions) * 100 : 0;
+          const position = q.impressions > 0 ? q.sumPositionImpressions / q.impressions : 0;
+          return {
+            query: q.query.queryText,
+            clicks: q.clicks,
+            impressions: q.impressions,
+            ctr: Number(ctr.toFixed(2)),
+            position: Number(position.toFixed(1)),
+          };
+        }),
+        topPages: topPageRecords.map((p) => {
+          const ctr = p.impressions > 0 ? (p.clicks / p.impressions) * 100 : 0;
+          const position = p.impressions > 0 ? p.sumPositionImpressions / p.impressions : 0;
+          return {
+            path: p.page.fullUrl,
+            clicks: p.clicks,
+            impressions: p.impressions,
+            ctr: Number(ctr.toFixed(2)),
+            position: Number(position.toFixed(1)),
+          };
+        }),
       };
     } catch {
       return this.emptyReport('UPSTREAM_ERROR');
@@ -161,13 +174,13 @@ export class SearchReportingAdapter {
       state,
       source: 'GSC',
       metrics: {
-        clicks: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        impressions: ComparisonEngine.calculate(0, null, 'INTEGER'),
-        ctr: ComparisonEngine.calculate(0, null, 'PERCENTAGE'),
-        averagePosition: ComparisonEngine.calculate(0, null, 'POSITION'),
+        clicks: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        impressions: ComparisonEngine.calculate(0, null, { decimals: 0 }),
+        ctr: ComparisonEngine.calculate(0, null, { decimals: 1 }),
+        averagePosition: ComparisonEngine.calculate(0, null, { higherIsBetter: false, decimals: 1 }),
         trackedKeywordsCount: 0,
-        top3Coverage: ComparisonEngine.calculate(0, null, 'PERCENTAGE'),
-        averageRank: ComparisonEngine.calculate(0, null, 'POSITION'),
+        top3Coverage: ComparisonEngine.calculate(0, null, { decimals: 1 }),
+        averageRank: ComparisonEngine.calculate(0, null, { higherIsBetter: false, decimals: 1 }),
       },
       timeseries: [],
       topQueries: [],

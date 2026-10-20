@@ -179,7 +179,7 @@ export async function POST(
         keywordId,
         authorizedContext
       );
-      return NextResponse.json({ success: true, ...result });
+      return NextResponse.json(result);
     }
 
     if (action === 'assign_store') {
@@ -256,7 +256,7 @@ export async function DELETE(
       authorizedContext
     );
 
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json(result);
   } catch (error) {
     return handleRouteError(error, 'Failed to delete keyword.');
   }

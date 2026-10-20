@@ -180,27 +180,29 @@ export class GscSitemapsService {
         }
 
         return {
-          path: s.path,
+          path: String(s.path || ''),
           type: s.isSitemapsIndex ? 'Sitemap index' : 'Sitemap',
-          submitted: s.lastSubmitted
-            ? new Date(s.lastSubmitted).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : 'Sep 21, 2026',
-          lastRead: s.lastDownloaded
-            ? new Date(s.lastDownloaded).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-            : 'Pending',
+          submitted:
+            typeof s.lastSubmitted === 'string' || typeof s.lastSubmitted === 'number' || s.lastSubmitted instanceof Date
+              ? new Date(s.lastSubmitted).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : 'Sep 21, 2026',
+          lastRead:
+            typeof s.lastDownloaded === 'string' || typeof s.lastDownloaded === 'number' || s.lastDownloaded instanceof Date
+              ? new Date(s.lastDownloaded).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : 'Pending',
           status,
           discoveredPages: discoveredPages > 0 ? discoveredPages : 1,
           discoveredVideos: 0,
-          isPending: s.isPending,
-          isSitemapsIndex: s.isSitemapsIndex,
+          isPending: !!s.isPending,
+          isSitemapsIndex: !!s.isSitemapsIndex,
           errors: Number(s.errors || 0),
           warnings: Number(s.warnings || 0),
         };

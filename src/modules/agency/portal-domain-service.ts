@@ -20,15 +20,18 @@ export class PortalDomainService {
    * Sanitizes and validates custom hostname format.
    */
   public static sanitizeHostname(raw: string): string {
-    const cleaned = raw
+    if (!raw || typeof raw !== 'string') {
+      throw createValidationError('Invalid domain hostname format: empty');
+    }
+    const segment = raw
       .trim()
       .toLowerCase()
       .replace(/^https?:\/\//, '')
-      .split('/')[0]
-      .split(':')[0];
+      .split('/')[0];
+    const cleaned = (segment ? segment.split(':')[0] : '') || '';
 
     const hostRegex = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
-    if (!hostRegex.test(cleaned)) {
+    if (!cleaned || !hostRegex.test(cleaned)) {
       throw createValidationError(`Invalid domain hostname format: "${raw}"`);
     }
 
@@ -83,7 +86,9 @@ export class PortalDomainService {
           action: 'portal_domain:create',
           resourceType: 'PortalDomain',
           resourceId: domain.id,
-          payload: { hostname },
+          newValues: { hostname },
+          ipAddress: 'INTERNAL',
+          userAgent: 'INTERNAL',
         },
       });
 
@@ -159,7 +164,9 @@ export class PortalDomainService {
           action: 'portal_domain:verify',
           resourceType: 'PortalDomain',
           resourceId: domainId,
-          payload: { hostname: domain.hostname, status: 'ACTIVE' },
+          newValues: { hostname: domain.hostname, status: 'ACTIVE' },
+          ipAddress: 'INTERNAL',
+          userAgent: 'INTERNAL',
         },
       });
 
@@ -219,7 +226,9 @@ export class PortalDomainService {
           action: 'portal_domain:delete',
           resourceType: 'PortalDomain',
           resourceId: domainId,
-          payload: { hostname: domain.hostname },
+          newValues: { hostname: domain.hostname },
+          ipAddress: 'INTERNAL',
+          userAgent: 'INTERNAL',
         },
       });
 
