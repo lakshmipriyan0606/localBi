@@ -716,16 +716,26 @@ describe('Phase 14: Agency & White-Label Multi-Client Portal Engine', () => {
       ).rejects.toThrow();
     });
 
-    it('verifies custom portal domain DNS token and activates it', async () => {
+    it('verifies custom portal domain DNS token and activates it while keeping SSL pending', async () => {
       const verified = await PortalDomainService.verifyPortalDomain(
         agencyTenantId,
         portalDomainId,
         ownerContext
       );
 
+      // Requirement: Successful DNS proof establishes ownership verification, but keeps SSL pending
       expect(verified.status).toBe('ACTIVE');
-      expect(verified.sslStatus).toBe('ACTIVE');
+      expect(verified.sslStatus).toBe('PENDING');
       expect(verified.verifiedAt).toBeInstanceOf(Date);
+
+      // Certificate provider hook confirms TLS certificate provisioning
+      const sslUpdated = await PortalDomainService.updateSslStatus(
+        agencyTenantId,
+        portalDomainId,
+        'ACTIVE',
+        ownerContext
+      );
+      expect(sslUpdated.sslStatus).toBe('ACTIVE');
     });
 
     it('resolves white-label configuration by verified custom hostname', async () => {

@@ -80,14 +80,17 @@ function sanitizeFont(val: string | undefined, defaultVal: string): string {
 
 function sanitizeCustomCss(css: string | null | undefined): string | null {
   if (!css) return null;
-  // Disallow script, url(javascript:), expression, import to prevent XSS
+  // Disallow script, style breakout, url(javascript:), expression, import to prevent XSS
   const lower = css.toLowerCase();
   if (
     lower.includes('<script') ||
+    lower.includes('<style') ||
+    lower.includes('</style') ||
     lower.includes('javascript:') ||
     lower.includes('expression(') ||
     lower.includes('@import') ||
-    lower.includes('behavior:')
+    lower.includes('behavior:') ||
+    lower.includes('data:text/html')
   ) {
     throw createValidationError('Custom CSS contains forbidden expressions or scripts.');
   }
@@ -124,15 +127,15 @@ export class ThemeService {
         id: theme.id,
         tenantId: theme.tenantId,
         brandId: theme.brandId,
-        primaryColor: theme.primaryColor,
-        secondaryColor: theme.secondaryColor,
-        accentColor: theme.accentColor,
-        backgroundColor: theme.backgroundColor,
-        textColor: theme.textColor,
-        fontHeading: theme.fontHeading,
-        fontBody: theme.fontBody,
-        buttonRadius: theme.buttonRadius,
-        cardRadius: theme.cardRadius,
+        primaryColor: theme.primaryColor || DEFAULT_THEME_VALUES.primaryColor,
+        secondaryColor: theme.secondaryColor || DEFAULT_THEME_VALUES.secondaryColor,
+        accentColor: theme.accentColor || DEFAULT_THEME_VALUES.accentColor,
+        backgroundColor: theme.backgroundColor || DEFAULT_THEME_VALUES.backgroundColor,
+        textColor: theme.textColor || DEFAULT_THEME_VALUES.textColor,
+        fontHeading: theme.fontHeading || DEFAULT_THEME_VALUES.fontHeading,
+        fontBody: theme.fontBody || DEFAULT_THEME_VALUES.fontBody,
+        buttonRadius: theme.buttonRadius || DEFAULT_THEME_VALUES.buttonRadius,
+        cardRadius: theme.cardRadius || DEFAULT_THEME_VALUES.cardRadius,
         customCss: theme.customCss,
         createdAt: theme.createdAt,
         updatedAt: theme.updatedAt,
@@ -223,15 +226,15 @@ export class ThemeService {
    */
   public static generateCssVariables(theme: BrandThemeDto): Record<string, string> {
     return {
-      '--brand-primary': theme.primaryColor,
-      '--brand-secondary': theme.secondaryColor,
-      '--brand-accent': theme.accentColor,
-      '--brand-bg': theme.backgroundColor,
-      '--brand-text': theme.textColor,
-      '--brand-font-heading': theme.fontHeading,
-      '--brand-font-body': theme.fontBody,
-      '--brand-button-radius': theme.buttonRadius,
-      '--brand-card-radius': theme.cardRadius,
+      '--brand-primary': theme.primaryColor || DEFAULT_THEME_VALUES.primaryColor,
+      '--brand-secondary': theme.secondaryColor || DEFAULT_THEME_VALUES.secondaryColor,
+      '--brand-accent': theme.accentColor || DEFAULT_THEME_VALUES.accentColor,
+      '--brand-bg': theme.backgroundColor || DEFAULT_THEME_VALUES.backgroundColor,
+      '--brand-text': theme.textColor || DEFAULT_THEME_VALUES.textColor,
+      '--brand-font-heading': theme.fontHeading || DEFAULT_THEME_VALUES.fontHeading,
+      '--brand-font-body': theme.fontBody || DEFAULT_THEME_VALUES.fontBody,
+      '--brand-button-radius': theme.buttonRadius || DEFAULT_THEME_VALUES.buttonRadius,
+      '--brand-card-radius': theme.cardRadius || DEFAULT_THEME_VALUES.cardRadius,
     };
   }
 

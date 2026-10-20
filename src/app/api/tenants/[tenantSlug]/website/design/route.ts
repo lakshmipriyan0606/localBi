@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { SessionCookieManager } from '@/modules/auth/cookies';
 import { ContextResolver } from '@/modules/auth/context-resolver';
 import { ThemeService } from '@/modules/page-builder/theme-service';
@@ -83,6 +84,14 @@ export async function PUT(
         customCss: body.customCss,
       }
     );
+
+    // Revalidate storefront and builder caches
+    try {
+      revalidatePath('/site/[subdomain]', 'page');
+      revalidatePath(`/client/${tenantSlug}/website`, 'layout');
+    } catch {
+      // Non-fatal if invoked outside active request revalidation window
+    }
 
     return NextResponse.json({ success: true, theme: updated });
   } catch (error) {

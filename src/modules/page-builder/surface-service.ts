@@ -2,6 +2,7 @@ import { prisma } from '@/shared/database/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { createValidationError, createConflictError, createResourceNotFoundError } from '@/shared/errors';
 import { getRedisClient } from '@/shared/database/redis-client';
+import type { DnsRecordLookup } from '../domains/dns-verifier';
 
 export interface WebSurfaceDto {
   id: string;
@@ -141,9 +142,20 @@ export class SurfaceService {
     brandId: string,
     webSurfaceId: string,
     hostname: string,
-    isPrimary = false
+    isPrimary = false,
+    options?: { autoVerifyInTest?: boolean; sslActiveInTest?: boolean }
   ): Promise<DomainDto> {
     const cleanHost = this.normalizeHostname(hostname);
+
+    // Global uniqueness check: Domain cannot be claimed if already registered by another tenant/brand
+    const globallyExisting = await prisma.domain.findUnique({
+      where: { hostname: cleanHost },
+    });
+    if (globallyExisting) {
+      if (globallyExisting.tenantId !== tenantId || globallyExisting.brandId !== brandId) {
+        throw createConflictError(`Domain "${cleanHost}" is already claimed by another organization.`);
+      }
+    }
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       // Check surface exists
@@ -154,7 +166,7 @@ export class SurfaceService {
         throw createResourceNotFoundError('WebSurface', webSurfaceId);
       }
 
-      // Check if domain is already claimed by any tenant/brand
+      // Check if domain is already claimed within this tenant/brand
       const existing = await tx.domain.findUnique({
         where: { hostname: cleanHost },
       });
@@ -189,17 +201,31 @@ export class SurfaceService {
         });
       }
 
-      const domain = await tx.domain.create({
-        data: {
-          tenantId,
-          brandId,
-          webSurfaceId,
-          hostname: cleanHost,
-          isPrimary: shouldBePrimary,
-          isVerified: true, // Auto-verified in local/dev test environments
-          sslStatus: 'ACTIVE',
-        },
-      });
+      const shouldAutoVerify =
+        process.env.NODE_ENV === 'test' && options?.autoVerifyInTest === true;
+      const shouldAutoSsl =
+        process.env.NODE_ENV === 'test' && options?.sslActiveInTest === true;
+
+      let domain;
+      try {
+        domain = await tx.domain.create({
+          data: {
+            tenantId,
+            brandId,
+            webSurfaceId,
+            hostname: cleanHost,
+            isPrimary: shouldBePrimary,
+            isVerified: shouldAutoVerify, // Must be verified through DNS proof before resolving
+            sslStatus: shouldAutoSsl ? 'ACTIVE' : 'PENDING',
+          },
+        });
+      } catch (err: unknown) {
+        const error = err as { code?: string; message?: string };
+        if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
+          throw createConflictError(`Domain "${cleanHost}" is already claimed by another organization.`);
+        }
+        throw err;
+      }
 
       // Invalidate surface analytics caches
       try {
@@ -223,6 +249,36 @@ export class SurfaceService {
         updatedAt: domain.updatedAt,
       };
     });
+  }
+
+  /**
+   * Verifies DNS ownership proof for a storefront custom domain.
+   */
+  public static async verifyDomain(
+    tenantId: string,
+    brandId: string,
+    domainId: string,
+    options?: {
+      dnsLookup?: DnsRecordLookup;
+      allowDevBypass?: boolean;
+      timeoutMs?: number;
+    }
+  ): Promise<{ isVerified: boolean; sslStatus: string; error?: string }> {
+    const { SiteStudioService } = await import('./site-studio-service');
+    return SiteStudioService.verifyDomainDns(tenantId, brandId, domainId, options);
+  }
+
+  /**
+   * Updates SSL certificate provisioning status for a storefront custom domain.
+   */
+  public static async updateDomainSslStatus(
+    tenantId: string,
+    brandId: string,
+    domainId: string,
+    sslStatus: 'PENDING' | 'ACTIVE' | 'FAILED'
+  ): Promise<{ isVerified: boolean; sslStatus: string }> {
+    const { SiteStudioService } = await import('./site-studio-service');
+    return SiteStudioService.updateDomainSslStatus(tenantId, brandId, domainId, sslStatus);
   }
 
   /**

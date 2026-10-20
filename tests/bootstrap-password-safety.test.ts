@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 
 describe('Bootstrap Password Handling & SQL Injection Prevention Integration Test', () => {
   const isWslOrLinux = process.platform === 'linux' || Boolean(process.env['WSL_DISTRO_NAME']);
-  const containerName = 'localbi_bootstrap_v3-postgres-1';
+  const containerName = process.env.POSTGRES_CONTAINER || 'localbi-postgres-1';
 
   // Difficult password containing quotes, semicolons, comments, slashes, ampersands, dollars
   const difficultMigratorPw = 'migrator\'"p@ss;--\\safe$injection#check&more!';

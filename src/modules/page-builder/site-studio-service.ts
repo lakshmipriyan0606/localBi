@@ -1,4 +1,5 @@
 import { prisma } from '@/shared/database/client';
+import { Prisma } from '@prisma/client';
 import { TenantContextService } from '@/shared/database/tenant-context';
 import { createValidationError, createNotFoundError } from '@/shared/errors';
 import { SurfaceService, WebSurfaceDto } from './surface-service';
@@ -7,6 +8,7 @@ import { PageTemplateService, PageTemplateType } from './page-template-service';
 import { TemplateVersionService } from './template-version-service';
 import { NavigationService, SiteNavigationDto } from './navigation-service';
 import { SeoResolver } from './seo-resolver';
+import { DnsVerifier, DnsRecordLookup } from '../domains/dns-verifier';
 
 export interface SiteOverviewDto {
   isLive: boolean;
@@ -309,7 +311,7 @@ export class SiteStudioService {
         seoConfigured: true,
         hasStores: storesCount > 0,
         score: Math.round(
-          (Boolean(primaryDomain) ? 30 : 0) +
+          (primaryDomain ? 30 : 0) +
             (publishedPagesCount > 0 ? 30 : 10) +
             (storesCount > 0 ? 20 : 0) +
             20 // Base structured data & JSON-LD
@@ -426,7 +428,7 @@ export class SiteStudioService {
       cleanSlug = `/${cleanSlug}`;
     }
     // Prevent invalid characters
-    if (!/^\/[a-z0-9_\-\/]*$/.test(cleanSlug)) {
+    if (!/^\/[a-z0-9_\-/]*$/.test(cleanSlug)) {
       throw createValidationError(
         'Slug can only contain lowercase letters, numbers, dashes, and forward slashes.'
       );
@@ -476,7 +478,7 @@ export class SiteStudioService {
           version: 1,
           status: 'DRAFT',
           puckData: {
-            content: initialBlocks,
+            content: initialBlocks as unknown as Prisma.InputJsonValue,
             root: { props: {} },
           },
         },
@@ -520,18 +522,18 @@ export class SiteStudioService {
   /**
    * Returns sensible initial visual blocks for newly created landing pages.
    */
-  private static getInitialBlocksForType(type: PageTemplateType): any[] {
+  private static getInitialBlocksForType(type: PageTemplateType): { type: string; props: Record<string, unknown> }[] {
     const uid = () => Math.random().toString(36).slice(2, 8);
-    const headerBlock = {
+    const headerBlock: { type: string; props: Record<string, unknown> } = {
       type: 'BrandHeader',
       props: { id: `BrandHeader-${uid()}`, showCta: true, ctaLabel: 'Contact Us', link1Label: 'Home', link1Url: '/', link2Label: 'Catalog', link2Url: '/products' },
     };
-    const footerBlock = {
+    const footerBlock: { type: string; props: Record<string, unknown> } = {
       type: 'BrandFooter',
       props: { id: `BrandFooter-${uid()}`, showSocialLinks: true },
     };
 
-    let blocks: any[] = [];
+    let blocks: { type: string; props: Record<string, unknown> }[] = [];
     switch (type) {
       case 'STORE':
         blocks = [
@@ -575,7 +577,7 @@ export class SiteStudioService {
       ...b,
       props: {
         ...b.props,
-        id: b.props?.id || `${b.type}-${i}-${uid()}`,
+        id: (b.props.id as string) || `${b.type}-${i}-${uid()}`,
       },
     }));
   }
@@ -695,7 +697,7 @@ export class SiteStudioService {
           tenantId,
           pageTemplateId: templateId,
           version: nextVersionNum,
-          puckData: historical.puckData as any,
+          puckData: historical.puckData as Prisma.InputJsonValue,
           status: 'PUBLISHED',
           publishedAt: now,
           createdBy: userId,
@@ -760,7 +762,7 @@ export class SiteStudioService {
           brandId,
           webSurfaceId: webSurface.id,
           name: `${sourcePage.template?.name || 'Page'} (Copy)`,
-          type: sourcePage.pageType as any,
+          type: sourcePage.pageType as PageTemplateType,
           status: 'ACTIVE',
         },
       });
@@ -802,7 +804,7 @@ export class SiteStudioService {
       return {
         id: duplicatedPage.id,
         templateId: duplicatedPage.templateId,
-        pageType: duplicatedPage.pageType as any,
+        pageType: duplicatedPage.pageType as PageTemplateType,
         slug: duplicatedPage.slug,
         citySlug: duplicatedPage.citySlug,
         storeId: duplicatedPage.storeId,
@@ -882,12 +884,19 @@ export class SiteStudioService {
   }
 
   /**
-   * Verifies DNS records for a client-owned domain.
+   * Verifies DNS records for a client-owned storefront domain.
+   * Checks CNAME, A records, and cryptographic TXT verification challenges.
+   * Disallows development bypasses in production environments.
    */
   public static async verifyDomainDns(
     tenantId: string,
     brandId: string,
-    domainId: string
+    domainId: string,
+    options?: {
+      dnsLookup?: DnsRecordLookup;
+      allowDevBypass?: boolean;
+      timeoutMs?: number;
+    }
   ): Promise<{ isVerified: boolean; sslStatus: string; error?: string }> {
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       const domain = await tx.domain.findFirst({
@@ -895,51 +904,86 @@ export class SiteStudioService {
       });
       if (!domain) throw createNotFoundError('Domain not found');
 
-      const hostname = domain.hostname.toLowerCase();
-      let isVerified = false;
+      const isProduction =
+        process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
 
-      try {
-        const dns = await import('dns').then((m) => m.promises);
-        if (hostname.split('.').length > 2) {
-          const cnames = await dns.resolveCname(hostname).catch(() => []);
-          if (
-            cnames.some(
-              (c) =>
-                c.toLowerCase().includes('vercel-dns.com') ||
-                c.toLowerCase().includes('localbi')
-            )
-          ) {
-            isVerified = true;
-          }
-        }
-        if (!isVerified) {
-          const ips: string[] = await dns.resolve4(hostname).catch(() => [] as string[]);
-          if (ips.includes('76.76.21.21')) {
-            isVerified = true;
-          }
-        }
-      } catch {
-        // DNS lookup failed
+      if (isProduction && options?.allowDevBypass) {
+        throw createValidationError('Development verification bypass cannot be used in production.');
       }
 
-      // In development, preview, or testing, auto-verify for smooth testing
-      if (
-        !isVerified &&
-        (process.env.NODE_ENV !== 'production' || process.env.VERCEL_ENV === 'preview')
-      ) {
+      const expectedToken = DnsVerifier.generateStorefrontVerificationToken(
+        tenantId,
+        brandId,
+        domainId,
+        domain.hostname
+      );
+
+      let isVerified = false;
+      let failureReason: string | undefined;
+
+      if (!isProduction && options?.allowDevBypass) {
         isVerified = true;
+      } else {
+        const verification = await DnsVerifier.verifyStorefrontDomain(
+          domain.hostname,
+          expectedToken,
+          {
+            dnsLookup: options?.dnsLookup,
+            timeoutMs: options?.timeoutMs,
+          }
+        );
+        isVerified = verification.verified;
+        if (!verification.verified) {
+          failureReason = verification.details || verification.reason;
+        }
       }
 
       if (isVerified) {
+        // Requirement: Successful DNS proof establishes ownership verification, but must not independently mark a TLS certificate active.
         await tx.domain.update({
           where: { id: domainId },
-          data: { isVerified: true, sslStatus: 'ACTIVE' },
+          data: { isVerified: true },
+        });
+      } else {
+        // Requirement: Do not mark SSL failed merely because a DNS ownership check failed.
+        await tx.domain.update({
+          where: { id: domainId },
+          data: { isVerified: false },
         });
       }
 
       return {
         isVerified,
-        sslStatus: isVerified ? 'ACTIVE' : 'PENDING',
+        sslStatus: domain.sslStatus,
+        ...(failureReason ? { error: failureReason } : {}),
+      };
+    });
+  }
+
+  /**
+   * Updates SSL certificate provisioning status for a storefront custom domain.
+   * Invoked when an edge TLS provider confirms certificate provisioning.
+   */
+  public static async updateDomainSslStatus(
+    tenantId: string,
+    brandId: string,
+    domainId: string,
+    sslStatus: 'PENDING' | 'ACTIVE' | 'FAILED'
+  ): Promise<{ isVerified: boolean; sslStatus: string }> {
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const domain = await tx.domain.findFirst({
+        where: { id: domainId, tenantId, brandId },
+      });
+      if (!domain) throw createNotFoundError('Domain not found');
+
+      const updated = await tx.domain.update({
+        where: { id: domainId },
+        data: { sslStatus },
+      });
+
+      return {
+        isVerified: updated.isVerified,
+        sslStatus: updated.sslStatus,
       };
     });
   }

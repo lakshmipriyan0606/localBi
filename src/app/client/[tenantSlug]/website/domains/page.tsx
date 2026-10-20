@@ -51,7 +51,7 @@ export default function SiteStudioDomainsPage() {
       } else if (!data.success && data.error) {
         setError(extractErrorMessage(data.error, 'Failed to load domains.'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Failed to load domains.'));
     } finally {
       setLoading(false);
@@ -103,7 +103,7 @@ export default function SiteStudioDomainsPage() {
       } else {
         setError(extractErrorMessage(data.error, 'Failed to connect domain.'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Error connecting domain.'));
     } finally {
       setAdding(false);
@@ -129,7 +129,7 @@ export default function SiteStudioDomainsPage() {
       } else {
         setError(extractErrorMessage(data.error, 'DNS records not yet propagated.'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Failed to verify DNS.'));
     } finally {
       setVerifyingId(null);
@@ -154,7 +154,7 @@ export default function SiteStudioDomainsPage() {
       } else {
         setError(extractErrorMessage(data.error, 'Failed to set primary domain.'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Failed to set primary domain.'));
     }
   };
@@ -173,7 +173,7 @@ export default function SiteStudioDomainsPage() {
       } else {
         setError(extractErrorMessage(data.error, 'Failed to remove domain.'));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(extractErrorMessage(err, 'Failed to remove domain.'));
     }
   };
@@ -245,13 +245,29 @@ export default function SiteStudioDomainsPage() {
                     <Check className="w-3.5 h-3.5" /> Connected
                   </span>
                   <span>·</span>
-                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                    <Check className="w-3.5 h-3.5" /> Verified
-                  </span>
+                  {primaryDomain.isVerified ? (
+                    <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                      <Check className="w-3.5 h-3.5" /> DNS Verified
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-amber-600 font-semibold">
+                      <AlertCircle className="w-3.5 h-3.5" /> DNS Pending
+                    </span>
+                  )}
                   <span>·</span>
-                  <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                    <Check className="w-3.5 h-3.5" /> SSL Active
-                  </span>
+                  {primaryDomain.sslStatus === 'ACTIVE' ? (
+                    <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                      <Check className="w-3.5 h-3.5" /> SSL Active
+                    </span>
+                  ) : primaryDomain.sslStatus === 'FAILED' ? (
+                    <span className="flex items-center gap-1 text-rose-600 font-semibold">
+                      <AlertCircle className="w-3.5 h-3.5" /> SSL Failed
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-slate-500 font-medium">
+                      SSL Provisioning (Pending)
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -327,8 +343,29 @@ export default function SiteStudioDomainsPage() {
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-slate-400" />
                     <span className="font-mono font-semibold text-slate-900">{d.hostname}</span>
-                    <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
-                      ✓ Connected
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        d.isVerified
+                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                          : 'text-amber-700 bg-amber-50 border border-amber-200'
+                      }`}
+                    >
+                      {d.isVerified ? 'DNS Verified' : 'DNS Pending'}
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                        d.sslStatus === 'ACTIVE'
+                          ? 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                          : d.sslStatus === 'FAILED'
+                          ? 'text-rose-700 bg-rose-50 border border-rose-200'
+                          : 'text-slate-600 bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      {d.sslStatus === 'ACTIVE'
+                        ? 'SSL Active'
+                        : d.sslStatus === 'FAILED'
+                        ? 'SSL Failed'
+                        : 'SSL Pending'}
                     </span>
                   </div>
 

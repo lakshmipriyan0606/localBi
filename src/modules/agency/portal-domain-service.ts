@@ -14,6 +14,13 @@ import {
 } from '../../shared/errors';
 import { logger } from '../../shared/observability/logger';
 import { PortalDomainDto } from './agency-types';
+import { DnsVerifier, DnsRecordLookup } from '../domains/dns-verifier';
+
+export interface VerifyPortalDomainOptions {
+  simulatedVerification?: boolean;
+  dnsLookup?: DnsRecordLookup;
+  timeoutMs?: number;
+}
 
 export class PortalDomainService {
   /**
@@ -65,18 +72,27 @@ export class PortalDomainService {
       throw createConflictError(`Domain "${hostname}" is already in use by another workspace.`);
     }
 
-    const verificationToken = `localbi-verify-${crypto.randomBytes(16).toString('hex')}`;
+    const verificationToken = `localbi-verify-${crypto.randomBytes(24).toString('hex')}`;
 
     return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
-      const domain = await tx.portalDomain.create({
-        data: {
-          tenantId,
-          hostname,
-          status: 'PENDING',
-          verificationToken,
-          sslStatus: 'PENDING',
-        },
-      });
+      let domain;
+      try {
+        domain = await tx.portalDomain.create({
+          data: {
+            tenantId,
+            hostname,
+            status: 'PENDING',
+            verificationToken,
+            sslStatus: 'PENDING',
+          },
+        });
+      } catch (err: unknown) {
+        const error = err as { code?: string; message?: string };
+        if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
+          throw createConflictError(`Domain "${hostname}" is already in use by another workspace.`);
+        }
+        throw err;
+      }
 
       await tx.auditLog.create({
         data: {
@@ -115,14 +131,41 @@ export class PortalDomainService {
     tenantId: string,
     domainId: string,
     context: AuthorizedContext,
-    simulatedVerification = true
+    optionsOrSimulated: boolean | VerifyPortalDomainOptions = true
   ): Promise<PortalDomainDto> {
     if (context.tenantId !== tenantId) {
       throw createTenantAccessDeniedError(tenantId);
     }
     AuthorizationService.assertCan(context, Action.PORTAL_DOMAIN_MANAGE);
 
-    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+    const isProduction =
+      process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
+    let simulated = false;
+    let dnsLookup: DnsRecordLookup | undefined;
+    let timeoutMs: number | undefined;
+
+    if (typeof optionsOrSimulated === 'boolean') {
+      simulated = optionsOrSimulated;
+    } else if (optionsOrSimulated) {
+      simulated = optionsOrSimulated.simulatedVerification ?? false;
+      dnsLookup = optionsOrSimulated.dnsLookup;
+      timeoutMs = optionsOrSimulated.timeoutMs;
+    } else {
+      simulated = process.env.NODE_ENV === 'test';
+    }
+
+    // MANDATORY SECURITY RULE: A development bypass CANNOT mark a production domain verified.
+    if (isProduction && simulated) {
+      throw createValidationError('Development verification bypass cannot be used in production.');
+    }
+    if (isProduction) {
+      simulated = false;
+    }
+
+    let failureError: Error | null = null;
+
+    const result = await TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
       const domain = await tx.portalDomain.findUnique({
         where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
       });
@@ -131,15 +174,81 @@ export class PortalDomainService {
         throw createResourceNotFoundError('PortalDomain', domainId);
       }
 
-      if (!simulatedVerification) {
-        throw createValidationError('Automated DNS TXT record check not reachable; verification failed.');
+      // Explicit state machine transition: PENDING/FAILED -> VERIFYING
+      await tx.portalDomain.update({
+        where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
+        data: { status: 'VERIFYING' },
+      });
+
+      if (!simulated) {
+        const verificationResult = await DnsVerifier.verifyPortalDomain(
+          domain.hostname,
+          domain.verificationToken,
+          { dnsLookup, timeoutMs }
+        );
+
+        if (!verificationResult.verified) {
+          // Explicit state machine transition: VERIFYING -> FAILED
+          // Requirement: Do not mark SSL failed merely because a DNS ownership check failed.
+          const failed = await tx.portalDomain.update({
+            where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
+            data: {
+              status: 'FAILED',
+              // sslStatus remains unchanged (PENDING)
+            },
+          });
+
+          await tx.auditLog.create({
+            data: {
+              tenantId,
+              actorId: context.userId,
+              actorRole: context.role,
+              action: 'portal_domain:verify_failed',
+              resourceType: 'PortalDomain',
+              resourceId: domainId,
+              newValues: {
+                hostname: domain.hostname,
+                status: 'FAILED',
+                reason: verificationResult.reason,
+              },
+              ipAddress: 'INTERNAL',
+              userAgent: 'INTERNAL',
+            },
+          });
+
+          logger.warn(
+            { tenantId, domainId, hostname: domain.hostname, reason: verificationResult.reason },
+            'Portal domain verification failed'
+          );
+
+          failureError = createValidationError(
+            verificationResult.details
+              ? `DNS verification failed (${verificationResult.reason}): ${verificationResult.details}`
+              : `DNS verification failed (${verificationResult.reason}): ownership record not found.`
+          );
+
+          return {
+            id: failed.id,
+            tenantId: failed.tenantId,
+            hostname: failed.hostname,
+            status: 'FAILED' as const,
+            verificationToken: failed.verificationToken,
+            sslStatus: failed.sslStatus as 'PENDING' | 'ACTIVE' | 'FAILED',
+            verifiedAt: failed.verifiedAt,
+            createdAt: failed.createdAt,
+            updatedAt: failed.updatedAt,
+          };
+        }
       }
 
+      // Explicit state machine transition: VERIFYING -> ACTIVE
+      // Requirement: DNS ownership verification and TLS certificate provisioning must have distinct meanings.
+      // Successful DNS proof establishes ownership verification, but keeps SSL pending until the certificate provider confirms readiness.
       const verified = await tx.portalDomain.update({
         where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
         data: {
           status: 'ACTIVE',
-          sslStatus: 'ACTIVE',
+          // sslStatus remains domain.sslStatus ('PENDING') until explicit provider issuance
           verifiedAt: new Date(),
         },
       });
@@ -176,14 +285,20 @@ export class PortalDomainService {
         id: verified.id,
         tenantId: verified.tenantId,
         hostname: verified.hostname,
-        status: 'ACTIVE',
+        status: verified.status as 'PENDING' | 'VERIFYING' | 'ACTIVE' | 'FAILED',
         verificationToken: verified.verificationToken,
-        sslStatus: 'ACTIVE',
+        sslStatus: verified.sslStatus as 'PENDING' | 'ACTIVE' | 'FAILED',
         verifiedAt: verified.verifiedAt,
         createdAt: verified.createdAt,
         updatedAt: verified.updatedAt,
       };
     });
+
+    if (failureError) {
+      throw failureError;
+    }
+
+    return result as PortalDomainDto;
   }
 
   /**
@@ -233,6 +348,65 @@ export class PortalDomainService {
       });
 
       logger.info({ tenantId, domainId, hostname: domain.hostname }, 'Portal domain removed');
+    });
+  }
+
+  /**
+   * Updates SSL certificate provisioning status.
+   * Invoked when an edge certificate provider confirms certificate issuance or failure.
+   */
+  public static async updateSslStatus(
+    tenantId: string,
+    domainId: string,
+    sslStatus: 'PENDING' | 'ACTIVE' | 'FAILED',
+    context: AuthorizedContext
+  ): Promise<PortalDomainDto> {
+    if (context.tenantId !== tenantId) {
+      throw createTenantAccessDeniedError(tenantId);
+    }
+    AuthorizationService.assertCan(context, Action.PORTAL_DOMAIN_MANAGE);
+
+    return TenantContextService.withTenantContext(prisma, tenantId, async (tx) => {
+      const domain = await tx.portalDomain.findUnique({
+        where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
+      });
+
+      if (!domain) {
+        throw createResourceNotFoundError('PortalDomain', domainId);
+      }
+
+      const updated = await tx.portalDomain.update({
+        where: { uq_portal_domain_tenant_id: { tenantId, id: domainId } },
+        data: { sslStatus },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          actorId: context.userId,
+          actorRole: context.role,
+          action: 'portal_domain:ssl_status_update',
+          resourceType: 'PortalDomain',
+          resourceId: domainId,
+          newValues: { hostname: domain.hostname, sslStatus },
+          ipAddress: 'INTERNAL',
+          userAgent: 'INTERNAL',
+        },
+      });
+
+      logger.info({ tenantId, domainId, hostname: domain.hostname, sslStatus }, 'Portal domain SSL status updated');
+
+      return {
+        id: updated.id,
+        tenantId: updated.tenantId,
+        hostname: updated.hostname,
+        status: updated.status as 'PENDING' | 'VERIFYING' | 'ACTIVE' | 'FAILED',
+        verificationToken: updated.verificationToken,
+        sslStatus: updated.sslStatus as 'PENDING' | 'ACTIVE' | 'FAILED',
+        verifiedAt: updated.verifiedAt,
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      };
     });
   }
 }

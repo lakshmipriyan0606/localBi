@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { prisma } from '@/shared/database/client';
+import { TenantContextService } from '@/shared/database/tenant-context';
 import { OverviewService, OverviewTrendPoint, OverviewGscQueryItem } from '@/modules/overview/overview-service';
 import { ScopeMode } from '@/shared/authorization/policy';
 
@@ -9,7 +10,6 @@ describe('Section 2 — Dashboard Overview: End-to-End Verification & Regression
       // Find tenant cmup03rc10003ubj4r4vfoa0s (Lakshmi food) with two distinct brands
       const tenant = await prisma.tenant.findUnique({
         where: { id: 'cmup03rc10003ubj4r4vfoa0s' },
-        include: { brands: true },
       });
 
       if (!tenant) {
@@ -17,8 +17,12 @@ describe('Section 2 — Dashboard Overview: End-to-End Verification & Regression
         return;
       }
 
-      const lakshmiBrand = tenant.brands.find((b) => b.name.toLowerCase().includes('lakshmi'));
-      const sastikaBrand = tenant.brands.find((b) => b.name.toLowerCase().includes('sastika'));
+      const tenantBrands = await TenantContextService.withTenantContext(prisma, tenant.id, (tx) =>
+        tx.brand.findMany({ where: { tenantId: tenant.id, isArchived: false }, orderBy: { name: 'asc' } })
+      );
+
+      const lakshmiBrand = tenantBrands.find((b) => b.name.toLowerCase().includes('lakshmi'));
+      const sastikaBrand = tenantBrands.find((b) => b.name.toLowerCase().includes('sastika'));
 
       if (!lakshmiBrand || !sastikaBrand) return;
 
@@ -71,10 +75,13 @@ describe('Section 2 — Dashboard Overview: End-to-End Verification & Regression
     it('rejects foreign brandId passed by client and falls back safely to tenant authorized brands', async () => {
       const tenant = await prisma.tenant.findUnique({
         where: { id: 'cmup03rc10003ubj4r4vfoa0s' },
-        include: { brands: true },
       });
 
       if (!tenant) return;
+
+      const tenantBrands = await TenantContextService.withTenantContext(prisma, tenant.id, (tx) =>
+        tx.brand.findMany({ where: { tenantId: tenant.id, isArchived: false }, orderBy: { name: 'asc' } })
+      );
 
       const userContext = {
         userId: 'test-user',
@@ -94,7 +101,7 @@ describe('Section 2 — Dashboard Overview: End-to-End Verification & Regression
       );
 
       // It must NOT query the foreign brand; falls back to authorized tenant's first brand
-      expect(injectionOverview.activeBrandId).toBe(tenant.brands[0]?.id);
+      expect(injectionOverview.activeBrandId).toBe(tenantBrands[0]?.id);
     });
   });
 

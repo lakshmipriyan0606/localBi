@@ -21,6 +21,7 @@ import { MicrositeService } from '@/modules/microsites/microsite-service';
 import { PuckService } from '@/modules/microsites/puck-service';
 import { puckConfig as legacyPuckConfig } from '@/modules/microsites/puck-config';
 import { Render } from '@measured/puck';
+import { ThemeService, DEFAULT_THEME_VALUES } from '@/modules/page-builder/theme-service';
 
 export async function generateMetadata({
   params,
@@ -200,9 +201,29 @@ export default async function MicrositeHomePage({
     notFound();
   }
 
+  // Resolve BrandTheme for legacy microsite (deterministic fallback if absent)
+  const legacyCssBlock = ThemeService.generateCssBlock({
+    id: `theme-legacy-${site.id || site.subdomain}`,
+    tenantId: site.tenantSlug || 'legacy-tenant',
+    brandId: site.brandId || site.subdomain,
+    primaryColor: site.primaryColor || DEFAULT_THEME_VALUES.primaryColor,
+    secondaryColor: site.secondaryColor || DEFAULT_THEME_VALUES.secondaryColor,
+    accentColor: DEFAULT_THEME_VALUES.accentColor,
+    backgroundColor: DEFAULT_THEME_VALUES.backgroundColor,
+    textColor: DEFAULT_THEME_VALUES.textColor,
+    fontHeading: site.font || DEFAULT_THEME_VALUES.fontHeading,
+    fontBody: site.font || DEFAULT_THEME_VALUES.fontBody,
+    buttonRadius: DEFAULT_THEME_VALUES.buttonRadius,
+    cardRadius: DEFAULT_THEME_VALUES.cardRadius,
+    customCss: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
   if (legacyPuckData && legacyPuckData.content && legacyPuckData.content.length > 0) {
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
+        <style dangerouslySetInnerHTML={{ __html: legacyCssBlock }} />
         <Render config={legacyPuckConfig} data={legacyPuckData} />
       </div>
     );
@@ -210,6 +231,7 @@ export default async function MicrositeHomePage({
 
   return (
     <div className="space-y-10 animate-in fade-in duration-300">
+      <style dangerouslySetInnerHTML={{ __html: legacyCssBlock }} />
       <section className="relative rounded-3xl bg-white border border-slate-200 p-8 sm:p-12 shadow-sm text-slate-900 space-y-6">
         <div className="max-w-2xl space-y-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold">

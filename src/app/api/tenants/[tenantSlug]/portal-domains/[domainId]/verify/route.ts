@@ -19,11 +19,24 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant context not found' }, { status: 404 });
     }
 
+    const isProduction =
+      process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+    const body = await request.json().catch(() => ({}));
+
+    if (isProduction && body?.simulated === true) {
+      return NextResponse.json(
+        { success: false, error: 'Development verification bypass cannot be used in production.' },
+        { status: 400 }
+      );
+    }
+
+    const allowSimulated = !isProduction && body?.simulated === true;
+
     const verified = await PortalDomainService.verifyPortalDomain(
       tenant.id,
       domainId,
       authorizedContext,
-      true // simulated verification for local/test environments
+      { simulatedVerification: allowSimulated }
     );
 
     return NextResponse.json({ success: true, data: verified });

@@ -75,6 +75,11 @@ import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-co
 import { LANDING_PAGE_STARTER_TEMPLATES } from '@/modules/page-builder/landing-page-templates';
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { PageContext } from '@/modules/page-builder/page-context-service';
+import {
+  BrandThemeDto,
+  ThemeService,
+  DEFAULT_THEME_VALUES,
+} from '@/modules/page-builder/theme-service';
 import { extractErrorMessage } from '@/lib/notify';
 
 // Component Catalog Metadata for Left Sidebar Explorer
@@ -1467,6 +1472,7 @@ function SiteStudioBuilderContent() {
   const [templateInfo, setTemplateInfo] = useState<any | null>(null);
   const [brandInfo, setBrandInfo] = useState<{ id: string; name: string; slug: string } | null>(null);
   const [domainInfo, setDomainInfo] = useState<{ id: string; hostname: string; isPrimary: boolean } | null>(null);
+  const [theme, setTheme] = useState<BrandThemeDto | null>(null);
   const [puckData, setPuckData] = useState<Data | null>(null);
   const [currentVersion, setCurrentVersion] = useState<number>(1);
   const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
@@ -1507,6 +1513,19 @@ function SiteStudioBuilderContent() {
         setCurrentVersion(data.currentVersion);
         setPublishedVersion(data.publishedVersion);
         setHistoricalVersions(data.historicalVersions || []);
+
+        const targetBrandId = data.brand?.id || brandId;
+        if (targetBrandId) {
+          try {
+            const themeRes = await fetch(`/api/tenants/${tenantSlug}/website/design?brandId=${targetBrandId}`);
+            const themeData = await themeRes.json();
+            if (themeData.success && themeData.theme) {
+              setTheme(themeData.theme);
+            }
+          } catch {
+            // Non-fatal, deterministic defaults apply
+          }
+        }
       } else {
         setLoadError(extractErrorMessage(data?.error, 'Failed to load page layout template.'));
       }
@@ -1516,7 +1535,7 @@ function SiteStudioBuilderContent() {
     } finally {
       setLoading(false);
     }
-  }, [tenantSlug, pageId]);
+  }, [tenantSlug, pageId, brandId]);
 
   useEffect(() => {
     loadPageData();
@@ -1627,6 +1646,18 @@ function SiteStudioBuilderContent() {
   };
 
   // Dynamic PageContext for visual builder preview
+  const effectiveTheme: BrandThemeDto = theme || {
+    id: `theme-builder-${brandInfo?.id || brandId || 'default'}`,
+    tenantId: 't1',
+    brandId: brandInfo?.id || brandId || 'b1',
+    ...DEFAULT_THEME_VALUES,
+    customCss: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const cssBlock = ThemeService.generateCssBlock(effectiveTheme);
+
   const previewContext: PageContext = {
     tenant: { id: 't1', name: 'Organization', slug: tenantSlug },
     brand: brandInfo || { id: brandId || 'b1', name: 'Local Brand', slug: 'brand' },
@@ -1665,24 +1696,8 @@ function SiteStudioBuilderContent() {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-    theme: {
-      id: 'th1',
-      tenantId: 't1',
-      brandId: brandInfo?.id || brandId || 'b1',
-      primaryColor: '#4F46E5',
-      secondaryColor: '#0F172A',
-      accentColor: '#F59E0B',
-      backgroundColor: '#FFFFFF',
-      textColor: '#0F172A',
-      fontHeading: 'Inter, sans-serif',
-      fontBody: 'Inter, sans-serif',
-      buttonRadius: '0.5rem',
-      cardRadius: '0.75rem',
-      customCss: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    cssBlock: ':root { --brand-primary: #4F46E5; }',
+    theme: effectiveTheme,
+    cssBlock,
     navigation: (puckData?.root?.props as any)?.navigation || {
       headerItems: [
         { id: '1', label: 'Home', type: 'INTERNAL_PAGE', target: '/#home', order: 0 },
@@ -1783,7 +1798,8 @@ function SiteStudioBuilderContent() {
     <PageContextProvider value={previewContext}>
       <BuilderUIContext.Provider value={builderUIValue}>
         <div className="site-studio-builder-root fixed inset-0 z-40 bg-slate-100 overflow-hidden flex flex-col" style={{ '--puck-canvas-zoom': zoomLevel / 100 } as React.CSSProperties}>
-          
+          {/* Safe Brand Custom CSS Variables & Dynamic Rules */}
+          <style dangerouslySetInnerHTML={{ __html: previewContext.cssBlock }} />
 
           <Puck
             config={siteStudioPuckConfig}

@@ -412,9 +412,15 @@ export function WhiteLabelSettingsView({ tenantSlug }: WhiteLabelSettingsViewPro
                             <span className="font-semibold text-sm text-slate-900 font-mono">
                               {dom.hostname}
                             </span>
+                            {/* DNS Ownership Status */}
                             {dom.status === 'ACTIVE' && (
                               <Badge variant="success" className="text-[10px]">
-                                Verified & Active
+                                DNS Verified
+                              </Badge>
+                            )}
+                            {dom.status === 'VERIFYING' && (
+                              <Badge variant="blue" className="text-[10px]">
+                                Verifying DNS...
                               </Badge>
                             )}
                             {dom.status === 'PENDING' && (
@@ -423,8 +429,23 @@ export function WhiteLabelSettingsView({ tenantSlug }: WhiteLabelSettingsViewPro
                               </Badge>
                             )}
                             {dom.status === 'FAILED' && (
+                              <Badge variant="danger" className="text-[10px]">
+                                DNS Verification Failed
+                              </Badge>
+                            )}
+
+                            {/* SSL Certificate Status */}
+                            {dom.sslStatus === 'ACTIVE' ? (
+                              <Badge variant="success" className="text-[10px]">
+                                SSL Active
+                              </Badge>
+                            ) : dom.sslStatus === 'FAILED' ? (
+                              <Badge variant="danger" className="text-[10px]">
+                                SSL Failed
+                              </Badge>
+                            ) : (
                               <Badge variant="neutral" className="text-[10px]">
-                                Verification Failed
+                                SSL Provisioning (Pending)
                               </Badge>
                             )}
                           </div>

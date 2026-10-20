@@ -17,6 +17,11 @@ import { Render } from '@measured/puck';
 import { siteStudioPuckConfig } from '@/modules/page-builder/site-studio-puck-config';
 import { PageContextProvider } from '@/modules/page-builder/page-context-react';
 import { PageContext } from '@/modules/page-builder/page-context-service';
+import {
+  BrandThemeDto,
+  ThemeService,
+  DEFAULT_THEME_VALUES,
+} from '@/modules/page-builder/theme-service';
 
 function sanitizeBlockItem(item: any, idx: number, prefix = 'block'): any {
   if (!item || typeof item !== 'object') return item;
@@ -65,34 +70,48 @@ export default function SiteStudioPreviewPage() {
   const [selectedPageId, setSelectedPageId] = useState<string>('');
   const [brandInfo, setBrandInfo] = useState<{ id: string; name: string; slug: string } | null>(null);
   const [domainInfo, setDomainInfo] = useState<{ id: string; hostname: string; isPrimary: boolean } | null>(null);
+  const [theme, setTheme] = useState<BrandThemeDto | null>(null);
   const [puckData, setPuckData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load brand pages
+  // Load brand pages and theme
   useEffect(() => {
-    async function loadPages() {
+    async function loadData() {
       try {
         setLoading(true);
-        const url = brandId
+        const pagesUrl = brandId
           ? `/api/tenants/${tenantSlug}/website/pages?brandId=${brandId}`
           : `/api/tenants/${tenantSlug}/website/pages`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.success) {
-          if (data.brand) setBrandInfo(data.brand);
-          if (data.domain) setDomainInfo(data.domain);
-          if (data.pages && data.pages.length > 0) {
-            setPages(data.pages);
-            setSelectedPageId(data.pages[0].id);
+        const designUrl = brandId
+          ? `/api/tenants/${tenantSlug}/website/design?brandId=${brandId}`
+          : `/api/tenants/${tenantSlug}/website/design`;
+
+        const [pagesRes, designRes] = await Promise.all([
+          fetch(pagesUrl),
+          fetch(designUrl),
+        ]);
+
+        const pagesData = await pagesRes.json();
+        if (pagesData.success) {
+          if (pagesData.brand) setBrandInfo(pagesData.brand);
+          if (pagesData.domain) setDomainInfo(pagesData.domain);
+          if (pagesData.pages && pagesData.pages.length > 0) {
+            setPages(pagesData.pages);
+            setSelectedPageId(pagesData.pages[0].id);
           }
         }
+
+        const designData = await designRes.json();
+        if (designData.success && designData.theme) {
+          setTheme(designData.theme);
+        }
       } catch (err) {
-        console.error('Failed to load pages for preview', err);
+        console.error('Failed to load data for preview', err);
       } finally {
         setLoading(false);
       }
     }
-    loadPages();
+    loadData();
   }, [tenantSlug, brandId]);
 
   // Load puck data for selected page
@@ -119,6 +138,18 @@ export default function SiteStudioPreviewPage() {
   }, [tenantSlug, selectedPageId]);
 
   const activePage = pages.find((p) => p.id === selectedPageId);
+
+  const effectiveTheme: BrandThemeDto = theme || {
+    id: `theme-preview-${brandId || 'default'}`,
+    tenantId: 't1',
+    brandId: brandInfo?.id || brandId || 'b1',
+    ...DEFAULT_THEME_VALUES,
+    customCss: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const cssBlock = ThemeService.generateCssBlock(effectiveTheme);
 
   const previewContext: PageContext = {
     tenant: { id: 't1', name: 'Organization', slug: tenantSlug },
@@ -158,24 +189,8 @@ export default function SiteStudioPreviewPage() {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
-    theme: {
-      id: 'th1',
-      tenantId: 't1',
-      brandId: brandInfo?.id || brandId || 'b1',
-      primaryColor: '#4F46E5',
-      secondaryColor: '#0F172A',
-      accentColor: '#F59E0B',
-      backgroundColor: '#FFFFFF',
-      textColor: '#0F172A',
-      fontHeading: 'Inter, sans-serif',
-      fontBody: 'Inter, sans-serif',
-      buttonRadius: '0.5rem',
-      cardRadius: '0.75rem',
-      customCss: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    cssBlock: ':root { --brand-primary: #4F46E5; }',
+    theme: effectiveTheme,
+    cssBlock,
     navigation: (puckData?.root?.props as any)?.navigation || {
       headerItems: [
         { id: '1', label: 'Home', type: 'INTERNAL_PAGE', target: '/#home', order: 0 },
@@ -305,6 +320,9 @@ export default function SiteStudioPreviewPage() {
         {/* ── Viewport Canvas ── */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className={viewportContainerClass}>
+            {/* Safe Brand Custom CSS Variables & Dynamic Rules */}
+            <style dangerouslySetInnerHTML={{ __html: previewContext.cssBlock }} />
+
             {puckData && puckData.content && puckData.content.length > 0 ? (
               <Render config={siteStudioPuckConfig} data={puckData} />
             ) : (

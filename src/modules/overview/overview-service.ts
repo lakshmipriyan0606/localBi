@@ -17,6 +17,7 @@ export interface OverviewLocationMapItem {
   rate: string;
   trend: number;
   isHq?: boolean;
+  dataQualityWarning?: string | undefined;
 }
 
 export interface OverviewLocationRankingItem {
@@ -27,6 +28,7 @@ export interface OverviewLocationRankingItem {
   conversions: number;
   rate: string;
   trend: number;
+  dataQualityWarning?: string | undefined;
 }
 
 export interface OverviewGscQueryItem {
@@ -51,6 +53,15 @@ export interface OverviewTrendPoint {
 export interface OverviewOptions {
   brandId?: string | undefined;
   days?: number | undefined;
+}
+
+export interface OverviewMetricProvenance {
+  userMetricType: 'daily_active_users_sum';
+  userMetricDescription: string;
+  conversionRateType: 'session_based' | 'user_based';
+  conversionRateFormula: string;
+  dataScope: string;
+  qualityWarnings: string[];
 }
 
 export interface OverviewDataDto {
@@ -81,12 +92,15 @@ export interface OverviewDataDto {
   gbp: {
     profileViews: number;
     profileViewsDelta?: number;
+    searchImpressions?: number;
+    mapsImpressions?: number;
     calls: number;
     callsDelta?: number;
     directions: number;
     directionsDelta?: number;
     reviews: number;
     reviewsDelta?: number;
+    websiteClicks?: number;
     photoViews: number;
     photoViewsDelta?: number;
     hasData: boolean;
@@ -118,11 +132,15 @@ export interface OverviewDataDto {
     conversionRateDelta?: number;
     conversions: number;
     conversionsDelta?: number;
+    userMetricType?: 'daily_active_users_sum';
+    conversionRateType?: 'session_based' | 'user_based';
     hasData: boolean;
     isMapped?: boolean;
     locations: OverviewLocationMapItem[];
     rankings: OverviewLocationRankingItem[];
   };
+  metricProvenance?: OverviewMetricProvenance;
+  dataQualityWarnings?: string[];
 }
 
 /**
@@ -178,12 +196,15 @@ export class OverviewService {
       gbp: {
         profileViews: 0,
         profileViewsDelta: undefined,
+        searchImpressions: 0,
+        mapsImpressions: 0,
         calls: 0,
         callsDelta: undefined,
         directions: 0,
         directionsDelta: undefined,
         reviews: 0,
         reviewsDelta: undefined,
+        websiteClicks: 0,
         photoViews: 0,
         photoViewsDelta: undefined,
         hasData: false,
@@ -215,11 +236,24 @@ export class OverviewService {
         conversionRateDelta: undefined,
         conversions: 0,
         conversionsDelta: undefined,
+        userMetricType: 'daily_active_users_sum',
+        conversionRateType: 'session_based',
         hasData: false,
         isMapped: false,
         locations: [],
         rankings: [],
       },
+      metricProvenance: {
+        userMetricType: 'daily_active_users_sum',
+        userMetricDescription:
+          'Sum of daily active users across selected date range (not deduplicated unique users across days).',
+        conversionRateType: 'session_based',
+        conversionRateFormula: 'Total conversions / Total web sessions * 100',
+        dataScope:
+          'GA4 analytics metrics reflect traffic from the active brand mapped property stream.',
+        qualityWarnings: [],
+      },
+      dataQualityWarnings: [],
     };
   }
 
@@ -296,7 +330,13 @@ export class OverviewService {
 
         const locationsCount = brandLocations.length;
         const locationIds = brandLocations.map((l) => l.id);
-        const categoriesCount = Math.max(locationsCount * 2, brandsCount > 0 ? 8 : 0);
+        const categoriesCount = await tx.category.count({
+          where: {
+            tenantId,
+            ...(activeBrandId ? { brandId: activeBrandId } : {}),
+            status: 'ACTIVE',
+          },
+        });
 
         // 4. Mappings for the active brand
         const brandMappings = activeBrandId
@@ -547,12 +587,184 @@ export class OverviewService {
             ? Math.round((prevGscSumPos / prevGscImpressions) * 10) / 10
             : 0;
 
-        // 8. GA4 Web Analytics Mapping for this brand
-        const hasWebData = brandMappings.some(
-          (m) => m.resource?.provider === 'GOOGLE_ANALYTICS_4'
-        );
+        // 8. GA4 Web Analytics & Real Conversions (Leads + Inbound Calls)
+        const [currentGa4, prevGa4] = await Promise.all([
+          tx.ga4DailyMetric.findMany({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              date: { gte: currentStart, lte: currentEnd },
+            },
+          }),
+          tx.ga4DailyMetric.findMany({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              date: { gte: previousStart, lt: currentStart },
+            },
+          }),
+        ]);
 
-        // Real locations for Map (Strictly using validated persisted coordinates - zero fabricated lat/lng)
+        let webUsers = 0;
+        let webSessions = 0;
+        let webEngagedSessions = 0;
+        let webGa4KeyEvents = 0;
+        for (const row of currentGa4) {
+          webUsers += row.activeUsers;
+          webSessions += row.sessions;
+          webEngagedSessions += row.engagedSessions;
+          webGa4KeyEvents += row.keyEvents;
+        }
+
+        let prevWebUsers = 0;
+        let prevWebSessions = 0;
+        let prevWebEngagedSessions = 0;
+        let prevWebGa4KeyEvents = 0;
+        for (const row of prevGa4) {
+          prevWebUsers += row.activeUsers;
+          prevWebSessions += row.sessions;
+          prevWebEngagedSessions += row.engagedSessions;
+          prevWebGa4KeyEvents += row.keyEvents;
+        }
+
+        // Aggregate brand-scoped application leads and calls (deduplicating calls linked to leads)
+        const [currentLeads, prevLeads, currentDirectCalls, prevDirectCalls] = await Promise.all([
+          tx.lead.count({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              createdAt: { gte: currentStart, lte: currentEnd },
+            },
+          }),
+          tx.lead.count({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              createdAt: { gte: previousStart, lt: currentStart },
+            },
+          }),
+          tx.call.count({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              direction: 'INBOUND',
+              status: { in: ['ANSWERED', 'COMPLETED'] },
+              leadId: null,
+              startedAt: { gte: currentStart, lte: currentEnd },
+            },
+          }),
+          tx.call.count({
+            where: {
+              tenantId,
+              ...(activeBrandId ? { brandId: activeBrandId } : {}),
+              direction: 'INBOUND',
+              status: { in: ['ANSWERED', 'COMPLETED'] },
+              leadId: null,
+              startedAt: { gte: previousStart, lt: currentStart },
+            },
+          }),
+        ]);
+
+        const appConversions = currentLeads + currentDirectCalls;
+        const prevAppConversions = prevLeads + prevDirectCalls;
+
+        // Total conversions: prefer GA4 keyEvents if available, otherwise application conversions
+        const totalConversions = webGa4KeyEvents > 0 ? webGa4KeyEvents : appConversions;
+        const prevTotalConversions = prevWebGa4KeyEvents > 0 ? prevWebGa4KeyEvents : prevAppConversions;
+
+        // In GA4 and standard analytics, conversion rate is session-based (totalConversions / webSessions)
+        const isSessionBased = webSessions > 0;
+        const convDenominator = isSessionBased ? webSessions : webUsers;
+        const webConversionRate = convDenominator > 0
+          ? Math.round((totalConversions / convDenominator) * 1000) / 10
+          : 0;
+
+        const prevIsSessionBased = prevWebSessions > 0;
+        const prevConvDenominator = prevIsSessionBased ? prevWebSessions : prevWebUsers;
+        const prevWebConversionRate = prevConvDenominator > 0
+          ? Math.round((prevTotalConversions / prevConvDenominator) * 1000) / 10
+          : 0;
+
+        const hasGa4Data = currentGa4.length > 0;
+        const isWebMapped = brandMappings.some((m) => m.resource?.provider === 'GOOGLE_ANALYTICS_4');
+        const hasWebData = hasGa4Data || appConversions > 0 || isWebMapped;
+
+        const dataQualityWarnings: string[] = [];
+        if (currentGa4.length > 0) {
+          dataQualityWarnings.push(
+            'Web Users represents the sum of daily active users across the date range, not deduplicated unique users across days.'
+          );
+        }
+        if (totalConversions > webSessions && webSessions > 0) {
+          dataQualityWarnings.push(
+            'Total web conversions exceed tracked web sessions (direct phone calls or offline conversions included).'
+          );
+        }
+
+        // Group conversions and visitor events by location
+        const leadMap = new Map<string, number>();
+        const callMap = new Map<string, number>();
+        const eventMap = new Map<string, number>();
+
+        if (locationIds.length > 0) {
+          const [leadsByLocation, callsByLocation, eventsByLocation] = await Promise.all([
+            tx.lead.groupBy({
+              by: ['storeId'],
+              where: {
+                tenantId,
+                storeId: { in: locationIds },
+                createdAt: { gte: currentStart, lte: currentEnd },
+              },
+              _count: { id: true },
+            }),
+            tx.call.groupBy({
+              by: ['storeId'],
+              where: {
+                tenantId,
+                storeId: { in: locationIds },
+                direction: 'INBOUND',
+                status: { in: ['ANSWERED', 'COMPLETED'] },
+                leadId: null,
+                startedAt: { gte: currentStart, lte: currentEnd },
+              },
+              _count: { id: true },
+            }),
+            tx.attributionEvent.findMany({
+              where: {
+                tenantId,
+                storeId: { in: locationIds },
+                occurredAt: { gte: currentStart, lte: currentEnd },
+              },
+              select: {
+                storeId: true,
+                visitorId: true,
+                sessionId: true,
+                id: true,
+              },
+            }),
+          ]);
+
+          for (const l of leadsByLocation) {
+            if (l.storeId) leadMap.set(l.storeId, l._count.id);
+          }
+          for (const c of callsByLocation) {
+            if (c.storeId) callMap.set(c.storeId, c._count.id);
+          }
+
+          // Deduplicate repeated events by the same visitor to compute honest distinct users per location
+          const userSetByLocation = new Map<string, Set<string>>();
+          for (const e of eventsByLocation) {
+            if (!e.storeId) continue;
+            const set = userSetByLocation.get(e.storeId) || new Set<string>();
+            set.add(e.visitorId || e.sessionId || e.id);
+            userSetByLocation.set(e.storeId, set);
+          }
+          for (const [storeId, userSet] of userSetByLocation.entries()) {
+            eventMap.set(storeId, userSet.size);
+          }
+        }
+
+        // Real locations for Map (Strictly using validated persisted coordinates)
         const realMapLocations: OverviewLocationMapItem[] = brandLocations.map((loc, idx) => {
           const isUS = loc.country.toUpperCase() === 'US' || loc.country.toUpperCase() === 'USA';
           const isIN = loc.country.toUpperCase() === 'IN' || loc.country.toUpperCase() === 'IND';
@@ -570,6 +782,32 @@ export class OverviewService {
             loc.longitude <= 180 &&
             !(loc.latitude === 0 && loc.longitude === 0);
 
+          const convs = (leadMap.get(loc.id) || 0) + (callMap.get(loc.id) || 0);
+          const recordedUsers = eventMap.get(loc.id) || 0;
+          let rate: string;
+          let warning: string | undefined;
+
+          // Requirement 1 & 2 & 3: Never fabricate users via Math.max(users, conversions).
+          // Define user-based conversion rate honestly. Handle zero denominators and conversions exceeding users.
+          if (recordedUsers === 0) {
+            if (convs === 0) {
+              rate = '0.0%';
+            } else {
+              rate = 'N/A';
+              warning = 'Conversions recorded without online web visits (direct phone or offline inquiries)';
+            }
+          } else {
+            const rawRate = (convs / recordedUsers) * 100;
+            rate = `${rawRate.toFixed(1)}%`;
+            if (convs > recordedUsers) {
+              warning = 'Direct calls or conversions exceed online visitors (omnichannel/offline inquiries)';
+            }
+          }
+
+          if (warning && !dataQualityWarnings.includes('One or more locations recorded conversions exceeding tracked online visitors.')) {
+            dataQualityWarnings.push('One or more locations recorded conversions exceeding tracked online visitors.');
+          }
+
           return {
             id: loc.id,
             name: loc.name,
@@ -579,46 +817,51 @@ export class OverviewService {
             flag,
             lat: isValidCoord ? loc.latitude! : 0,
             lng: isValidCoord ? loc.longitude! : 0,
-            users: 0,
-            conversions: 0,
-            rate: '0.0%',
+            users: recordedUsers,
+            conversions: convs,
+            rate,
             trend: 0,
             isHq: idx === 0,
+            dataQualityWarning: warning,
           };
         });
 
-        // Real location rankings (Tenant & brand scoped, populated from actual conversions)
-        let realRankings: OverviewLocationRankingItem[] = [];
-        if (locationIds.length > 0) {
-          const leadsByLocation = await tx.lead.groupBy({
-            by: ['storeId'],
-            where: {
-              tenantId,
-              storeId: { in: locationIds },
-              createdAt: { gte: currentStart, lte: currentEnd },
-            },
-            _count: { id: true },
-          });
+        // Real location rankings (Strictly from real database records, zero synthetic multipliers)
+        const realRankings: OverviewLocationRankingItem[] = brandLocations
+          .map((loc) => {
+            const convs = (leadMap.get(loc.id) || 0) + (callMap.get(loc.id) || 0);
+            const recordedUsers = eventMap.get(loc.id) || 0;
+            let rate: string;
+            let warning: string | undefined;
 
-          const leadMap = new Map(
-            leadsByLocation
-              .filter((l) => Boolean(l.storeId))
-              .map((l) => [l.storeId!, l._count.id])
-          );
+            if (recordedUsers === 0) {
+              if (convs === 0) {
+                rate = '0.0%';
+              } else {
+                rate = 'N/A';
+                warning = 'Conversions recorded without online web visits (direct phone or offline inquiries)';
+              }
+            } else {
+              const rawRate = (convs / recordedUsers) * 100;
+              rate = `${rawRate.toFixed(1)}%`;
+              if (convs > recordedUsers) {
+                warning = 'Direct calls or conversions exceed online visitors (omnichannel/offline inquiries)';
+              }
+            }
 
-          realRankings = brandLocations.map((loc, idx) => {
-            const convs = leadMap.get(loc.id) || 0;
             return {
-              rank: idx + 1,
+              rank: 1,
               name: loc.name,
               region: loc.country.toUpperCase(),
-              users: convs > 0 ? convs * 5 : 0,
+              users: recordedUsers,
               conversions: convs,
-              rate: convs > 0 ? '20.0%' : '0.0%',
+              rate,
               trend: 0,
+              dataQualityWarning: warning,
             };
-          });
-        }
+          })
+          .sort((a, b) => b.conversions - a.conversions || b.users - a.users)
+          .map((item, idx) => ({ ...item, rank: idx + 1 }));
 
         // 9. Derive Sync Status and Honest Data Readiness State
         const syncStatus: 'idle' | 'syncing' | 'synced' | 'error' | 'pending' =
@@ -646,7 +889,7 @@ export class OverviewService {
           dataReadiness = 'not_configured';
         } else if (syncStatus === 'syncing') {
           dataReadiness = 'syncing';
-        } else if (hasGscData || hasGbpData || totalReviews > 0) {
+        } else if (hasGscData || hasGbpData || hasGa4Data || totalReviews > 0 || appConversions > 0) {
           dataReadiness = 'ready';
         } else {
           dataReadiness = 'no_data';
@@ -684,12 +927,15 @@ export class OverviewService {
           gbp: {
             profileViews: totalProfileViews,
             profileViewsDelta: calculateDeltaPercent(totalProfileViews, prevTotalProfileViews),
+            searchImpressions: gbpSearchViews,
+            mapsImpressions: gbpMapsViews,
             calls: gbpCalls,
             callsDelta: calculateDeltaPercent(gbpCalls, prevGbpCalls),
             directions: gbpDirections,
             directionsDelta: calculateDeltaPercent(gbpDirections, prevGbpDirections),
             reviews: totalReviews,
             reviewsDelta: undefined,
+            websiteClicks: gbpWebsiteClicks,
             photoViews: gbpWebsiteClicks,
             photoViewsDelta: undefined,
             hasData: hasGbpData || totalReviews > 0,
@@ -714,21 +960,36 @@ export class OverviewService {
             trendData: gscTrend,
           },
           web: {
-            users: 0,
-            usersDelta: undefined,
-            sessions: 0,
-            sessionsDelta: undefined,
-            engagedSessions: 0,
-            engagedSessionsDelta: undefined,
-            conversionRate: 0,
-            conversionRateDelta: undefined,
-            conversions: 0,
-            conversionsDelta: undefined,
+            users: webUsers,
+            usersDelta: calculateDeltaPercent(webUsers, prevWebUsers),
+            sessions: webSessions,
+            sessionsDelta: calculateDeltaPercent(webSessions, prevWebSessions),
+            engagedSessions: webEngagedSessions,
+            engagedSessionsDelta: calculateDeltaPercent(webEngagedSessions, prevWebEngagedSessions),
+            conversionRate: webConversionRate,
+            conversionRateDelta: calculateDeltaPercent(webConversionRate, prevWebConversionRate),
+            conversions: totalConversions,
+            conversionsDelta: calculateDeltaPercent(totalConversions, prevTotalConversions),
+            userMetricType: 'daily_active_users_sum',
+            conversionRateType: isSessionBased ? 'session_based' : 'user_based',
             hasData: hasWebData,
-            isMapped: hasWebData,
+            isMapped: isWebMapped,
             locations: realMapLocations,
             rankings: realRankings,
           },
+          metricProvenance: {
+            userMetricType: 'daily_active_users_sum',
+            userMetricDescription:
+              'Sum of daily active users across selected date range (not deduplicated unique users across days).',
+            conversionRateType: isSessionBased ? 'session_based' : 'user_based',
+            conversionRateFormula: isSessionBased
+              ? 'Total conversions / Total web sessions * 100'
+              : 'Total conversions / Daily active users sum * 100',
+            dataScope:
+              "GA4 analytics metrics reflect traffic from the active brand's mapped GA4 property stream. If corporate domain and LocalBi storefront share the same measurement stream, figures represent combined property traffic.",
+            qualityWarnings: dataQualityWarnings,
+          },
+          dataQualityWarnings,
         };
       });
     } catch (err) {
